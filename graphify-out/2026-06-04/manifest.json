@@ -1,0 +1,367 @@
+{
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\gemini-code-1780575064729.json": {
+    "mtime": 1780575108.357114,
+    "ast_hash": "b7d9c612df05f66615b710e9f4653d66",
+    "semantic_hash": "b7d9c612df05f66615b710e9f4653d66"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\package.json": {
+    "mtime": 1780575420.1699214,
+    "ast_hash": "af907835b73e17ca4c966b9b28f42ba3",
+    "semantic_hash": "af907835b73e17ca4c966b9b28f42ba3"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\nest-cli.json": {
+    "mtime": 1780554190.5864346,
+    "ast_hash": "fa439650fa28a1a7aa8c2b6d81c8cc20",
+    "semantic_hash": "fa439650fa28a1a7aa8c2b6d81c8cc20"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\package.json": {
+    "mtime": 1780579299.6157267,
+    "ast_hash": "ba5f190f3544a8cf8448f5a2f788aedc",
+    "semantic_hash": "ba5f190f3544a8cf8448f5a2f788aedc"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\tsconfig.json": {
+    "mtime": 1780554190.3493288,
+    "ast_hash": "c10c75f7efede6ce7ee49a40eb724684",
+    "semantic_hash": "c10c75f7efede6ce7ee49a40eb724684"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\scripts\\clear-all.ts": {
+    "mtime": 1780568881.9923456,
+    "ast_hash": "a07e142f8e2139463228d72072c92e43",
+    "semantic_hash": "a07e142f8e2139463228d72072c92e43"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\scripts\\migrate-graph-topology.ts": {
+    "mtime": 1780569502.358416,
+    "ast_hash": "b3c2f769cbcb43ffb1fcc885e90fb724",
+    "semantic_hash": "b3c2f769cbcb43ffb1fcc885e90fb724"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\scripts\\publisher-agent.ts": {
+    "mtime": 1780575546.194885,
+    "ast_hash": "e35bb6ac54ea686d8c90fae603757ff0",
+    "semantic_hash": "e35bb6ac54ea686d8c90fae603757ff0"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\scripts\\seed-decisions.ts": {
+    "mtime": 1780575404.6873386,
+    "ast_hash": "ed65253f51fec30e76f817b055337e71",
+    "semantic_hash": "ed65253f51fec30e76f817b055337e71"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\scripts\\seeker-agent.ts": {
+    "mtime": 1780571211.5206716,
+    "ast_hash": "5fab3110c9bd6a02df26560035de479d",
+    "semantic_hash": "5fab3110c9bd6a02df26560035de479d"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\scripts\\sync-gemini-decisions.ts": {
+    "mtime": 1780575399.9993653,
+    "ast_hash": "0dc87f13ec91a0bcee509d1bf9399e29",
+    "semantic_hash": "0dc87f13ec91a0bcee509d1bf9399e29"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\scripts\\test-cypher-delta.ts": {
+    "mtime": 1780582955.623696,
+    "ast_hash": "ea8776d34a00e08ebcd557f5d9fa37ef",
+    "semantic_hash": "ea8776d34a00e08ebcd557f5d9fa37ef"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\app.module.ts": {
+    "mtime": 1780579290.4623358,
+    "ast_hash": "3153ea57a53e88299e03a1f6a30ca664",
+    "semantic_hash": "3153ea57a53e88299e03a1f6a30ca664"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\main.ts": {
+    "mtime": 1780554211.8424842,
+    "ast_hash": "6ab8ea32de6fd07b63ef7a179aaa05ab",
+    "semantic_hash": "6ab8ea32de6fd07b63ef7a179aaa05ab"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\api\\api.controller.ts": {
+    "mtime": 1780571212.5393877,
+    "ast_hash": "89872eb6bb0f99b01a12ace151280062",
+    "semantic_hash": "89872eb6bb0f99b01a12ace151280062"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\falkordb\\cypher-delta.ts": {
+    "mtime": 1780582978.557559,
+    "ast_hash": "e624289e96bf5095416ac73d09c91a7a",
+    "semantic_hash": "e624289e96bf5095416ac73d09c91a7a"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\falkordb\\falkordb.service.ts": {
+    "mtime": 1780582987.5571434,
+    "ast_hash": "954d4586c9fe3861609fda79b68d775b",
+    "semantic_hash": "954d4586c9fe3861609fda79b68d775b"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\ingress\\signal-ingress.service.ts": {
+    "mtime": 1780571151.6351018,
+    "ast_hash": "bd72e9a0e2be5106c766e837efecfd9b",
+    "semantic_hash": "bd72e9a0e2be5106c766e837efecfd9b"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\kafka\\signal-producer.service.ts": {
+    "mtime": 1780571150.3626256,
+    "ast_hash": "959a07c507040eb9f1939d34cb9ec275",
+    "semantic_hash": "959a07c507040eb9f1939d34cb9ec275"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\lib\\discover-topics.ts": {
+    "mtime": 1780571218.5971353,
+    "ast_hash": "792ba7f18ebc653e356e10662e2fce46",
+    "semantic_hash": "792ba7f18ebc653e356e10662e2fce46"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\lib\\event-sourced.config.ts": {
+    "mtime": 1780571146.2027855,
+    "ast_hash": "2184a3841041489ab5070a14f24bba8a",
+    "semantic_hash": "2184a3841041489ab5070a14f24bba8a"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\lib\\gemini-deltas.ts": {
+    "mtime": 1780575399.6471264,
+    "ast_hash": "7fbbe2cd1a4389d52f6c6dd5a8b041db",
+    "semantic_hash": "7fbbe2cd1a4389d52f6c6dd5a8b041db"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\lib\\graph-topology.ts": {
+    "mtime": 1780575416.0843349,
+    "ast_hash": "118bf4eb54afb765d880c179f9c6f8d7",
+    "semantic_hash": "118bf4eb54afb765d880c179f9c6f8d7"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\lib\\kafka-headers.ts": {
+    "mtime": 1780571249.688583,
+    "ast_hash": "991b3a1bb3267754e25906cd65775088",
+    "semantic_hash": "991b3a1bb3267754e25906cd65775088"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\lib\\normalize.ts": {
+    "mtime": 1780582578.6454186,
+    "ast_hash": "b92ba100a9ca0035c5fac58106f986f4",
+    "semantic_hash": "b92ba100a9ca0035c5fac58106f986f4"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\lib\\pipeline-config.ts": {
+    "mtime": 1780575400.1300218,
+    "ast_hash": "18cc66aa416cedf4b879fe1a907636c7",
+    "semantic_hash": "18cc66aa416cedf4b879fe1a907636c7"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\schemas\\decision.schema.ts": {
+    "mtime": 1780554200.331781,
+    "ast_hash": "0f10260c7f190f33867393593af820fd",
+    "semantic_hash": "0f10260c7f190f33867393593af820fd"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\workers\\publisher-worker.service.ts": {
+    "mtime": 1780582989.8066933,
+    "ast_hash": "332fda6207c66a0f6d1740d4e4a5a5a1",
+    "semantic_hash": "332fda6207c66a0f6d1740d4e4a5a5a1"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\workers\\seeker-worker.service.ts": {
+    "mtime": 1780582980.7157335,
+    "ast_hash": "32a024709413c0d89af730b0704dc69c",
+    "semantic_hash": "32a024709413c0d89af730b0704dc69c"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\backend\\src\\ws\\events.gateway.ts": {
+    "mtime": 1780582807.1242485,
+    "ast_hash": "78260660aa9b8561ed0267ac34dd729a",
+    "semantic_hash": "78260660aa9b8561ed0267ac34dd729a"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-seek-User_902.json": {
+    "mtime": 1780569489.4168456,
+    "ast_hash": "4dbdc5616f2e347d35db2c2fc5f8d000",
+    "semantic_hash": "4dbdc5616f2e347d35db2c2fc5f8d000"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_001.json": {
+    "mtime": 1780575426.6545227,
+    "ast_hash": "bfebb5dcd492bcfa5723c9168ec4f55c",
+    "semantic_hash": "bfebb5dcd492bcfa5723c9168ec4f55c"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_002.json": {
+    "mtime": 1780575426.6545227,
+    "ast_hash": "1cbab79041d298f39c1dd267b7eab211",
+    "semantic_hash": "1cbab79041d298f39c1dd267b7eab211"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_003.json": {
+    "mtime": 1780575426.655999,
+    "ast_hash": "7fead5b79d677e3980a2e62d8145907e",
+    "semantic_hash": "7fead5b79d677e3980a2e62d8145907e"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_004.json": {
+    "mtime": 1780575426.6571014,
+    "ast_hash": "0a1c41d4710f3b0a4ecedc953371bc27",
+    "semantic_hash": "0a1c41d4710f3b0a4ecedc953371bc27"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_005.json": {
+    "mtime": 1780575426.6589262,
+    "ast_hash": "218d5370b802a899fffe929c8cc90c26",
+    "semantic_hash": "218d5370b802a899fffe929c8cc90c26"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_006.json": {
+    "mtime": 1780575426.65959,
+    "ast_hash": "517f04da8b37e6a9e4e52c1efb16307a",
+    "semantic_hash": "517f04da8b37e6a9e4e52c1efb16307a"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_007.json": {
+    "mtime": 1780575426.6616025,
+    "ast_hash": "ce1ab6f37485a9cff3cb0467f75579ba",
+    "semantic_hash": "ce1ab6f37485a9cff3cb0467f75579ba"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_008.json": {
+    "mtime": 1780575426.6978786,
+    "ast_hash": "96086d5a71c29f80513b664e70f9c42b",
+    "semantic_hash": "96086d5a71c29f80513b664e70f9c42b"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_009.json": {
+    "mtime": 1780575426.7085142,
+    "ast_hash": "15821ef91bd7d0dec163214449315a9f",
+    "semantic_hash": "15821ef91bd7d0dec163214449315a9f"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_010.json": {
+    "mtime": 1780575426.722368,
+    "ast_hash": "940e3214c7ec787bbfac96d1a69c4372",
+    "semantic_hash": "940e3214c7ec787bbfac96d1a69c4372"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_011.json": {
+    "mtime": 1780575426.7278893,
+    "ast_hash": "526e8a81ef2ec23b20b3ca71527f6512",
+    "semantic_hash": "526e8a81ef2ec23b20b3ca71527f6512"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_012.json": {
+    "mtime": 1780575426.7278893,
+    "ast_hash": "c5be7d3871f1654462a3f7505d296909",
+    "semantic_hash": "c5be7d3871f1654462a3f7505d296909"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_013.json": {
+    "mtime": 1780575426.729108,
+    "ast_hash": "d2e167ffe1dd7a16272c66c33973520a",
+    "semantic_hash": "d2e167ffe1dd7a16272c66c33973520a"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_014.json": {
+    "mtime": 1780575426.7296124,
+    "ast_hash": "160a6d41763d54e8adc90d311806f991",
+    "semantic_hash": "160a6d41763d54e8adc90d311806f991"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_015.json": {
+    "mtime": 1780575426.7296124,
+    "ast_hash": "5c8b7314285f73e60b80ed8fa45070d4",
+    "semantic_hash": "5c8b7314285f73e60b80ed8fa45070d4"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_016.json": {
+    "mtime": 1780575426.7307882,
+    "ast_hash": "ef678caceca59f5a5ed4c05861f549c0",
+    "semantic_hash": "ef678caceca59f5a5ed4c05861f549c0"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_017.json": {
+    "mtime": 1780575426.7307882,
+    "ast_hash": "f28f6c83a97108cd8bd0b768d90ca6cc",
+    "semantic_hash": "f28f6c83a97108cd8bd0b768d90ca6cc"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_018.json": {
+    "mtime": 1780575426.7316878,
+    "ast_hash": "e8333d840a59bef2ac167c704ace01af",
+    "semantic_hash": "e8333d840a59bef2ac167c704ace01af"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_019.json": {
+    "mtime": 1780575426.732194,
+    "ast_hash": "f66cc4bb3bb45a41512859dfb6acc629",
+    "semantic_hash": "f66cc4bb3bb45a41512859dfb6acc629"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\decisions\\dec-trd_020.json": {
+    "mtime": 1780575426.732194,
+    "ast_hash": "2aad8300163c20ce6da970b1185a68f5",
+    "semantic_hash": "2aad8300163c20ce6da970b1185a68f5"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\data\\sample\\decisions-batch.json": {
+    "mtime": 1780508508.466124,
+    "ast_hash": "416f94357bf17c34f6162a73e3c9b2ce",
+    "semantic_hash": "416f94357bf17c34f6162a73e3c9b2ce"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\frontend\\next-env.d.ts": {
+    "mtime": 1780554788.5644805,
+    "ast_hash": "90426577ad8f38459f3e566411c85589",
+    "semantic_hash": "90426577ad8f38459f3e566411c85589"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\frontend\\next.config.js": {
+    "mtime": 1780554783.7850332,
+    "ast_hash": "d5ec4d32947b85f4ab0e0446643c49ca",
+    "semantic_hash": "d5ec4d32947b85f4ab0e0446643c49ca"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\frontend\\package.json": {
+    "mtime": 1780554710.6104493,
+    "ast_hash": "a8051f4d00f86b41800e2052845c13b9",
+    "semantic_hash": "a8051f4d00f86b41800e2052845c13b9"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\frontend\\tsconfig.json": {
+    "mtime": 1780554788.5616574,
+    "ast_hash": "63f5dee5d2f1c9f6993f332369ebb5c4",
+    "semantic_hash": "63f5dee5d2f1c9f6993f332369ebb5c4"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\frontend\\app\\layout.tsx": {
+    "mtime": 1780554220.856266,
+    "ast_hash": "805dec8d7e19fdce9382bf4e22c9e97e",
+    "semantic_hash": "805dec8d7e19fdce9382bf4e22c9e97e"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\frontend\\app\\page.tsx": {
+    "mtime": 1780582984.4265585,
+    "ast_hash": "77a45a537069529d5adf3e2d73513567",
+    "semantic_hash": "77a45a537069529d5adf3e2d73513567"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\frontend\\app\\lib\\tree-layout.ts": {
+    "mtime": 1780569560.9982953,
+    "ast_hash": "f582150f5ad2b615676a1f0e1e274034",
+    "semantic_hash": "f582150f5ad2b615676a1f0e1e274034"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\schema\\decision-event.schema.json": {
+    "mtime": 1780552823.9988751,
+    "ast_hash": "893e81cb5fc7b4bd2f096ed8c48436b7",
+    "semantic_hash": "893e81cb5fc7b4bd2f096ed8c48436b7"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\cli.py": {
+    "mtime": 1780552823.9988751,
+    "ast_hash": "ed1b38fd389e411b275cbbc5d4b7548b",
+    "semantic_hash": "ed1b38fd389e411b275cbbc5d4b7548b"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\falkordb_store.py": {
+    "mtime": 1780552824.0191162,
+    "ast_hash": "133e30939d2d94c77ff36a42d640f733",
+    "semantic_hash": "133e30939d2d94c77ff36a42d640f733"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\graph_topology.py": {
+    "mtime": 1780563738.5580993,
+    "ast_hash": "7e78c3cfe7dc2213ce6115bc99092e82",
+    "semantic_hash": "7e78c3cfe7dc2213ce6115bc99092e82"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\ingest.py": {
+    "mtime": 1780552824.0191162,
+    "ast_hash": "92875a828871e6cf991c0af7ee597585",
+    "semantic_hash": "92875a828871e6cf991c0af7ee597585"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\io.py": {
+    "mtime": 1780552824.02056,
+    "ast_hash": "36cb311a8af6b3bf402c2444396165dc",
+    "semantic_hash": "36cb311a8af6b3bf402c2444396165dc"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\models.py": {
+    "mtime": 1780552824.017107,
+    "ast_hash": "4e3b21ae7d417e09f371642888f1b55e",
+    "semantic_hash": "4e3b21ae7d417e09f371642888f1b55e"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\normalize.py": {
+    "mtime": 1780563790.346287,
+    "ast_hash": "8f04531d9ba0743cfe703f0cfb2d1d27",
+    "semantic_hash": "8f04531d9ba0743cfe703f0cfb2d1d27"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\pipeline.py": {
+    "mtime": 1780552824.017107,
+    "ast_hash": "f054dbe5bcec39b70bf93c55bc807242",
+    "semantic_hash": "f054dbe5bcec39b70bf93c55bc807242"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\redis_store.py": {
+    "mtime": 1780563777.2395372,
+    "ast_hash": "21ecdf7ec9ec007ede206b466f816aa8",
+    "semantic_hash": "21ecdf7ec9ec007ede206b466f816aa8"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\redpanda_store.py": {
+    "mtime": 1780563775.5089116,
+    "ast_hash": "120496990202c21f1457cdb11612db94",
+    "semantic_hash": "120496990202c21f1457cdb11612db94"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\search.py": {
+    "mtime": 1780552824.015092,
+    "ast_hash": "5cbc1e358a2777d3db30ca77d435c7fa",
+    "semantic_hash": "5cbc1e358a2777d3db30ca77d435c7fa"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\wiki.py": {
+    "mtime": 1780552823.9988751,
+    "ast_hash": "ce0f2f77bf5252eddc6ff7d4fefb74dd",
+    "semantic_hash": "ce0f2f77bf5252eddc6ff7d4fefb74dd"
+  },
+  "C:\\Users\\Anjali\\Downloads\\CoT_kb\\src\\cot_kb\\__init__.py": {
+    "mtime": 1780552824.017107,
+    "ast_hash": "d6bf7176e3f3533a7cd3223f9ac1b7ae",
+    "semantic_hash": "d6bf7176e3f3533a7cd3223f9ac1b7ae"
+  }
+}
