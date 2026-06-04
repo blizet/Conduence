@@ -24,7 +24,7 @@ async function main() {
     userNodeId: PUBLISHER_USER_NODE_ID,
   });
   console.log(
-    `Publishing ${events.length} Gemini deltas from ${resolveGeminiDeltasPath()} → ${MARKET_SIGNALS_TOPIC} (${PUBLISHER_GRAPH_ID})`,
+    `Publishing ${events.length} seed deltas from ${resolveGeminiDeltasPath()} → ${MARKET_SIGNALS_TOPIC} (${PUBLISHER_GRAPH_ID})`,
   );
 
   let count = 0;

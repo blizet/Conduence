@@ -3,14 +3,15 @@ import type { Edge, Node } from '@xyflow/react';
 export type SnapshotNode = { id: string; type: string };
 export type SnapshotEdge = { source: string; target: string; type: string };
 
+/** Top-to-bottom: user → protocol → market → trade → feedback/outcome */
 const LAYER: Record<string, number> = {
   user: 0,
   agent: 1,
   protocol: 2,
   market: 3,
   trade: 4,
-  outcome: 5,
   feedback: 5,
+  outcome: 5,
   observation: 3,
 };
 
@@ -26,6 +27,24 @@ function layerOf(type: string): number {
 
 function isCorrelatedEdge(type: string): boolean {
   return /CORRELATED/i.test(type);
+}
+
+function isTradeActionEdge(type: string): boolean {
+  return /^(BUY|SELL)_/i.test(type);
+}
+
+/** Tree spine only: enforce U → P → M → T → (F|O); correlated edges are side branches. */
+function isCanonicalChainEdge(sourceType: string, targetType: string, edgeType: string): boolean {
+  if (isCorrelatedEdge(edgeType)) return false;
+  const s = layerOf(sourceType);
+  const t = layerOf(targetType);
+  if (t <= s) return false;
+  if (sourceType === 'user' && targetType === 'protocol') return true;
+  if (sourceType === 'user' && targetType === 'agent') return true;
+  if (sourceType === 'protocol' && targetType === 'market') return true;
+  if (sourceType === 'market' && targetType === 'trade' && isTradeActionEdge(edgeType)) return true;
+  if (sourceType === 'trade' && (targetType === 'feedback' || targetType === 'outcome')) return true;
+  return t === s + 1;
 }
 
 function findUserRoot(nodes: SnapshotNode[]): string | null {
@@ -79,6 +98,9 @@ export function layoutTree(
   for (const e of rawEdges) {
     if (!nodeMap.has(e.source) || !nodeMap.has(e.target)) continue;
     if (isCorrelatedEdge(e.type)) continue;
+    const srcType = nodeMap.get(e.source)!.type.toLowerCase();
+    const tgtType = nodeMap.get(e.target)!.type.toLowerCase();
+    if (!isCanonicalChainEdge(srcType, tgtType, e.type)) continue;
     const list = children.get(e.source) ?? [];
     list.push({ target: e.target, type: e.type });
     children.set(e.source, list);

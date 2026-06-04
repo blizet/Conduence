@@ -4,17 +4,43 @@ import { DecisionEventSchema, type DecisionEvent } from '../schemas/decision.sch
 import { PUBLISHER_GRAPH_ID } from './pipeline-config';
 import { normalizeDecision } from './normalize';
 
-/** Default Gemini CoT batch at repo root (override with COT_GEMINI_DELTAS). */
-export const DEFAULT_GEMINI_DELTAS_FILE = 'gemini-code-1780575064729.json';
+/** Default CoT decision batch (repo-relative). Override with COT_SEED_DELTAS or COT_GEMINI_DELTAS. */
+export const DEFAULT_SEED_DELTAS_FILE = 'data/sample/decisions-batch.json';
+
+const REPO_ROOT_CANDIDATES = [
+  process.cwd(),
+  join(process.cwd(), '..'),
+  join(process.cwd(), '../..'),
+];
+
+function firstExistingPath(rel: string): string | null {
+  if (existsSync(rel)) return rel;
+  for (const root of REPO_ROOT_CANDIDATES) {
+    const abs = join(root, rel);
+    if (existsSync(abs)) return abs;
+  }
+  return null;
+}
 
 export function resolveGeminiDeltasPath(): string {
-  const rel = process.env.COT_GEMINI_DELTAS ?? DEFAULT_GEMINI_DELTAS_FILE;
-  if (existsSync(rel)) return rel;
-  const fromRepoRoot = join(process.cwd(), rel);
-  if (existsSync(fromRepoRoot)) return fromRepoRoot;
-  const fromBackend = join(process.cwd(), '..', rel);
-  if (existsSync(fromBackend)) return fromBackend;
-  return rel;
+  const configured =
+    process.env.COT_SEED_DELTAS ??
+    process.env.COT_GEMINI_DELTAS ??
+    DEFAULT_SEED_DELTAS_FILE;
+
+  const candidates = [configured, DEFAULT_SEED_DELTAS_FILE].filter(
+    (p, i, arr) => arr.indexOf(p) === i,
+  );
+
+  for (const rel of candidates) {
+    const found = firstExistingPath(rel);
+    if (found) return found;
+  }
+
+  throw new Error(
+    `No decision batch found. Tried: ${candidates.join(', ')} (cwd=${process.cwd()}). ` +
+      `Set COT_SEED_DELTAS=${DEFAULT_SEED_DELTAS_FILE} or place the file at repo root.`,
+  );
 }
 
 function remapUserNodeId(payload: DecisionEvent, targetUserId: string): void {
@@ -32,7 +58,7 @@ function remapUserNodeId(payload: DecisionEvent, targetUserId: string): void {
 }
 
 /**
- * Load CoT deltas from the Gemini JSON array; normalize to publisher graph topology.
+ * Load CoT deltas from the seed JSON array; normalize to publisher graph topology.
  */
 export function loadGeminiDeltas(options?: {
   graphId?: string;
@@ -54,7 +80,7 @@ export function loadGeminiDeltas(options?: {
     try {
       return normalizeDecision(parsed);
     } catch (err) {
-      throw new Error(`Gemini delta #${index + 1} (${item.updated_at ?? '?'}) failed: ${err}`);
+      throw new Error(`Seed delta #${index + 1} (${item.updated_at ?? '?'}) failed: ${err}`);
     }
   });
 }

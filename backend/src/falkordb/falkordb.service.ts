@@ -9,6 +9,8 @@ import type { DecisionEvent } from '../schemas/decision.schema';
 import { escapeCypher, graphName, normalizeDecision } from '../lib/normalize';
 
 import { executeCypherDelta } from './cypher-delta';
+import { parseFalkorRows, rowString } from './falkordb-rows';
+import { computeGraphDelta, snapshotFromRows } from './graph-delta';
 
 
 
@@ -54,17 +56,35 @@ export class FalkorDbService implements OnModuleInit, OnModuleDestroy {
 
     const graph = this.client.selectGraph(graphKey);
 
+    const snapshotRows = await this.getGraphSnapshot(data.graph_id, 10_000);
 
+    const snapshot = snapshotFromRows(snapshotRows.nodes, snapshotRows.edges);
+
+    const delta = computeGraphDelta(snapshot, data);
+
+    const payload: DecisionEvent = { ...data, nodes: delta.nodes };
+
+    if (delta.nodes.length === 0 && delta.edgeOps.length === 0) {
+      return {
+        graph: graphKey,
+        nodes: 0,
+        edges: 0,
+        nodesCreated: 0,
+        edgesCreated: 0,
+        nodesSkipped: delta.stats.nodesSkipped,
+        edgeOpsSkipped: delta.stats.edgeOpsSkipped,
+      };
+    }
 
     const result = await executeCypherDelta(
-
       (cypher, options) => graph.query(cypher, options),
-
-      data,
-
+      payload,
+      {
+        edgeOps: delta.edgeOps,
+        nodesSkipped: delta.stats.nodesSkipped,
+        edgeOpsSkipped: delta.stats.edgeOpsSkipped,
+      },
     );
-
-
 
     return { graph: graphKey, ...result };
 
@@ -178,61 +198,25 @@ export class FalkorDbService implements OnModuleInit, OnModuleDestroy {
 
 
 
-    type QueryRow = Record<string, string | number | null | undefined>;
-
-    const toRows = (
-
-      result: { headers?: string[]; data?: unknown[] },
-
-    ): QueryRow[] => {
-
-      const { headers, data } = result;
-
-      if (!data?.length) return [];
-
-      return data.map((row) => {
-
-        if (Array.isArray(row)) {
-
-          const obj: QueryRow = {};
-
-          headers?.forEach((header, i) => {
-
-            obj[header] = row[i] as string | number | null | undefined;
-
-          });
-
-          return obj;
-
-        }
-
-        return row as QueryRow;
-
-      });
-
-    };
-
-
-
     return {
 
       graph_id: graphId,
 
-      nodes: toRows(nodesResult).map((row) => ({
+      nodes: parseFalkorRows(nodesResult).map((row) => ({
 
-        id: String(row.id ?? ''),
+        id: rowString(row, 'id', 'n.node_id'),
 
-        type: String(row.type ?? 'Entity'),
+        type: rowString(row, 'type') || 'Entity',
 
       })),
 
-      edges: toRows(edgesResult).map((row) => ({
+      edges: parseFalkorRows(edgesResult).map((row) => ({
 
-        source: String(row.source ?? ''),
+        source: rowString(row, 'source', 'a.node_id'),
 
-        target: String(row.target ?? ''),
+        target: rowString(row, 'target', 'b.node_id'),
 
-        type: String(row.type ?? 'REL'),
+        type: rowString(row, 'type', 'type(r)') || 'REL',
 
       })),
 

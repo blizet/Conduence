@@ -75,6 +75,46 @@ function remapLegacyAgent(payload: DecisionEvent, agentId: string): void {
   }
 }
 
+function remapNodeId(payload: DecisionEvent, from: string, to: string): void {
+  const node = payload.nodes.find((n) => n.node_id === from);
+  if (!node || from === to) return;
+  node.node_id = to;
+  for (const edge of payload.edges) {
+    if (edge.source === from) edge.source = to;
+    if (edge.target === from) edge.target = to;
+    if (edge.targets) {
+      edge.targets = edge.targets.map((t) => (t === from ? to : t));
+    }
+  }
+}
+
+/** Stable per-trade leaf id; safe if normalize runs more than once (seed + worker). */
+export function scopedLeafId(leafId: string, tradeId: string): string {
+  const suffix = `__${tradeId}`;
+  let base = leafId;
+  while (base.endsWith(suffix)) base = base.slice(0, -suffix.length);
+  return `${base}${suffix}`;
+}
+
+/** One feedback/outcome node per trade so merged graphs stay U→P→M→T→F/O chains. */
+function scopeTradeLeafNodes(payload: DecisionEvent): void {
+  const tradeIds = new Set<string>();
+  for (const edge of payload.edges) {
+    if (edge.Action && edge.target) tradeIds.add(edge.target);
+  }
+
+  for (const tradeId of tradeIds) {
+    for (const edge of payload.edges) {
+      if (edge.source !== tradeId || !edge.target) continue;
+      const targetNode = payload.nodes.find((n) => n.node_id === edge.target);
+      if (!targetNode) continue;
+      if (targetNode.node_type !== 'feedback' && targetNode.node_type !== 'outcome') continue;
+      const scopedId = scopedLeafId(edge.target, tradeId);
+      if (edge.target !== scopedId) remapNodeId(payload, edge.target, scopedId);
+    }
+  }
+}
+
 function ensureHasAgentEdge(payload: DecisionEvent, userNodeId: string, agentId: string, role: string): void {
   const has = payload.edges.some(
     (e) =>
@@ -129,6 +169,8 @@ export function normalizeDecision(raw: DecisionEvent): DecisionEvent {
   if (!payload.decision_id) {
     payload.decision_id = inferDecisionId(normalizedEdges, payload.updated_at);
   }
+
+  scopeTradeLeafNodes(payload);
 
   payload.nodes = payload.nodes.map((n) => ({
     ...n,
