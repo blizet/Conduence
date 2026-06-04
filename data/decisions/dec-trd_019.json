@@ -1,5 +1,6 @@
 {
   "schema_version": "1.0",
+  "decision_id": "dec-trd_019-open",
   "graph_id": "user_117.publisher.v1",
   "updated_at": "2026-06-04T14:35:00Z",
   "operation": "assert",
@@ -19,19 +20,9 @@
     {
       "node_id": "KAL_CRUDE_OIL",
       "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "PM_CRUDE_OIL",
-      "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "WTI_SPOT",
-      "node_type": "market",
-      "properties": {},
+      "properties": {
+        "anchor": true
+      },
       "label": "Market"
     },
     {
@@ -39,18 +30,6 @@
       "node_type": "trade",
       "properties": {},
       "label": "Trade"
-    },
-    {
-      "node_id": "OUT_NO_CONTRACTS",
-      "node_type": "outcome",
-      "properties": {},
-      "label": "Outcome"
-    },
-    {
-      "node_id": "FB_OPEN",
-      "node_type": "feedback",
-      "properties": {},
-      "label": "Feedback"
     }
   ],
   "edges": [
@@ -71,16 +50,17 @@
     {
       "source": "Kalshi",
       "target": "KAL_CRUDE_OIL",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://kalshi.com",
         "confidence_score": 1
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
       "source": "KAL_CRUDE_OIL",
       "target": "TRD_019",
-      "Action": "Buy NO",
+      "Action": "Open NO",
+      "relationship_type": "OPEN_NO",
       "metadata": {
         "thesis": "Emergency supply reserve distributions fully counteract sudden regional logistical delays. Supply matrix remains flat.",
         "conviction_level": 8,
@@ -92,25 +72,9 @@
         "source_url": "https://kalshi.com/tx/019",
         "confidence_score": 1,
         "timestamp": "2026-06-04T14:31:00Z",
-        "action": "Buy NO"
-      },
-      "relationship_type": "BUY_NO"
-    },
-    {
-      "source": "TRD_019",
-      "target": "OUT_NO_CONTRACTS",
-      "metadata": {
-        "source_url": "https://kalshi.com"
-      },
-      "relationship_type": "CONNECTED_TO"
-    },
-    {
-      "source": "TRD_019",
-      "target": "FB_OPEN",
-      "metadata": {
-        "source_url": "https://kalshi.com"
-      },
-      "relationship_type": "CONNECTED_TO"
+        "action": "Open NO",
+        "lifecycle": "open"
+      }
     },
     {
       "source": "KAL_CRUDE_OIL",
@@ -118,30 +82,11 @@
         "PM_CRUDE_OIL",
         "WTI_SPOT"
       ],
+      "relationship_type": "CORRELATED_MARKET",
       "direction": "bi-directional",
       "metadata": {
         "relationship_type": "correlated_market"
-      },
-      "relationship_type": "CORRELATED_MARKET"
-    },
-    {
-      "source": "PM_CRUDE_OIL",
-      "target": "KAL_CRUDE_OIL",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
-      }
-    },
-    {
-      "source": "WTI_SPOT",
-      "target": "KAL_CRUDE_OIL",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
       }
     }
-  ],
-  "decision_id": "dec-trd_019"
+  ]
 }

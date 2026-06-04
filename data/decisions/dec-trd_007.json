@@ -1,8 +1,9 @@
 {
   "schema_version": "1.0",
+  "decision_id": "dec-trd_006-close",
   "graph_id": "user_117.publisher.v1",
   "updated_at": "2026-06-04T10:40:00Z",
-  "operation": "assert",
+  "operation": "revise",
   "nodes": [
     {
       "node_id": "user_117",
@@ -19,29 +20,25 @@
     {
       "node_id": "KAL_FED_RATE",
       "node_type": "market",
-      "properties": {},
+      "properties": {
+        "anchor": true
+      },
       "label": "Market"
     },
     {
-      "node_id": "PM_FED_RATE",
-      "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "TRD_007",
+      "node_id": "TRD_006",
       "node_type": "trade",
       "properties": {},
       "label": "Trade"
     },
     {
-      "node_id": "OUT_CLOSED_CONTRACTS",
+      "node_id": "OUT_CLOSED_CONTRACTS__TRD_006",
       "node_type": "outcome",
       "properties": {},
       "label": "Outcome"
     },
     {
-      "node_id": "FB_CLOSED_PROFIT",
+      "node_id": "FB_CLOSED_PROFIT__TRD_006",
       "node_type": "feedback",
       "properties": {},
       "label": "Feedback"
@@ -65,16 +62,17 @@
     {
       "source": "Kalshi",
       "target": "KAL_FED_RATE",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://kalshi.com",
         "confidence_score": 1
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
       "source": "KAL_FED_RATE",
-      "target": "TRD_007",
-      "Action": "Sell NO",
+      "target": "TRD_006",
+      "Action": "Close NO",
+      "relationship_type": "CLOSE_NO",
       "metadata": {
         "thesis": "Consensus documentation dropped matching our calculations perfectly. Capital extraction successful.",
         "conviction_level": 9,
@@ -86,46 +84,37 @@
         "source_url": "https://kalshi.com/tx/007",
         "confidence_score": 1,
         "timestamp": "2026-06-04T10:35:00Z",
-        "action": "Sell NO"
-      },
-      "relationship_type": "SELL_NO"
+        "action": "Close NO",
+        "lifecycle": "close",
+        "position_trade_id": "TRD_006"
+      }
     },
     {
-      "source": "TRD_007",
-      "target": "OUT_CLOSED_CONTRACTS",
+      "source": "TRD_006",
+      "target": "OUT_CLOSED_CONTRACTS__TRD_006",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://kalshi.com"
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
-      "source": "TRD_007",
-      "target": "FB_CLOSED_PROFIT",
+      "source": "TRD_006",
+      "target": "FB_CLOSED_PROFIT__TRD_006",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://kalshi.com"
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
       "source": "KAL_FED_RATE",
       "targets": [
         "PM_FED_RATE"
       ],
+      "relationship_type": "CORRELATED_MARKET",
       "direction": "bi-directional",
       "metadata": {
         "relationship_type": "correlated_market"
-      },
-      "relationship_type": "CORRELATED_MARKET"
-    },
-    {
-      "source": "PM_FED_RATE",
-      "target": "KAL_FED_RATE",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
       }
     }
-  ],
-  "decision_id": "dec-trd_007"
+  ]
 }

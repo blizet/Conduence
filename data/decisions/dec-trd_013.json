@@ -1,5 +1,6 @@
 {
   "schema_version": "1.0",
+  "decision_id": "dec-trd_013-open",
   "graph_id": "user_117.publisher.v1",
   "updated_at": "2026-06-04T12:30:00Z",
   "operation": "assert",
@@ -19,19 +20,9 @@
     {
       "node_id": "KAL_UNEMPLOYMENT",
       "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "PM_UNEMPLOYMENT",
-      "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "BLS_CORE_DATA",
-      "node_type": "market",
-      "properties": {},
+      "properties": {
+        "anchor": true
+      },
       "label": "Market"
     },
     {
@@ -39,18 +30,6 @@
       "node_type": "trade",
       "properties": {},
       "label": "Trade"
-    },
-    {
-      "node_id": "OUT_NO_CONTRACTS",
-      "node_type": "outcome",
-      "properties": {},
-      "label": "Outcome"
-    },
-    {
-      "node_id": "FB_OPEN",
-      "node_type": "feedback",
-      "properties": {},
-      "label": "Feedback"
     }
   ],
   "edges": [
@@ -71,16 +50,17 @@
     {
       "source": "Kalshi",
       "target": "KAL_UNEMPLOYMENT",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://kalshi.com",
         "confidence_score": 1
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
       "source": "KAL_UNEMPLOYMENT",
       "target": "TRD_013",
-      "Action": "Buy NO",
+      "Action": "Open NO",
+      "relationship_type": "OPEN_NO",
       "metadata": {
         "thesis": "High-frequency initial claims indexes reflect baseline labor pool stickiness, defying generalized corporate downgrade forecasts.",
         "conviction_level": 8,
@@ -92,25 +72,9 @@
         "source_url": "https://kalshi.com/tx/013",
         "confidence_score": 1,
         "timestamp": "2026-06-04T12:22:00Z",
-        "action": "Buy NO"
-      },
-      "relationship_type": "BUY_NO"
-    },
-    {
-      "source": "TRD_013",
-      "target": "OUT_NO_CONTRACTS",
-      "metadata": {
-        "source_url": "https://kalshi.com"
-      },
-      "relationship_type": "CONNECTED_TO"
-    },
-    {
-      "source": "TRD_013",
-      "target": "FB_OPEN",
-      "metadata": {
-        "source_url": "https://kalshi.com"
-      },
-      "relationship_type": "CONNECTED_TO"
+        "action": "Open NO",
+        "lifecycle": "open"
+      }
     },
     {
       "source": "KAL_UNEMPLOYMENT",
@@ -118,30 +82,11 @@
         "PM_UNEMPLOYMENT",
         "BLS_CORE_DATA"
       ],
+      "relationship_type": "CORRELATED_MARKET",
       "direction": "bi-directional",
       "metadata": {
         "relationship_type": "correlated_market"
-      },
-      "relationship_type": "CORRELATED_MARKET"
-    },
-    {
-      "source": "PM_UNEMPLOYMENT",
-      "target": "KAL_UNEMPLOYMENT",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
-      }
-    },
-    {
-      "source": "BLS_CORE_DATA",
-      "target": "KAL_UNEMPLOYMENT",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
       }
     }
-  ],
-  "decision_id": "dec-trd_013"
+  ]
 }

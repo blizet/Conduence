@@ -1,5 +1,6 @@
 {
   "schema_version": "1.0",
+  "decision_id": "dec-trd_018-open",
   "graph_id": "user_117.publisher.v1",
   "updated_at": "2026-06-04T14:15:00Z",
   "operation": "assert",
@@ -19,25 +20,9 @@
     {
       "node_id": "PM_DOT_20",
       "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "KAL_DOT_20",
-      "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "PM_DOT_25",
-      "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "PM_KSM_50",
-      "node_type": "market",
-      "properties": {},
+      "properties": {
+        "anchor": true
+      },
       "label": "Market"
     },
     {
@@ -45,18 +30,6 @@
       "node_type": "trade",
       "properties": {},
       "label": "Trade"
-    },
-    {
-      "node_id": "OUT_YES_SHARES",
-      "node_type": "outcome",
-      "properties": {},
-      "label": "Outcome"
-    },
-    {
-      "node_id": "FB_OPEN",
-      "node_type": "feedback",
-      "properties": {},
-      "label": "Feedback"
     }
   ],
   "edges": [
@@ -77,16 +50,17 @@
     {
       "source": "Polymarket",
       "target": "PM_DOT_20",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://polymarket.com",
         "confidence_score": 1
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
       "source": "PM_DOT_20",
       "target": "TRD_018",
-      "Action": "Buy YES",
+      "Action": "Open YES",
+      "relationship_type": "OPEN_YES",
       "metadata": {
         "thesis": "Asynchronous backing engine rollouts eliminate standard runtime slot validation congestion points. Substantial optimization tailwind.",
         "conviction_level": 7,
@@ -98,25 +72,9 @@
         "source_url": "https://polkascan.io/tx/018",
         "confidence_score": 1,
         "timestamp": "2026-06-04T14:09:00Z",
-        "action": "Buy YES"
-      },
-      "relationship_type": "BUY_YES"
-    },
-    {
-      "source": "TRD_018",
-      "target": "OUT_YES_SHARES",
-      "metadata": {
-        "source_url": "https://polkascan.io"
-      },
-      "relationship_type": "CONNECTED_TO"
-    },
-    {
-      "source": "TRD_018",
-      "target": "FB_OPEN",
-      "metadata": {
-        "source_url": "https://polkascan.io"
-      },
-      "relationship_type": "CONNECTED_TO"
+        "action": "Open YES",
+        "lifecycle": "open"
+      }
     },
     {
       "source": "PM_DOT_20",
@@ -125,39 +83,11 @@
         "PM_DOT_25",
         "PM_KSM_50"
       ],
+      "relationship_type": "CORRELATED_MARKET",
       "direction": "bi-directional",
       "metadata": {
         "relationship_type": "correlated_market"
-      },
-      "relationship_type": "CORRELATED_MARKET"
-    },
-    {
-      "source": "KAL_DOT_20",
-      "target": "PM_DOT_20",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
-      }
-    },
-    {
-      "source": "PM_DOT_25",
-      "target": "PM_DOT_20",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
-      }
-    },
-    {
-      "source": "PM_KSM_50",
-      "target": "PM_DOT_20",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
       }
     }
-  ],
-  "decision_id": "dec-trd_018"
+  ]
 }

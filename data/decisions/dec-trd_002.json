@@ -1,5 +1,6 @@
 {
   "schema_version": "1.0",
+  "decision_id": "dec-trd_002-open",
   "graph_id": "user_117.publisher.v1",
   "updated_at": "2026-06-04T09:15:00Z",
   "operation": "assert",
@@ -19,13 +20,9 @@
     {
       "node_id": "KAL_BTC_100K",
       "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "PM_BTC_100K",
-      "node_type": "market",
-      "properties": {},
+      "properties": {
+        "anchor": true
+      },
       "label": "Market"
     },
     {
@@ -33,18 +30,6 @@
       "node_type": "trade",
       "properties": {},
       "label": "Trade"
-    },
-    {
-      "node_id": "OUT_NO_CONTRACTS",
-      "node_type": "outcome",
-      "properties": {},
-      "label": "Outcome"
-    },
-    {
-      "node_id": "FB_OPEN",
-      "node_type": "feedback",
-      "properties": {},
-      "label": "Feedback"
     }
   ],
   "edges": [
@@ -65,16 +50,17 @@
     {
       "source": "Kalshi",
       "target": "KAL_BTC_100K",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://kalshi.com",
         "confidence_score": 1
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
       "source": "KAL_BTC_100K",
       "target": "TRD_002",
-      "Action": "Buy NO",
+      "Action": "Open NO",
+      "relationship_type": "OPEN_NO",
       "metadata": {
         "thesis": "Massive institutional sell walls detected at $99.5k. Unlikely to breach without a fresh weekend macro catalyst.",
         "conviction_level": 7,
@@ -86,46 +72,20 @@
         "source_url": "https://kalshi.com/tx/002",
         "confidence_score": 1,
         "timestamp": "2026-06-04T09:11:00Z",
-        "action": "Buy NO"
-      },
-      "relationship_type": "BUY_NO"
-    },
-    {
-      "source": "TRD_002",
-      "target": "OUT_NO_CONTRACTS",
-      "metadata": {
-        "source_url": "https://kalshi.com"
-      },
-      "relationship_type": "CONNECTED_TO"
-    },
-    {
-      "source": "TRD_002",
-      "target": "FB_OPEN",
-      "metadata": {
-        "source_url": "https://kalshi.com"
-      },
-      "relationship_type": "CONNECTED_TO"
+        "action": "Open NO",
+        "lifecycle": "open"
+      }
     },
     {
       "source": "KAL_BTC_100K",
       "targets": [
         "PM_BTC_100K"
       ],
+      "relationship_type": "CORRELATED_MARKET",
       "direction": "bi-directional",
       "metadata": {
         "relationship_type": "correlated_market"
-      },
-      "relationship_type": "CORRELATED_MARKET"
-    },
-    {
-      "source": "PM_BTC_100K",
-      "target": "KAL_BTC_100K",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
       }
     }
-  ],
-  "decision_id": "dec-trd_002"
+  ]
 }

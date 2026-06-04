@@ -1,8 +1,9 @@
 {
   "schema_version": "1.0",
+  "decision_id": "dec-trd_004-close",
   "graph_id": "user_117.publisher.v1",
   "updated_at": "2026-06-04T10:05:00Z",
-  "operation": "assert",
+  "operation": "revise",
   "nodes": [
     {
       "node_id": "user_117",
@@ -19,29 +20,25 @@
     {
       "node_id": "PM_SOL_200",
       "node_type": "market",
-      "properties": {},
+      "properties": {
+        "anchor": true
+      },
       "label": "Market"
     },
     {
-      "node_id": "KAL_SOL_200",
-      "node_type": "market",
-      "properties": {},
-      "label": "Market"
-    },
-    {
-      "node_id": "TRD_005",
+      "node_id": "TRD_004",
       "node_type": "trade",
       "properties": {},
       "label": "Trade"
     },
     {
-      "node_id": "OUT_LIQUIDATED",
+      "node_id": "OUT_LIQUIDATED__TRD_004",
       "node_type": "outcome",
       "properties": {},
       "label": "Outcome"
     },
     {
-      "node_id": "FB_CLOSED_LOSS",
+      "node_id": "FB_CLOSED_LOSS__TRD_004",
       "node_type": "feedback",
       "properties": {},
       "label": "Feedback"
@@ -65,16 +62,17 @@
     {
       "source": "Polymarket",
       "target": "PM_SOL_200",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://polymarket.com",
         "confidence_score": 1
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
       "source": "PM_SOL_200",
-      "target": "TRD_005",
-      "Action": "Sell YES",
+      "target": "TRD_004",
+      "Action": "Close YES",
+      "relationship_type": "CLOSE_YES",
       "metadata": {
         "thesis": "Mainnet RPC service degradation triggered panic selling. Exiting position early to maintain absolute asset protection standards.",
         "conviction_level": 7,
@@ -86,46 +84,37 @@
         "source_url": "https://solscan.io/tx/005",
         "confidence_score": 1,
         "timestamp": "2026-06-04T10:01:00Z",
-        "action": "Sell YES"
-      },
-      "relationship_type": "SELL_YES"
+        "action": "Close YES",
+        "lifecycle": "close",
+        "position_trade_id": "TRD_004"
+      }
     },
     {
-      "source": "TRD_005",
-      "target": "OUT_LIQUIDATED",
+      "source": "TRD_004",
+      "target": "OUT_LIQUIDATED__TRD_004",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://solscan.io"
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
-      "source": "TRD_005",
-      "target": "FB_CLOSED_LOSS",
+      "source": "TRD_004",
+      "target": "FB_CLOSED_LOSS__TRD_004",
+      "relationship_type": "CONNECTED_TO",
       "metadata": {
         "source_url": "https://solscan.io"
-      },
-      "relationship_type": "CONNECTED_TO"
+      }
     },
     {
       "source": "PM_SOL_200",
       "targets": [
         "KAL_SOL_200"
       ],
+      "relationship_type": "CORRELATED_MARKET",
       "direction": "bi-directional",
       "metadata": {
         "relationship_type": "correlated_market"
-      },
-      "relationship_type": "CORRELATED_MARKET"
-    },
-    {
-      "source": "KAL_SOL_200",
-      "target": "PM_SOL_200",
-      "relationship_type": "CORRELATED_MARKET",
-      "metadata": {
-        "relationship_type": "correlated_market",
-        "direction": "reverse"
       }
     }
-  ],
-  "decision_id": "dec-trd_005"
+  ]
 }
