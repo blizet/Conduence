@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "graph_id": "user_117.publisher.v1",
+  "updated_at": "2026-06-04T11:55:00Z",
+  "operation": "assert",
+  "nodes": [
+    {
+      "node_id": "user_117",
+      "node_type": "user",
+      "properties": {},
+      "label": "User"
+    },
+    {
+      "node_id": "Polymarket",
+      "node_type": "protocol",
+      "properties": {},
+      "label": "Protocol"
+    },
+    {
+      "node_id": "PM_GAS_REFORM",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "KAL_GAS_REFORM",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "TRD_011",
+      "node_type": "trade",
+      "properties": {},
+      "label": "Trade"
+    },
+    {
+      "node_id": "OUT_YES_SHARES",
+      "node_type": "outcome",
+      "properties": {},
+      "label": "Outcome"
+    },
+    {
+      "node_id": "FB_OPEN",
+      "node_type": "feedback",
+      "properties": {},
+      "label": "Feedback"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user_117",
+      "target": "user_117.publisher",
+      "relationship_type": "HAS_AGENT",
+      "metadata": {
+        "role": "publisher"
+      }
+    },
+    {
+      "source": "user_117",
+      "target": "Polymarket",
+      "relationship_type": "CONNECTED_TO",
+      "metadata": {}
+    },
+    {
+      "source": "Polymarket",
+      "target": "PM_GAS_REFORM",
+      "metadata": {
+        "source_url": "https://polymarket.com",
+        "confidence_score": 1
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_GAS_REFORM",
+      "target": "TRD_011",
+      "Action": "Buy YES",
+      "metadata": {
+        "thesis": "Internal legislative updates show concrete confirmation of gas policy restructuring passing through committees tomorrow.",
+        "conviction_level": 8,
+        "tags": [
+          "#regulation",
+          "#gas_fees",
+          "#compliance"
+        ],
+        "source_url": "https://polygonscan.com/tx/011",
+        "confidence_score": 1,
+        "timestamp": "2026-06-04T11:49:00Z",
+        "action": "Buy YES"
+      },
+      "relationship_type": "BUY_YES"
+    },
+    {
+      "source": "TRD_011",
+      "target": "OUT_YES_SHARES",
+      "metadata": {
+        "source_url": "https://polygonscan.com"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "TRD_011",
+      "target": "FB_OPEN",
+      "metadata": {
+        "source_url": "https://polygonscan.com"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_GAS_REFORM",
+      "targets": [
+        "KAL_GAS_REFORM"
+      ],
+      "direction": "bi-directional",
+      "metadata": {
+        "relationship_type": "correlated_market"
+      },
+      "relationship_type": "CORRELATED_MARKET"
+    },
+    {
+      "source": "KAL_GAS_REFORM",
+      "target": "PM_GAS_REFORM",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    }
+  ],
+  "decision_id": "dec-trd_011"
+}

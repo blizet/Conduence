@@ -1,0 +1,435 @@
+[
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T09:00:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_ETH_5K", "node_type": "market" },
+      { "node_id": "KAL_ETH_5K", "node_type": "market" },
+      { "node_id": "PM_ETH_6K", "node_type": "market" },
+      { "node_id": "PM_BTC_100K", "node_type": "market" },
+      { "node_id": "TRD_001", "node_type": "trade" },
+      { "node_id": "OUT_YES_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_ETH_5K", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_ETH_5K", "target": "TRD_001", "Action": "Buy YES", "metadata": { "thesis": "Layer-1 gas burning patterns are accelerating, indicating strong structural upside velocity before weekly options expiry.", "conviction_level": 9, "tags": ["#eth", "#momentum", "#gas_burn"], "source_url": "https://polygonscan.com/tx/001", "confidence_score": 1.0, "timestamp": "2026-06-04T08:55:00Z" } },
+      { "source": "TRD_001", "target": "OUT_YES_SHARES", "metadata": { "source_url": "https://etherscan.io" } },
+      { "source": "TRD_001", "target": "FB_OPEN", "metadata": { "source_url": "https://etherscan.io" } },
+      { "source": "PM_ETH_5K", "targets": ["KAL_ETH_5K", "PM_ETH_6K", "PM_BTC_100K"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T09:15:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Kalshi", "node_type": "protocol" },
+      { "node_id": "KAL_BTC_100K", "node_type": "market" },
+      { "node_id": "PM_BTC_100K", "node_type": "market" },
+      { "node_id": "TRD_002", "node_type": "trade" },
+      { "node_id": "OUT_NO_CONTRACTS", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Kalshi" },
+      { "source": "Kalshi", "target": "KAL_BTC_100K", "metadata": { "source_url": "https://kalshi.com", "confidence_score": 1.0 } },
+      { "source": "KAL_BTC_100K", "target": "TRD_002", "Action": "Buy NO", "metadata": { "thesis": "Massive institutional sell walls detected at $99.5k. Unlikely to breach without a fresh weekend macro catalyst.", "conviction_level": 7, "tags": ["#btc", "#resistance", "#order_book"], "source_url": "https://kalshi.com/tx/002", "confidence_score": 1.0, "timestamp": "2026-06-04T09:11:00Z" } },
+      { "source": "TRD_002", "target": "OUT_NO_CONTRACTS", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "TRD_002", "target": "FB_OPEN", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "KAL_BTC_100K", "targets": ["PM_BTC_100K"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T09:30:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_ETH_5K", "node_type": "market" },
+      { "node_id": "KAL_ETH_5K", "node_type": "market" },
+      { "node_id": "PM_ETH_4K", "node_type": "market" },
+      { "node_id": "TRD_003", "node_type": "trade" },
+      { "node_id": "OUT_REDUCED_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_CLOSED_PROFIT", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_ETH_5K", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_ETH_5K", "target": "TRD_003", "Action": "Sell YES", "metadata": { "thesis": "Momentum targets unlocked early. Securing safe profits prior to the volatile afternoon federal budget address.", "conviction_level": 8, "tags": ["#eth", "#take_profit", "#macro_risk"], "source_url": "https://polygonscan.com/tx/003", "confidence_score": 1.0, "timestamp": "2026-06-04T09:26:00Z" } },
+      { "source": "TRD_003", "target": "OUT_REDUCED_SHARES", "metadata": { "source_url": "https://etherscan.io" } },
+      { "source": "TRD_003", "target": "FB_CLOSED_PROFIT", "metadata": { "source_url": "https://etherscan.io" } },
+      { "source": "PM_ETH_5K", "targets": ["KAL_ETH_5K", "PM_ETH_4K"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T09:50:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_SOL_200", "node_type": "market" },
+      { "node_id": "KAL_SOL_200", "node_type": "market" },
+      { "node_id": "PM_SOL_250", "node_type": "market" },
+      { "node_id": "TRD_004", "node_type": "trade" },
+      { "node_id": "OUT_YES_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_SOL_200", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_SOL_200", "target": "TRD_004", "Action": "Buy YES", "metadata": { "thesis": "On-chain DEX activity metrics are spiking aggressively, highlighting deep market underpricing of Solana ecosystem volume.", "conviction_level": 8, "tags": ["#sol", "#onchain_volume", "#dex_metrics"], "source_url": "https://solscan.io/tx/004", "confidence_score": 1.0, "timestamp": "2026-06-04T09:44:00Z" } },
+      { "source": "TRD_004", "target": "OUT_YES_SHARES", "metadata": { "source_url": "https://solscan.io" } },
+      { "source": "TRD_004", "target": "FB_OPEN", "metadata": { "source_url": "https://solscan.io" } },
+      { "source": "PM_SOL_200", "targets": ["KAL_SOL_200", "PM_SOL_250"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T10:05:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_SOL_200", "node_type": "market" },
+      { "node_id": "KAL_SOL_200", "node_type": "market" },
+      { "node_id": "TRD_005", "node_type": "trade" },
+      { "node_id": "OUT_LIQUIDATED", "node_type": "outcome" },
+      { "node_id": "FB_CLOSED_LOSS", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_SOL_200", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_SOL_200", "target": "TRD_005", "Action": "Sell YES", "metadata": { "thesis": "Mainnet RPC service degradation triggered panic selling. Exiting position early to maintain absolute asset protection standards.", "conviction_level": 7, "tags": ["#sol", "#stop_loss", "#rpc_outage"], "source_url": "https://solscan.io/tx/005", "confidence_score": 1.0, "timestamp": "2026-06-04T10:01:00Z" } },
+      { "source": "TRD_005", "target": "OUT_LIQUIDATED", "metadata": { "source_url": "https://solscan.io" } },
+      { "source": "TRD_005", "target": "FB_CLOSED_LOSS", "metadata": { "source_url": "https://solscan.io" } },
+      { "source": "PM_SOL_200", "targets": ["KAL_SOL_200"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T10:25:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Kalshi", "node_type": "protocol" },
+      { "node_id": "KAL_FED_RATE", "node_type": "market" },
+      { "node_id": "PM_FED_RATE", "node_type": "market" },
+      { "node_id": "CME_FEDWATCH", "node_type": "market" },
+      { "node_id": "TRD_006", "node_type": "trade" },
+      { "node_id": "OUT_NO_CONTRACTS", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Kalshi" },
+      { "source": "Kalshi", "target": "KAL_FED_RATE", "metadata": { "source_url": "https://kalshi.com", "confidence_score": 1.0 } },
+      { "source": "KAL_FED_RATE", "target": "TRD_006", "Action": "Buy NO", "metadata": { "thesis": "Recent hawkish central bank commentary entirely nullifies the likelihood of consecutive rate reductions this period.", "conviction_level": 10, "tags": ["#macro", "#fed", "#interest_rates"], "source_url": "https://kalshi.com/tx/006", "confidence_score": 1.0, "timestamp": "2026-06-04T10:20:00Z" } },
+      { "source": "TRD_006", "target": "OUT_NO_CONTRACTS", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "TRD_006", "target": "FB_OPEN", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "KAL_FED_RATE", "targets": ["PM_FED_RATE", "CME_FEDWATCH"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T10:40:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Kalshi", "node_type": "protocol" },
+      { "node_id": "KAL_FED_RATE", "node_type": "market" },
+      { "node_id": "PM_FED_RATE", "node_type": "market" },
+      { "node_id": "TRD_007", "node_type": "trade" },
+      { "node_id": "OUT_CLOSED_CONTRACTS", "node_type": "outcome" },
+      { "node_id": "FB_CLOSED_PROFIT", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Kalshi" },
+      { "source": "Kalshi", "target": "KAL_FED_RATE", "metadata": { "source_url": "https://kalshi.com", "confidence_score": 1.0 } },
+      { "source": "KAL_FED_RATE", "target": "TRD_007", "Action": "Sell NO", "metadata": { "thesis": "Consensus documentation dropped matching our calculations perfectly. Capital extraction successful.", "conviction_level": 9, "tags": ["#macro", "#fed_lock", "#execution_complete"], "source_url": "https://kalshi.com/tx/007", "confidence_score": 1.0, "timestamp": "2026-06-04T10:35:00Z" } },
+      { "source": "TRD_007", "target": "OUT_CLOSED_CONTRACTS", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "TRD_007", "target": "FB_CLOSED_PROFIT", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "KAL_FED_RATE", "targets": ["PM_FED_RATE"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T11:00:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_AVAX_50", "node_type": "market" },
+      { "node_id": "KAL_AVAX_50", "node_type": "market" },
+      { "node_id": "TRD_008", "node_type": "trade" },
+      { "node_id": "OUT_YES_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_AVAX_50", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_AVAX_50", "target": "TRD_008", "Action": "Buy YES", "metadata": { "thesis": "Cross-chain gaming subnet integrations are hitting critical mass, poised to drive asymmetric trading volume within 24 hours.", "conviction_level": 7, "tags": ["#avax", "#subnets", "#gaming_infra"], "source_url": "https://snowtrace.io/tx/008", "confidence_score": 1.0, "timestamp": "2026-06-04T10:55:00Z" } },
+      { "source": "TRD_008", "target": "OUT_YES_SHARES", "metadata": { "source_url": "https://snowtrace.io" } },
+      { "source": "TRD_008", "target": "FB_OPEN", "metadata": { "source_url": "https://snowtrace.io" } },
+      { "source": "PM_AVAX_50", "targets": ["KAL_AVAX_50"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T11:15:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_LINK_30", "node_type": "market" },
+      { "node_id": "KAL_LINK_30", "node_type": "market" },
+      { "node_id": "PM_LINK_40", "node_type": "market" },
+      { "node_id": "TRD_009", "node_type": "trade" },
+      { "node_id": "OUT_NO_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_LINK_30", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_LINK_30", "target": "TRD_009", "Action": "Buy NO", "metadata": { "thesis": "Oracle upgrade scheduling delays imply a localized cooling off period for key token value structures.", "conviction_level": 5, "tags": ["#link", "#oracle", "#delay_risk"], "source_url": "https://polygonscan.com/tx/009", "confidence_score": 1.0, "timestamp": "2026-06-04T11:10:00Z" } },
+      { "source": "TRD_009", "target": "OUT_NO_SHARES", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "TRD_009", "target": "FB_OPEN", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "PM_LINK_30", "targets": ["KAL_LINK_30", "PM_LINK_40"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T11:35:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_AVAX_50", "node_type": "market" },
+      { "node_id": "KAL_AVAX_50", "node_type": "market" },
+      { "node_id": "PM_AVAX_60", "node_type": "market" },
+      { "node_id": "PM_SOL_200", "node_type": "market" },
+      { "node_id": "TRD_010", "node_type": "trade" },
+      { "node_id": "OUT_REDUCED_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_CLOSED_PROFIT", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_AVAX_50", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_AVAX_50", "target": "TRD_010", "Action": "Sell YES", "metadata": { "thesis": "On-chain social metrics hitting a structural saturation roof. Extracted 25% profit cleanly before rotation.", "conviction_level": 8, "tags": ["#avax", "#profit_lock", "#social_top"], "source_url": "https://snowtrace.io/tx/010", "confidence_score": 1.0, "timestamp": "2026-06-04T11:30:00Z" } },
+      { "source": "TRD_010", "target": "OUT_REDUCED_SHARES", "metadata": { "source_url": "https://snowtrace.io" } },
+      { "source": "TRD_010", "target": "FB_CLOSED_PROFIT", "metadata": { "source_url": "https://snowtrace.io" } },
+      { "source": "PM_AVAX_50", "targets": ["KAL_AVAX_50", "PM_AVAX_60", "PM_SOL_200"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T11:55:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_GAS_REFORM", "node_type": "market" },
+      { "node_id": "KAL_GAS_REFORM", "node_type": "market" },
+      { "node_id": "TRD_011", "node_type": "trade" },
+      { "node_id": "OUT_YES_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_GAS_REFORM", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_GAS_REFORM", "target": "TRD_011", "Action": "Buy YES", "metadata": { "thesis": "Internal legislative updates show concrete confirmation of gas policy restructuring passing through committees tomorrow.", "conviction_level": 8, "tags": ["#regulation", "#gas_fees", "#compliance"], "source_url": "https://polygonscan.com/tx/011", "confidence_score": 1.0, "timestamp": "2026-06-04T11:49:00Z" } },
+      { "source": "TRD_011", "target": "OUT_YES_SHARES", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "TRD_011", "target": "FB_OPEN", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "PM_GAS_REFORM", "targets": ["KAL_GAS_REFORM"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T12:10:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_LINK_30", "node_type": "market" },
+      { "node_id": "KAL_LINK_30", "node_type": "market" },
+      { "node_id": "TRD_012", "node_type": "trade" },
+      { "node_id": "OUT_LIQUIDATED", "node_type": "outcome" },
+      { "node_id": "FB_CLOSED_LOSS", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_LINK_30", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_LINK_30", "target": "TRD_012", "Action": "Sell NO", "metadata": { "thesis": "Unpredicted institutional API contract adoption invalidated our short-term cooling thesis. Triggering automatic risk management exit.", "conviction_level": 4, "tags": ["#link", "#risk_exit", "#invalidation"], "source_url": "https://polygonscan.com/tx/012", "confidence_score": 1.0, "timestamp": "2026-06-04T12:04:00Z" } },
+      { "source": "TRD_012", "target": "OUT_LIQUIDATED", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "TRD_012", "target": "FB_CLOSED_LOSS", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "PM_LINK_30", "targets": ["KAL_LINK_30"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T12:30:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Kalshi", "node_type": "protocol" },
+      { "node_id": "KAL_UNEMPLOYMENT", "node_type": "market" },
+      { "node_id": "PM_UNEMPLOYMENT", "node_type": "market" },
+      { "node_id": "BLS_CORE_DATA", "node_type": "market" },
+      { "node_id": "TRD_013", "node_type": "trade" },
+      { "node_id": "OUT_NO_CONTRACTS", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Kalshi" },
+      { "source": "Kalshi", "target": "KAL_UNEMPLOYMENT", "metadata": { "source_url": "https://kalshi.com", "confidence_score": 1.0 } },
+      { "source": "KAL_UNEMPLOYMENT", "target": "TRD_013", "Action": "Buy NO", "metadata": { "thesis": "High-frequency initial claims indexes reflect baseline labor pool stickiness, defying generalized corporate downgrade forecasts.", "conviction_level": 8, "tags": ["#macro", "#labor_data", "#employment"], "source_url": "https://kalshi.com/tx/013", "confidence_score": 1.0, "timestamp": "2026-06-04T12:22:00Z" } },
+      { "source": "TRD_013", "target": "OUT_NO_CONTRACTS", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "TRD_013", "target": "FB_OPEN", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "KAL_UNEMPLOYMENT", "targets": ["PM_UNEMPLOYMENT", "BLS_CORE_DATA"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T12:50:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_GAS_REFORM", "node_type": "market" },
+      { "node_id": "KAL_GAS_REFORM", "node_type": "market" },
+      { "node_id": "TRD_014", "node_type": "trade" },
+      { "node_id": "OUT_REDUCED_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_CLOSED_PROFIT", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_GAS_REFORM", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_GAS_REFORM", "target": "TRD_014", "Action": "Sell YES", "metadata": { "thesis": "Official draft matched leaks precisely. Market pricing immediately saturated near parity. Perfect thesis validation.", "conviction_level": 9, "tags": ["#regulation", "#arbitrage", "#execution_win"], "source_url": "https://polygonscan.com/tx/014", "confidence_score": 1.0, "timestamp": "2026-06-04T12:45:00Z" } },
+      { "source": "TRD_014", "target": "OUT_REDUCED_SHARES", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "TRD_014", "target": "FB_CLOSED_PROFIT", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "PM_GAS_REFORM", "targets": ["KAL_GAS_REFORM"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T13:10:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_FTM_2", "node_type": "market" },
+      { "node_id": "KAL_FTM_2", "node_type": "market" },
+      { "node_id": "PM_FTM_3", "node_type": "market" },
+      { "node_id": "TRD_015", "node_type": "trade" },
+      { "node_id": "OUT_YES_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_FTM_2", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_FTM_2", "target": "TRD_015", "Action": "Buy YES", "metadata": { "thesis": "Sonic framework upgrade timelines are officially locked. General public remains largely unaware of protocol layer efficiency updates.", "conviction_level": 7, "tags": ["#ftm", "#sonic_upgrade", "#layer1_tech"], "source_url": "https://ftmscan.com/tx/015", "confidence_score": 1.0, "timestamp": "2026-06-04T13:01:00Z" } },
+      { "source": "TRD_015", "target": "OUT_YES_SHARES", "metadata": { "source_url": "https://ftmscan.com" } },
+      { "source": "TRD_015", "target": "FB_OPEN", "metadata": { "source_url": "https://ftmscan.com" } },
+      { "source": "PM_FTM_2", "targets": ["KAL_FTM_2", "PM_FTM_3"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T13:30:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Kalshi", "node_type": "protocol" },
+      { "node_id": "KAL_RETAIL_SALES", "node_type": "market" },
+      { "node_id": "PM_RETAIL_SALES", "node_type": "market" },
+      { "node_id": "TRD_016", "node_type": "trade" },
+      { "node_id": "OUT_NO_CONTRACTS", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Kalshi" },
+      { "source": "Kalshi", "target": "KAL_RETAIL_SALES", "metadata": { "source_url": "https://kalshi.com", "confidence_score": 1.0 } },
+      { "source": "KAL_RETAIL_SALES", "target": "TRD_016", "Action": "Buy NO", "metadata": { "thesis": "Discretionary revolving balance contractions signal an impending slowdown in broad cyclical consumer demand metrics.", "conviction_level": 6, "tags": ["#macro", "#retail_trends", "#consumer_credit"], "source_url": "https://kalshi.com/tx/016", "confidence_score": 1.0, "timestamp": "2026-06-04T13:22:00Z" } },
+      { "source": "TRD_016", "target": "OUT_NO_CONTRACTS", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "TRD_016", "target": "FB_OPEN", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "KAL_RETAIL_SALES", "targets": ["PM_RETAIL_SALES"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T13:50:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Kalshi", "node_type": "protocol" },
+      { "node_id": "KAL_UNEMPLOYMENT", "node_type": "market" },
+      { "node_id": "PM_UNEMPLOYMENT", "node_type": "market" },
+      { "node_id": "TRD_017", "node_type": "trade" },
+      { "node_id": "OUT_STOP_LOSS_EXEC", "node_type": "outcome" },
+      { "node_id": "FB_CLOSED_LOSS", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Kalshi" },
+      { "source": "Kalshi", "target": "KAL_UNEMPLOYMENT", "metadata": { "source_url": "https://kalshi.com", "confidence_score": 1.0 } },
+      { "source": "KAL_UNEMPLOYMENT", "target": "TRD_017", "Action": "Sell NO", "metadata": { "thesis": "Midday industrial survey revisions forced an immediate invalidation of our macro baseline parameters. Mitigating asset exposure.", "conviction_level": 8, "tags": ["#macro", "#stop_loss_hit", "#data_revision"], "source_url": "https://kalshi.com/tx/017", "confidence_score": 1.0, "timestamp": "2026-06-04T13:43:00Z" } },
+      { "source": "TRD_017", "target": "OUT_STOP_LOSS_EXEC", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "TRD_017", "target": "FB_CLOSED_LOSS", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "KAL_UNEMPLOYMENT", "targets": ["PM_UNEMPLOYMENT"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T14:15:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_DOT_20", "node_type": "market" },
+      { "node_id": "KAL_DOT_20", "node_type": "market" },
+      { "node_id": "PM_DOT_25", "node_type": "market" },
+      { "node_id": "PM_KSM_50", "node_type": "market" },
+      { "node_id": "TRD_018", "node_type": "trade" },
+      { "node_id": "OUT_YES_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_DOT_20", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_DOT_20", "target": "TRD_018", "Action": "Buy YES", "metadata": { "thesis": "Asynchronous backing engine rollouts eliminate standard runtime slot validation congestion points. Substantial optimization tailwind.", "conviction_level": 7, "tags": ["#dot", "#runtime_upgrade", "#parachain_data"], "source_url": "https://polkascan.io/tx/018", "confidence_score": 1.0, "timestamp": "2026-06-04T14:09:00Z" } },
+      { "source": "TRD_018", "target": "OUT_YES_SHARES", "metadata": { "source_url": "https://polkascan.io" } },
+      { "source": "TRD_018", "target": "FB_OPEN", "metadata": { "source_url": "https://polkascan.io" } },
+      { "source": "PM_DOT_20", "targets": ["KAL_DOT_20", "PM_DOT_25", "PM_KSM_50"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T14:35:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Kalshi", "node_type": "protocol" },
+      { "node_id": "KAL_CRUDE_OIL", "node_type": "market" },
+      { "node_id": "PM_CRUDE_OIL", "node_type": "market" },
+      { "node_id": "WTI_SPOT", "node_type": "market" },
+      { "node_id": "TRD_019", "node_type": "trade" },
+      { "node_id": "OUT_NO_CONTRACTS", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Kalshi" },
+      { "source": "Kalshi", "target": "KAL_CRUDE_OIL", "metadata": { "source_url": "https://kalshi.com", "confidence_score": 1.0 } },
+      { "source": "KAL_CRUDE_OIL", "target": "TRD_019", "Action": "Buy NO", "metadata": { "thesis": "Emergency supply reserve distributions fully counteract sudden regional logistical delays. Supply matrix remains flat.", "conviction_level": 8, "tags": ["#commodities", "#crude_oil", "#supply_chain"], "source_url": "https://kalshi.com/tx/019", "confidence_score": 1.0, "timestamp": "2026-06-04T14:31:00Z" } },
+      { "source": "TRD_019", "target": "OUT_NO_CONTRACTS", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "TRD_019", "target": "FB_OPEN", "metadata": { "source_url": "https://kalshi.com" } },
+      { "source": "KAL_CRUDE_OIL", "targets": ["PM_CRUDE_OIL", "WTI_SPOT"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  },
+  {
+    "graph_id": "eth.market.v1",
+    "updated_at": "2026-06-04T14:55:00Z",
+    "nodes": [
+      { "node_id": "user_117", "node_type": "user" },
+      { "node_id": "Polymarket", "node_type": "protocol" },
+      { "node_id": "PM_MATIC_2", "node_type": "market" },
+      { "node_id": "KAL_MATIC_2", "node_type": "market" },
+      { "node_id": "TRD_020", "node_type": "trade" },
+      { "node_id": "OUT_YES_SHARES", "node_type": "outcome" },
+      { "node_id": "FB_OPEN", "node_type": "feedback" }
+    ],
+    "edges": [
+      { "source": "user_117", "target": "Polymarket" },
+      { "source": "Polymarket", "target": "PM_MATIC_2", "metadata": { "source_url": "https://polymarket.com", "confidence_score": 1.0 } },
+      { "source": "PM_MATIC_2", "target": "TRD_020", "Action": "Buy YES", "metadata": { "thesis": "Unified proof aggregation processing speeds confirm structural technology advantages. Position entry optimized.", "conviction_level": 7, "tags": ["#polygon", "#agglayer", "#zero_knowledge"], "source_url": "https://polygonscan.com/tx/020", "confidence_score": 1.0, "timestamp": "2026-06-04T14:49:00Z" } },
+      { "source": "TRD_020", "target": "OUT_YES_SHARES", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "TRD_020", "target": "FB_OPEN", "metadata": { "source_url": "https://polygonscan.com" } },
+      { "source": "PM_MATIC_2", "targets": ["KAL_MATIC_2"], "direction": "bi-directional", "metadata": { "relationship_type": "correlated_market" } }
+    ]
+  }
+]

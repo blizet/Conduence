@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0",
+  "graph_id": "user_117.publisher.v1",
+  "updated_at": "2026-06-04T11:15:00Z",
+  "operation": "assert",
+  "nodes": [
+    {
+      "node_id": "user_117",
+      "node_type": "user",
+      "properties": {},
+      "label": "User"
+    },
+    {
+      "node_id": "Polymarket",
+      "node_type": "protocol",
+      "properties": {},
+      "label": "Protocol"
+    },
+    {
+      "node_id": "PM_LINK_30",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "KAL_LINK_30",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "PM_LINK_40",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "TRD_009",
+      "node_type": "trade",
+      "properties": {},
+      "label": "Trade"
+    },
+    {
+      "node_id": "OUT_NO_SHARES",
+      "node_type": "outcome",
+      "properties": {},
+      "label": "Outcome"
+    },
+    {
+      "node_id": "FB_OPEN",
+      "node_type": "feedback",
+      "properties": {},
+      "label": "Feedback"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user_117",
+      "target": "user_117.publisher",
+      "relationship_type": "HAS_AGENT",
+      "metadata": {
+        "role": "publisher"
+      }
+    },
+    {
+      "source": "user_117",
+      "target": "Polymarket",
+      "relationship_type": "CONNECTED_TO",
+      "metadata": {}
+    },
+    {
+      "source": "Polymarket",
+      "target": "PM_LINK_30",
+      "metadata": {
+        "source_url": "https://polymarket.com",
+        "confidence_score": 1
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_LINK_30",
+      "target": "TRD_009",
+      "Action": "Buy NO",
+      "metadata": {
+        "thesis": "Oracle upgrade scheduling delays imply a localized cooling off period for key token value structures.",
+        "conviction_level": 5,
+        "tags": [
+          "#link",
+          "#oracle",
+          "#delay_risk"
+        ],
+        "source_url": "https://polygonscan.com/tx/009",
+        "confidence_score": 1,
+        "timestamp": "2026-06-04T11:10:00Z",
+        "action": "Buy NO"
+      },
+      "relationship_type": "BUY_NO"
+    },
+    {
+      "source": "TRD_009",
+      "target": "OUT_NO_SHARES",
+      "metadata": {
+        "source_url": "https://polygonscan.com"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "TRD_009",
+      "target": "FB_OPEN",
+      "metadata": {
+        "source_url": "https://polygonscan.com"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_LINK_30",
+      "targets": [
+        "KAL_LINK_30",
+        "PM_LINK_40"
+      ],
+      "direction": "bi-directional",
+      "metadata": {
+        "relationship_type": "correlated_market"
+      },
+      "relationship_type": "CORRELATED_MARKET"
+    },
+    {
+      "source": "KAL_LINK_30",
+      "target": "PM_LINK_30",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    },
+    {
+      "source": "PM_LINK_40",
+      "target": "PM_LINK_30",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    }
+  ],
+  "decision_id": "dec-trd_009"
+}

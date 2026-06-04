@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "graph_id": "user_117.publisher.v1",
+  "updated_at": "2026-06-04T12:10:00Z",
+  "operation": "assert",
+  "nodes": [
+    {
+      "node_id": "user_117",
+      "node_type": "user",
+      "properties": {},
+      "label": "User"
+    },
+    {
+      "node_id": "Polymarket",
+      "node_type": "protocol",
+      "properties": {},
+      "label": "Protocol"
+    },
+    {
+      "node_id": "PM_LINK_30",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "KAL_LINK_30",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "TRD_012",
+      "node_type": "trade",
+      "properties": {},
+      "label": "Trade"
+    },
+    {
+      "node_id": "OUT_LIQUIDATED",
+      "node_type": "outcome",
+      "properties": {},
+      "label": "Outcome"
+    },
+    {
+      "node_id": "FB_CLOSED_LOSS",
+      "node_type": "feedback",
+      "properties": {},
+      "label": "Feedback"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user_117",
+      "target": "user_117.publisher",
+      "relationship_type": "HAS_AGENT",
+      "metadata": {
+        "role": "publisher"
+      }
+    },
+    {
+      "source": "user_117",
+      "target": "Polymarket",
+      "relationship_type": "CONNECTED_TO",
+      "metadata": {}
+    },
+    {
+      "source": "Polymarket",
+      "target": "PM_LINK_30",
+      "metadata": {
+        "source_url": "https://polymarket.com",
+        "confidence_score": 1
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_LINK_30",
+      "target": "TRD_012",
+      "Action": "Sell NO",
+      "metadata": {
+        "thesis": "Unpredicted institutional API contract adoption invalidated our short-term cooling thesis. Triggering automatic risk management exit.",
+        "conviction_level": 4,
+        "tags": [
+          "#link",
+          "#risk_exit",
+          "#invalidation"
+        ],
+        "source_url": "https://polygonscan.com/tx/012",
+        "confidence_score": 1,
+        "timestamp": "2026-06-04T12:04:00Z",
+        "action": "Sell NO"
+      },
+      "relationship_type": "SELL_NO"
+    },
+    {
+      "source": "TRD_012",
+      "target": "OUT_LIQUIDATED",
+      "metadata": {
+        "source_url": "https://polygonscan.com"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "TRD_012",
+      "target": "FB_CLOSED_LOSS",
+      "metadata": {
+        "source_url": "https://polygonscan.com"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_LINK_30",
+      "targets": [
+        "KAL_LINK_30"
+      ],
+      "direction": "bi-directional",
+      "metadata": {
+        "relationship_type": "correlated_market"
+      },
+      "relationship_type": "CORRELATED_MARKET"
+    },
+    {
+      "source": "KAL_LINK_30",
+      "target": "PM_LINK_30",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    }
+  ],
+  "decision_id": "dec-trd_012"
+}

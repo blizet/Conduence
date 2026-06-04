@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0",
+  "graph_id": "user_117.publisher.v1",
+  "updated_at": "2026-06-04T09:00:00Z",
+  "operation": "assert",
+  "nodes": [
+    {
+      "node_id": "user_117",
+      "node_type": "user",
+      "properties": {},
+      "label": "User"
+    },
+    {
+      "node_id": "Polymarket",
+      "node_type": "protocol",
+      "properties": {},
+      "label": "Protocol"
+    },
+    {
+      "node_id": "PM_ETH_5K",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "KAL_ETH_5K",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "PM_ETH_6K",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "PM_BTC_100K",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "TRD_001",
+      "node_type": "trade",
+      "properties": {},
+      "label": "Trade"
+    },
+    {
+      "node_id": "OUT_YES_SHARES",
+      "node_type": "outcome",
+      "properties": {},
+      "label": "Outcome"
+    },
+    {
+      "node_id": "FB_OPEN",
+      "node_type": "feedback",
+      "properties": {},
+      "label": "Feedback"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user_117",
+      "target": "user_117.publisher",
+      "relationship_type": "HAS_AGENT",
+      "metadata": {
+        "role": "publisher"
+      }
+    },
+    {
+      "source": "user_117",
+      "target": "Polymarket",
+      "relationship_type": "CONNECTED_TO",
+      "metadata": {}
+    },
+    {
+      "source": "Polymarket",
+      "target": "PM_ETH_5K",
+      "metadata": {
+        "source_url": "https://polymarket.com",
+        "confidence_score": 1
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_ETH_5K",
+      "target": "TRD_001",
+      "Action": "Buy YES",
+      "metadata": {
+        "thesis": "Layer-1 gas burning patterns are accelerating, indicating strong structural upside velocity before weekly options expiry.",
+        "conviction_level": 9,
+        "tags": [
+          "#eth",
+          "#momentum",
+          "#gas_burn"
+        ],
+        "source_url": "https://polygonscan.com/tx/001",
+        "confidence_score": 1,
+        "timestamp": "2026-06-04T08:55:00Z",
+        "action": "Buy YES"
+      },
+      "relationship_type": "BUY_YES"
+    },
+    {
+      "source": "TRD_001",
+      "target": "OUT_YES_SHARES",
+      "metadata": {
+        "source_url": "https://etherscan.io"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "TRD_001",
+      "target": "FB_OPEN",
+      "metadata": {
+        "source_url": "https://etherscan.io"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_ETH_5K",
+      "targets": [
+        "KAL_ETH_5K",
+        "PM_ETH_6K",
+        "PM_BTC_100K"
+      ],
+      "direction": "bi-directional",
+      "metadata": {
+        "relationship_type": "correlated_market"
+      },
+      "relationship_type": "CORRELATED_MARKET"
+    },
+    {
+      "source": "KAL_ETH_5K",
+      "target": "PM_ETH_5K",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    },
+    {
+      "source": "PM_ETH_6K",
+      "target": "PM_ETH_5K",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    },
+    {
+      "source": "PM_BTC_100K",
+      "target": "PM_ETH_5K",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    }
+  ],
+  "decision_id": "dec-trd_001"
+}

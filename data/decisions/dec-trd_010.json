@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0",
+  "graph_id": "user_117.publisher.v1",
+  "updated_at": "2026-06-04T11:35:00Z",
+  "operation": "assert",
+  "nodes": [
+    {
+      "node_id": "user_117",
+      "node_type": "user",
+      "properties": {},
+      "label": "User"
+    },
+    {
+      "node_id": "Polymarket",
+      "node_type": "protocol",
+      "properties": {},
+      "label": "Protocol"
+    },
+    {
+      "node_id": "PM_AVAX_50",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "KAL_AVAX_50",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "PM_AVAX_60",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "PM_SOL_200",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "TRD_010",
+      "node_type": "trade",
+      "properties": {},
+      "label": "Trade"
+    },
+    {
+      "node_id": "OUT_REDUCED_SHARES",
+      "node_type": "outcome",
+      "properties": {},
+      "label": "Outcome"
+    },
+    {
+      "node_id": "FB_CLOSED_PROFIT",
+      "node_type": "feedback",
+      "properties": {},
+      "label": "Feedback"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user_117",
+      "target": "user_117.publisher",
+      "relationship_type": "HAS_AGENT",
+      "metadata": {
+        "role": "publisher"
+      }
+    },
+    {
+      "source": "user_117",
+      "target": "Polymarket",
+      "relationship_type": "CONNECTED_TO",
+      "metadata": {}
+    },
+    {
+      "source": "Polymarket",
+      "target": "PM_AVAX_50",
+      "metadata": {
+        "source_url": "https://polymarket.com",
+        "confidence_score": 1
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_AVAX_50",
+      "target": "TRD_010",
+      "Action": "Sell YES",
+      "metadata": {
+        "thesis": "On-chain social metrics hitting a structural saturation roof. Extracted 25% profit cleanly before rotation.",
+        "conviction_level": 8,
+        "tags": [
+          "#avax",
+          "#profit_lock",
+          "#social_top"
+        ],
+        "source_url": "https://snowtrace.io/tx/010",
+        "confidence_score": 1,
+        "timestamp": "2026-06-04T11:30:00Z",
+        "action": "Sell YES"
+      },
+      "relationship_type": "SELL_YES"
+    },
+    {
+      "source": "TRD_010",
+      "target": "OUT_REDUCED_SHARES",
+      "metadata": {
+        "source_url": "https://snowtrace.io"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "TRD_010",
+      "target": "FB_CLOSED_PROFIT",
+      "metadata": {
+        "source_url": "https://snowtrace.io"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_AVAX_50",
+      "targets": [
+        "KAL_AVAX_50",
+        "PM_AVAX_60",
+        "PM_SOL_200"
+      ],
+      "direction": "bi-directional",
+      "metadata": {
+        "relationship_type": "correlated_market"
+      },
+      "relationship_type": "CORRELATED_MARKET"
+    },
+    {
+      "source": "KAL_AVAX_50",
+      "target": "PM_AVAX_50",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    },
+    {
+      "source": "PM_AVAX_60",
+      "target": "PM_AVAX_50",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    },
+    {
+      "source": "PM_SOL_200",
+      "target": "PM_AVAX_50",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    }
+  ],
+  "decision_id": "dec-trd_010"
+}

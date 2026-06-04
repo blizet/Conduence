@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0",
+  "graph_id": "user_117.publisher.v1",
+  "updated_at": "2026-06-04T10:25:00Z",
+  "operation": "assert",
+  "nodes": [
+    {
+      "node_id": "user_117",
+      "node_type": "user",
+      "properties": {},
+      "label": "User"
+    },
+    {
+      "node_id": "Kalshi",
+      "node_type": "protocol",
+      "properties": {},
+      "label": "Protocol"
+    },
+    {
+      "node_id": "KAL_FED_RATE",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "PM_FED_RATE",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "CME_FEDWATCH",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "TRD_006",
+      "node_type": "trade",
+      "properties": {},
+      "label": "Trade"
+    },
+    {
+      "node_id": "OUT_NO_CONTRACTS",
+      "node_type": "outcome",
+      "properties": {},
+      "label": "Outcome"
+    },
+    {
+      "node_id": "FB_OPEN",
+      "node_type": "feedback",
+      "properties": {},
+      "label": "Feedback"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user_117",
+      "target": "user_117.publisher",
+      "relationship_type": "HAS_AGENT",
+      "metadata": {
+        "role": "publisher"
+      }
+    },
+    {
+      "source": "user_117",
+      "target": "Kalshi",
+      "relationship_type": "CONNECTED_TO",
+      "metadata": {}
+    },
+    {
+      "source": "Kalshi",
+      "target": "KAL_FED_RATE",
+      "metadata": {
+        "source_url": "https://kalshi.com",
+        "confidence_score": 1
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "KAL_FED_RATE",
+      "target": "TRD_006",
+      "Action": "Buy NO",
+      "metadata": {
+        "thesis": "Recent hawkish central bank commentary entirely nullifies the likelihood of consecutive rate reductions this period.",
+        "conviction_level": 10,
+        "tags": [
+          "#macro",
+          "#fed",
+          "#interest_rates"
+        ],
+        "source_url": "https://kalshi.com/tx/006",
+        "confidence_score": 1,
+        "timestamp": "2026-06-04T10:20:00Z",
+        "action": "Buy NO"
+      },
+      "relationship_type": "BUY_NO"
+    },
+    {
+      "source": "TRD_006",
+      "target": "OUT_NO_CONTRACTS",
+      "metadata": {
+        "source_url": "https://kalshi.com"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "TRD_006",
+      "target": "FB_OPEN",
+      "metadata": {
+        "source_url": "https://kalshi.com"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "KAL_FED_RATE",
+      "targets": [
+        "PM_FED_RATE",
+        "CME_FEDWATCH"
+      ],
+      "direction": "bi-directional",
+      "metadata": {
+        "relationship_type": "correlated_market"
+      },
+      "relationship_type": "CORRELATED_MARKET"
+    },
+    {
+      "source": "PM_FED_RATE",
+      "target": "KAL_FED_RATE",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    },
+    {
+      "source": "CME_FEDWATCH",
+      "target": "KAL_FED_RATE",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    }
+  ],
+  "decision_id": "dec-trd_006"
+}

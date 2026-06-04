@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0",
+  "graph_id": "user_117.publisher.v1",
+  "updated_at": "2026-06-04T09:30:00Z",
+  "operation": "assert",
+  "nodes": [
+    {
+      "node_id": "user_117",
+      "node_type": "user",
+      "properties": {},
+      "label": "User"
+    },
+    {
+      "node_id": "Polymarket",
+      "node_type": "protocol",
+      "properties": {},
+      "label": "Protocol"
+    },
+    {
+      "node_id": "PM_ETH_5K",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "KAL_ETH_5K",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "PM_ETH_4K",
+      "node_type": "market",
+      "properties": {},
+      "label": "Market"
+    },
+    {
+      "node_id": "TRD_003",
+      "node_type": "trade",
+      "properties": {},
+      "label": "Trade"
+    },
+    {
+      "node_id": "OUT_REDUCED_SHARES",
+      "node_type": "outcome",
+      "properties": {},
+      "label": "Outcome"
+    },
+    {
+      "node_id": "FB_CLOSED_PROFIT",
+      "node_type": "feedback",
+      "properties": {},
+      "label": "Feedback"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user_117",
+      "target": "user_117.publisher",
+      "relationship_type": "HAS_AGENT",
+      "metadata": {
+        "role": "publisher"
+      }
+    },
+    {
+      "source": "user_117",
+      "target": "Polymarket",
+      "relationship_type": "CONNECTED_TO",
+      "metadata": {}
+    },
+    {
+      "source": "Polymarket",
+      "target": "PM_ETH_5K",
+      "metadata": {
+        "source_url": "https://polymarket.com",
+        "confidence_score": 1
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_ETH_5K",
+      "target": "TRD_003",
+      "Action": "Sell YES",
+      "metadata": {
+        "thesis": "Momentum targets unlocked early. Securing safe profits prior to the volatile afternoon federal budget address.",
+        "conviction_level": 8,
+        "tags": [
+          "#eth",
+          "#take_profit",
+          "#macro_risk"
+        ],
+        "source_url": "https://polygonscan.com/tx/003",
+        "confidence_score": 1,
+        "timestamp": "2026-06-04T09:26:00Z",
+        "action": "Sell YES"
+      },
+      "relationship_type": "SELL_YES"
+    },
+    {
+      "source": "TRD_003",
+      "target": "OUT_REDUCED_SHARES",
+      "metadata": {
+        "source_url": "https://etherscan.io"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "TRD_003",
+      "target": "FB_CLOSED_PROFIT",
+      "metadata": {
+        "source_url": "https://etherscan.io"
+      },
+      "relationship_type": "CONNECTED_TO"
+    },
+    {
+      "source": "PM_ETH_5K",
+      "targets": [
+        "KAL_ETH_5K",
+        "PM_ETH_4K"
+      ],
+      "direction": "bi-directional",
+      "metadata": {
+        "relationship_type": "correlated_market"
+      },
+      "relationship_type": "CORRELATED_MARKET"
+    },
+    {
+      "source": "KAL_ETH_5K",
+      "target": "PM_ETH_5K",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    },
+    {
+      "source": "PM_ETH_4K",
+      "target": "PM_ETH_5K",
+      "relationship_type": "CORRELATED_MARKET",
+      "metadata": {
+        "relationship_type": "correlated_market",
+        "direction": "reverse"
+      }
+    }
+  ],
+  "decision_id": "dec-trd_003"
+}
