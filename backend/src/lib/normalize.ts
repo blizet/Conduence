@@ -15,10 +15,22 @@ const LABEL_MAP: Record<string, string> = {
   user: 'User',
   protocol: 'Protocol',
   market: 'Market',
+  correlated_market: 'CorrelatedMarket',
   trade: 'Trade',
   outcome: 'Outcome',
   feedback: 'Feedback',
   agent: 'Agent',
+};
+
+/** Legacy Sell decision id -> original Buy trade id for the same position. */
+const LEGACY_CLOSE_TRADE_OF: Record<string, string> = {
+  TRD_003: 'TRD_001',
+  TRD_005: 'TRD_004',
+  TRD_007: 'TRD_006',
+  TRD_010: 'TRD_008',
+  TRD_012: 'TRD_009',
+  TRD_014: 'TRD_011',
+  TRD_017: 'TRD_013',
 };
 
 function slug(value: string): string {
@@ -96,6 +108,86 @@ export function scopedLeafId(leafId: string, tradeId: string): string {
   return `${base}${suffix}`;
 }
 
+function normalizeLegacyBuySellLifecycle(payload: DecisionEvent): void {
+  for (const edge of payload.edges) {
+    if (typeof edge.Action !== 'string' || !edge.target) continue;
+    const match = edge.Action.match(/^(Buy|Sell)\s+(YES|NO)$/i);
+    if (!match) continue;
+
+    const verb = match[1].toLowerCase();
+    const side = match[2].toUpperCase();
+    const originalTradeId = edge.target;
+    const isClose = verb === 'sell';
+    const tradeId = isClose ? (LEGACY_CLOSE_TRADE_OF[originalTradeId] ?? originalTradeId) : originalTradeId;
+
+    if (tradeId !== originalTradeId) {
+      remapNodeId(payload, originalTradeId, tradeId);
+    }
+
+    edge.Action = `${isClose ? 'Close' : 'Open'} ${side}`;
+    edge.relationship_type = actionToRel(edge.Action);
+    edge.metadata = {
+      ...(edge.metadata ?? {}),
+      action: edge.Action,
+      lifecycle: isClose ? 'close' : 'open',
+      ...(isClose ? { position_trade_id: tradeId } : {}),
+    };
+    payload.operation = isClose ? 'revise' : 'assert';
+    payload.decision_id = `dec-trd_${tradeId.replace('TRD_', '').toLowerCase()}-${
+      isClose ? 'close' : 'open'
+    }`;
+  }
+}
+
+/** Open events must not include outcome/feedback nodes or edges (those belong on close only). */
+function stripOpenLifecycleOrphans(payload: DecisionEvent): void {
+  const isOpen =
+    payload.operation === 'assert' &&
+    payload.edges.some(
+      (e) =>
+        e.metadata?.lifecycle === 'open' ||
+        (typeof e.Action === 'string' && /^Open\s/i.test(e.Action)),
+    );
+  if (!isOpen) return;
+
+  const leafIds = new Set(
+    payload.nodes
+      .filter((n) => n.node_type === 'outcome' || n.node_type === 'feedback')
+      .map((n) => n.node_id),
+  );
+
+  payload.edges = payload.edges.filter((e) => !(e.target && leafIds.has(e.target)));
+  payload.nodes = payload.nodes.filter((n) => {
+    if (n.node_type !== 'outcome' && n.node_type !== 'feedback') return true;
+    return false;
+  });
+}
+
+/** Stamp close deltas so ingest can tie back to the same trade node. */
+function stampCloseLifecycle(payload: DecisionEvent): void {
+  const isClose =
+    payload.operation === 'revise' ||
+    payload.edges.some(
+      (e) =>
+        e.metadata?.lifecycle === 'close' ||
+        (typeof e.Action === 'string' && /^Close\s/i.test(e.Action)),
+    );
+  if (!isClose) return;
+
+  const tradeNode = payload.nodes.find((n) => n.node_type === 'trade');
+  if (!tradeNode) return;
+
+  for (const e of payload.edges) {
+    if (e.Action && e.target === tradeNode.node_id) {
+      e.metadata = {
+        ...(e.metadata ?? {}),
+        lifecycle: 'close',
+        position_trade_id: tradeNode.node_id,
+      };
+    }
+  }
+}
+
 /** One feedback/outcome node per trade so merged graphs stay U→P→M→T→F/O chains. */
 function scopeTradeLeafNodes(payload: DecisionEvent): void {
   const tradeIds = new Set<string>();
@@ -113,6 +205,65 @@ function scopeTradeLeafNodes(payload: DecisionEvent): void {
       if (edge.target !== scopedId) remapNodeId(payload, edge.target, scopedId);
     }
   }
+}
+
+/** Markets that open/close a position (source of Action edge → trade). */
+export function anchorMarketIds(payload: DecisionEvent): Set<string> {
+  const ids = new Set<string>();
+  for (const edge of payload.edges) {
+    if (!edge.Action || !edge.target) continue;
+    const trade = payload.nodes.find((n) => n.node_id === edge.target && n.node_type === 'trade');
+    if (trade) ids.add(edge.source);
+  }
+  return ids;
+}
+
+function correlatedTargetIds(payload: DecisionEvent): Set<string> {
+  const ids = new Set<string>();
+  for (const edge of payload.edges) {
+    const rel = (edge.relationship_type ?? String(edge.metadata?.relationship_type ?? ''))
+      .toUpperCase()
+      .replace(/[^A-Z0-9_]/g, '_');
+    if (rel !== 'CORRELATED_MARKET') continue;
+    for (const tid of edge.targets ?? []) ids.add(tid);
+  }
+  return ids;
+}
+
+/** Drop correlated peers from nodes[] — they belong in CORRELATED_MARKET targets[] only. */
+function stripCorrelatedOnlyMarketNodes(payload: DecisionEvent): void {
+  const anchors = anchorMarketIds(payload);
+  payload.nodes = payload.nodes.filter((n) => {
+    if (n.node_type !== 'market') return true;
+    return anchors.has(n.node_id);
+  });
+}
+
+/**
+ * MERGE stub market nodes for correlated targets (not written to decision JSON on disk).
+ */
+function stampAnchorMarketProperties(payload: DecisionEvent): void {
+  const anchors = anchorMarketIds(payload);
+  for (const node of payload.nodes) {
+    if (node.node_type !== 'market' || !anchors.has(node.node_id)) continue;
+    node.properties = { ...(node.properties ?? {}), anchor: true };
+  }
+}
+
+export function augmentCorrelatedPeerNodes(payload: DecisionEvent): DecisionEvent {
+  const existing = new Set(payload.nodes.map((n) => n.node_id));
+  const peers = correlatedTargetIds(payload);
+  for (const nodeId of peers) {
+    if (existing.has(nodeId)) continue;
+    payload.nodes.push({
+      node_id: nodeId,
+      node_type: 'correlated_market',
+      properties: { correlated_peer: true },
+      label: 'CorrelatedMarket',
+    });
+    existing.add(nodeId);
+  }
+  return payload;
 }
 
 function ensureHasAgentEdge(payload: DecisionEvent, userNodeId: string, agentId: string, role: string): void {
@@ -136,6 +287,7 @@ export function normalizeDecision(raw: DecisionEvent): DecisionEvent {
   const payload = structuredClone(raw) as DecisionEvent & { edges: GraphEdge[] };
   payload.schema_version = payload.schema_version ?? '1.0';
   payload.operation = payload.operation ?? 'assert';
+  normalizeLegacyBuySellLifecycle(payload);
 
   const ctx = resolveAgentContext(payload);
   if (ctx) {
@@ -154,6 +306,10 @@ export function normalizeDecision(raw: DecisionEvent): DecisionEvent {
     }
   }
 
+  payload.edges = payload.edges.filter(
+    (e) => e.metadata?.direction !== 'reverse',
+  );
+
   const normalizedEdges: GraphEdge[] = [];
   for (const edge of payload.edges) {
     const e = structuredClone(edge) as GraphEdge;
@@ -170,7 +326,11 @@ export function normalizeDecision(raw: DecisionEvent): DecisionEvent {
     payload.decision_id = inferDecisionId(normalizedEdges, payload.updated_at);
   }
 
+  stripOpenLifecycleOrphans(payload);
+  stampCloseLifecycle(payload);
   scopeTradeLeafNodes(payload);
+  stripCorrelatedOnlyMarketNodes(payload);
+  stampAnchorMarketProperties(payload);
 
   payload.nodes = payload.nodes.map((n) => ({
     ...n,

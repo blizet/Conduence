@@ -4,6 +4,7 @@ export const NodeTypeSchema = z.enum([
   'user',
   'protocol',
   'market',
+  'correlated_market',
   'trade',
   'outcome',
   'feedback',

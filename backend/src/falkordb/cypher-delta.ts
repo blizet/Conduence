@@ -16,10 +16,11 @@ export type CypherDeltaResult = {
   edgeOpsSkipped: number;
 };
 
-/** node_type "market" → label Market (matches Python .capitalize()) */
+/** node_type → FalkorDB label (e.g. market → Market, correlated_market → CorrelatedMarket). */
 export function cypherNodeLabel(nodeType: string): string {
   const t = nodeType.trim().toLowerCase();
   if (!t) return 'Entity';
+  if (t === 'correlated_market') return 'CorrelatedMarket';
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
@@ -53,15 +54,22 @@ export async function executeCypherDelta(
 
   for (const node of payload.nodes) {
     const label = cypherNodeLabel(node.node_type);
+    const props = node.properties ?? {};
+    const anchor = props.anchor === true ? 1 : 0;
+    const correlatedPeer = props.correlated_peer === true ? 1 : 0;
     await query(
       `MERGE (n:${label} {node_id: $node_id}) ` +
-        `ON CREATE SET n.created_at = $timestamp, n.node_type = $node_type ` +
-        `ON MATCH SET n.last_seen_at = $timestamp, n.node_type = $node_type`,
+        `ON CREATE SET n.created_at = $timestamp, n.node_type = $node_type, ` +
+        `              n.anchor = $anchor, n.correlated_peer = $correlated_peer ` +
+        `ON MATCH SET n.last_seen_at = $timestamp, n.node_type = $node_type, ` +
+        `             n.anchor = ($anchor > 0), n.correlated_peer = ($correlated_peer > 0)`,
       {
         params: {
           node_id: node.node_id,
           timestamp,
           node_type: node.node_type,
+          anchor,
+          correlated_peer: correlatedPeer,
         },
       },
     );

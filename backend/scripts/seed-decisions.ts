@@ -10,7 +10,11 @@ import {
   PUBLISHER_GRAPH_ID,
   PUBLISHER_USER_NODE_ID,
 } from '../src/lib/pipeline-config';
-import { loadGeminiDeltas, resolveGeminiDeltasPath } from '../src/lib/gemini-deltas';
+import {
+  loadGeminiDeltas,
+  resolveDecisionsDir,
+  resolveGeminiDeltasPath,
+} from '../src/lib/gemini-deltas';
 
 const brokers = (process.env.KAFKA_BROKERS ?? 'localhost:19092').split(',');
 
@@ -23,8 +27,11 @@ async function main() {
     graphId: PUBLISHER_GRAPH_ID,
     userNodeId: PUBLISHER_USER_NODE_ID,
   });
+  const source = process.env.COT_SEED_DECISIONS_DIR
+    ? resolveDecisionsDir()
+    : resolveGeminiDeltasPath();
   console.log(
-    `Publishing ${events.length} seed deltas from ${resolveGeminiDeltasPath()} → ${MARKET_SIGNALS_TOPIC} (${PUBLISHER_GRAPH_ID})`,
+    `Publishing ${events.length} seed deltas from ${source} → ${MARKET_SIGNALS_TOPIC} (${PUBLISHER_GRAPH_ID})`,
   );
 
   let count = 0;

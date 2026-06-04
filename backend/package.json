@@ -7,12 +7,14 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "seed": "tsx scripts/seed-decisions.ts",
+    "migrate-decisions": "tsx scripts/migrate-decisions-lifecycle.ts",
     "sync-gemini": "tsx scripts/sync-gemini-decisions.ts",
     "publisher-agent": "tsx scripts/publisher-agent.ts",
     "seeker-agent": "tsx scripts/seeker-agent.ts",
     "dummy-agent": "tsx scripts/publisher-agent.ts",
     "migrate-topology": "tsx scripts/migrate-graph-topology.ts",
-    "clear-all": "tsx scripts/clear-all.ts"
+    "clear-all": "tsx scripts/clear-all.ts",
+    "relabel-correlated": "tsx scripts/relabel-correlated-markets.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.12",

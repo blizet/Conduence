@@ -6,10 +6,15 @@ import { FalkorDB } from 'falkordb';
 
 import type { DecisionEvent } from '../schemas/decision.schema';
 
-import { escapeCypher, graphName, normalizeDecision } from '../lib/normalize';
+import {
+  augmentCorrelatedPeerNodes,
+  escapeCypher,
+  graphName,
+  normalizeDecision,
+} from '../lib/normalize';
 
 import { executeCypherDelta } from './cypher-delta';
-import { parseFalkorRows, rowString } from './falkordb-rows';
+import { parseFalkorRows, rowFlag, rowString } from './falkordb-rows';
 import { computeGraphDelta, snapshotFromRows } from './graph-delta';
 
 
@@ -50,7 +55,7 @@ export class FalkorDbService implements OnModuleInit, OnModuleDestroy {
 
   async mergeCotDelta(raw: DecisionEvent) {
 
-    const data = normalizeDecision(raw);
+    const data = augmentCorrelatedPeerNodes(normalizeDecision(raw));
 
     const graphKey = graphName(data.graph_id);
 
@@ -184,7 +189,11 @@ export class FalkorDbService implements OnModuleInit, OnModuleDestroy {
 
       `MATCH (n) WHERE n.node_id IS NOT NULL ` +
 
-        `RETURN n.node_id AS id, coalesce(n.node_type, toLower(labels(n)[0])) AS type LIMIT ${limit}`,
+        `RETURN n.node_id AS id, coalesce(n.node_type, toLower(labels(n)[0])) AS type, ` +
+
+        `coalesce(n.anchor, false) AS anchor, coalesce(n.correlated_peer, false) AS correlated_peer ` +
+
+        `LIMIT ${limit}`,
 
     );
 
@@ -202,13 +211,39 @@ export class FalkorDbService implements OnModuleInit, OnModuleDestroy {
 
       graph_id: graphId,
 
-      nodes: parseFalkorRows(nodesResult).map((row) => ({
+      nodes: parseFalkorRows(nodesResult).map((row) => {
 
-        id: rowString(row, 'id', 'n.node_id'),
+        const type = rowString(row, 'type') || 'Entity';
 
-        type: rowString(row, 'type') || 'Entity',
+        const anchor = rowFlag(row, 'anchor');
 
-      })),
+        const correlatedPeer = rowFlag(row, 'correlated_peer');
+
+        let marketRole: 'anchor' | 'correlated_peer' | undefined;
+
+        if (type === 'market') {
+
+          if (anchor) marketRole = 'anchor';
+
+          else if (correlatedPeer) marketRole = 'correlated_peer';
+
+        } else if (type === 'correlated_market') {
+
+          marketRole = 'correlated_peer';
+
+        }
+
+        return {
+
+          id: rowString(row, 'id', 'n.node_id'),
+
+          type,
+
+          ...(marketRole ? { marketRole } : {}),
+
+        };
+
+      }),
 
       edges: parseFalkorRows(edgesResult).map((row) => ({
 

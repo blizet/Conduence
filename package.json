@@ -7,6 +7,7 @@
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
     "seed": "npm run seed -w backend",
+    "migrate-decisions": "npm run migrate-decisions -w backend",
     "sync-gemini": "npm run sync-gemini -w backend",
     "publisher-agent": "npm run publisher-agent -w backend",
     "seeker-agent": "npm run seeker-agent -w backend",

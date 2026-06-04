@@ -31,6 +31,38 @@ describe('graph-delta', () => {
     expect(keys).toContain(edgeKey('PM_B', 'CORRELATED_MARKET', 'PM_A'));
   });
 
+  it('removes correlated-only markets from nodes but keeps targets on edges', async () => {
+    const { normalizeDecision, augmentCorrelatedPeerNodes } = await import('../lib/normalize');
+    const payload = {
+      schema_version: '1.0',
+      operation: 'assert' as const,
+      graph_id: 'user_117.publisher.v1',
+      updated_at: '2026-06-04T10:00:00Z',
+      nodes: [
+        { node_id: 'user_117', node_type: 'user' as const },
+        { node_id: 'Polymarket', node_type: 'protocol' as const },
+        { node_id: 'PM_ETH_5K', node_type: 'market' as const },
+        { node_id: 'TRD_001', node_type: 'trade' as const },
+        { node_id: 'KAL_ETH_5K', node_type: 'market' as const },
+      ],
+      edges: [
+        { source: 'Polymarket', target: 'PM_ETH_5K', relationship_type: 'CONNECTED_TO' },
+        { source: 'PM_ETH_5K', target: 'TRD_001', Action: 'Open YES' },
+        {
+          source: 'PM_ETH_5K',
+          targets: ['KAL_ETH_5K'],
+          relationship_type: 'CORRELATED_MARKET',
+          direction: 'bi-directional' as const,
+        },
+      ],
+    };
+    const normalized = normalizeDecision(payload);
+    expect(normalized.nodes.map((n) => n.node_id)).not.toContain('KAL_ETH_5K');
+    expect(normalized.edges.some((e) => e.targets?.includes('KAL_ETH_5K'))).toBe(true);
+    const ingest = augmentCorrelatedPeerNodes(structuredClone(normalized));
+    expect(ingest.nodes.find((n) => n.node_id === 'KAL_ETH_5K')?.node_type).toBe('correlated_market');
+  });
+
   it('scopes shared feedback/outcome per trade during normalize', async () => {
     const { normalizeDecision } = await import('../lib/normalize');
     const payload = {

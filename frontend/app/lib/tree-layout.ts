@@ -1,7 +1,18 @@
 import type { Edge, Node } from '@xyflow/react';
 
-export type SnapshotNode = { id: string; type: string };
+export type SnapshotNode = {
+  id: string;
+  type: string;
+  marketRole?: 'anchor' | 'correlated_peer';
+};
 export type SnapshotEdge = { source: string; target: string; type: string };
+
+const TRADE_EDGE_COLOR: Record<string, string> = {
+  OPEN_YES: '#fcc419',
+  CLOSE_YES: '#4c6ef5',
+  OPEN_NO: '#f06595',
+  CLOSE_NO: '#9775fa',
+};
 
 /** Top-to-bottom: user → protocol → market → trade → feedback/outcome */
 const LAYER: Record<string, number> = {
@@ -9,6 +20,7 @@ const LAYER: Record<string, number> = {
   agent: 1,
   protocol: 2,
   market: 3,
+  correlated_market: 3,
   trade: 4,
   feedback: 5,
   outcome: 5,
@@ -30,7 +42,30 @@ function isCorrelatedEdge(type: string): boolean {
 }
 
 function isTradeActionEdge(type: string): boolean {
-  return /^(BUY|SELL)_/i.test(type);
+  return /^(BUY|SELL|OPEN|CLOSE)_/i.test(type);
+}
+
+function anchorMarketIdsFromEdges(rawEdges: SnapshotEdge[]): Set<string> {
+  const ids = new Set<string>();
+  for (const e of rawEdges) {
+    if (isTradeActionEdge(e.type)) ids.add(e.source);
+  }
+  return ids;
+}
+
+function tradeEdgeColor(type: string, accent: string): string {
+  return TRADE_EDGE_COLOR[type.toUpperCase()] ?? accent;
+}
+
+function resolveMarketRole(
+  n: SnapshotNode,
+  anchorIds: Set<string>,
+): 'anchor' | 'correlated_peer' | undefined {
+  const t = n.type.toLowerCase();
+  if (t === 'correlated_market') return 'correlated_peer';
+  if (t !== 'market') return undefined;
+  if (n.marketRole) return n.marketRole;
+  return anchorIds.has(n.id) ? 'anchor' : 'correlated_peer';
 }
 
 /** Tree spine only: enforce U → P → M → T → (F|O); correlated edges are side branches. */
@@ -65,7 +100,8 @@ function placeCorrelatedSideBranches(
     const anchor = e.source;
     const target = e.target;
     if (!positions.has(anchor) || !nodeMap.has(target)) continue;
-    if (nodeMap.get(target)!.type.toLowerCase() !== 'market') continue;
+    const tgtType = nodeMap.get(target)!.type.toLowerCase();
+    if (tgtType !== 'market' && tgtType !== 'correlated_market') continue;
 
     const anchorPos = positions.get(anchor)!;
     const idx = sideCountByAnchor.get(anchor) ?? 0;
@@ -93,6 +129,8 @@ export function layoutTree(
   if (!rootId) {
     return layoutFallbackGrid(rawNodes, rawEdges, accent);
   }
+
+  const anchorIds = anchorMarketIdsFromEdges(rawEdges);
 
   const children = new Map<string, { target: string; type: string }[]>();
   for (const e of rawEdges) {
@@ -149,14 +187,37 @@ export function layoutTree(
       const isTrade = t === 'trade';
       const isUser = t === 'user';
       const isMarket = t === 'market';
+      const isCorrelatedMarket = t === 'correlated_market';
+      const marketRole = resolveMarketRole(n, anchorIds);
+      const isCorrelatedPeer = isCorrelatedMarket || marketRole === 'correlated_peer';
+      const isAnchorMarket = marketRole === 'anchor';
+      const roleSuffix =
+        isAnchorMarket ? '\n(anchor)' : isCorrelatedPeer ? '\n(correlated)' : '';
       return {
         id: n.id,
-        data: { label: `${n.id}\n(${n.type})` },
+        data: { label: `${n.id}\n(${n.type})${roleSuffix}` },
         position: { x: pos.x, y: pos.y },
         style: {
-          background: isUser ? '#364fc7' : isAgent ? '#2b8a3e' : isTrade ? '#e67700' : '#212529',
+          background: isUser
+            ? '#364fc7'
+            : isAgent
+              ? '#2b8a3e'
+              : isTrade
+                ? '#e67700'
+                : isCorrelatedPeer
+                  ? '#343a40'
+                  : '#212529',
           color: '#fff',
-          border: `2px solid ${isAgent || isUser || isTrade ? accent : isMarket ? '#495057' : '#495057'}`,
+          border: `2px solid ${
+            isAgent || isUser || isTrade
+              ? accent
+              : isAnchorMarket
+                ? '#74c0fc'
+                : isCorrelatedPeer
+                  ? '#868e96'
+                  : '#495057'
+          }`,
+          borderStyle: isCorrelatedPeer ? ('dashed' as const) : ('solid' as const),
           fontSize: 10,
           padding: 8,
           borderRadius: 8,
@@ -171,15 +232,22 @@ export function layoutTree(
     .filter((e) => placedIds.has(e.source) && placedIds.has(e.target))
     .map((e, i) => {
       const correlated = isCorrelatedEdge(e.type);
+      const tradeAction = isTradeActionEdge(e.type);
       return {
-        id: `e-${i}-${e.source}-${e.target}`,
+        id: `e-${i}-${e.source}-${e.target}-${e.type}`,
         source: e.source,
         target: e.target,
         label: correlated ? 'correlated' : e.type.replace(/_/g, ' '),
-        animated: !correlated && /BUY|SELL|OBSERVED/i.test(e.type),
+        animated: tradeAction || /BUY|SELL|OBSERVED/i.test(e.type),
         style: {
-          stroke: correlated ? CORRELATED_COLOR : /HAS_AGENT|OBSERVED/i.test(e.type) ? '#63e6be' : accent,
-          strokeWidth: correlated ? 1.5 : 2,
+          stroke: correlated
+            ? CORRELATED_COLOR
+            : tradeAction
+              ? tradeEdgeColor(e.type, accent)
+              : /HAS_AGENT|OBSERVED/i.test(e.type)
+                ? '#63e6be'
+                : accent,
+          strokeWidth: tradeAction ? 3 : correlated ? 1.5 : 2,
           strokeDasharray: correlated ? '6 4' : undefined,
         },
       };
