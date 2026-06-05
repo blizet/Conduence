@@ -7,6 +7,9 @@ import { normalizeDecision } from './normalize';
 /** Default CoT decision batch (repo-relative). */
 export const DEFAULT_SEED_DELTAS_FILE = 'data/sample/decisions-batch.json';
 
+/** Whale wallet publisher batch (repo-relative). */
+export const DEFAULT_GEMINI_WHALE_FILE = 'gemini-code-1780575064729.json';
+
 /** Per-decision JSON files (open/close lifecycle). */
 export const DEFAULT_SEED_DECISIONS_DIR = 'data/decisions';
 
@@ -31,7 +34,7 @@ export function resolveGeminiDeltasPath(): string {
     process.env.COT_GEMINI_DELTAS ??
     DEFAULT_SEED_DELTAS_FILE;
 
-  const candidates = [configured, DEFAULT_SEED_DELTAS_FILE].filter(
+  const candidates = [configured, DEFAULT_GEMINI_WHALE_FILE, DEFAULT_SEED_DELTAS_FILE].filter(
     (p, i, arr) => arr.indexOf(p) === i,
   );
 

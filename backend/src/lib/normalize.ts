@@ -267,6 +267,9 @@ export function augmentCorrelatedPeerNodes(payload: DecisionEvent): DecisionEven
 }
 
 function ensureHasAgentEdge(payload: DecisionEvent, userNodeId: string, agentId: string, role: string): void {
+  const nodeIds = new Set(payload.nodes.map((n) => n.node_id));
+  if (!nodeIds.has(userNodeId) || !nodeIds.has(agentId)) return;
+
   const has = payload.edges.some(
     (e) =>
       e.source === userNodeId &&
