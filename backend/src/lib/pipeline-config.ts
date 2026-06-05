@@ -1,4 +1,4 @@
-import { graphIdFor, graphIdToTopic, userSlugFromNodeId } from './graph-topology';
+import { graphIdFor, userSlugFromNodeId } from './graph-topology';
 
 /** Publisher and seeker are different end-users with separate graphs. */
 export const PUBLISHER_USER_NODE_ID = process.env.COT_PUBLISHER_USER_ID ?? 'user_117';
@@ -14,10 +14,3 @@ export const SEEKER_GRAPH_ID =
 
 export const PUBLISHER_AGENT_ID = `${PUBLISHER_USER_SLUG}.publisher`;
 export const SEEKER_AGENT_ID = `${SEEKER_USER_SLUG}.seeker`;
-
-/** @deprecated Per-user topics replaced by market.signals.public */
-export const PUBLISHER_KAFKA_TOPIC =
-  process.env.KAFKA_PUBLISHER_TOPIC ?? graphIdToTopic(PUBLISHER_GRAPH_ID);
-
-/** @deprecated Use PUBLISHER_USER_NODE_ID */
-export const DEFAULT_USER_NODE_ID = PUBLISHER_USER_NODE_ID;

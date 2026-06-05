@@ -9,9 +9,7 @@ import {
   WORKER_TARGETS,
 } from '../lib/event-sourced.config';
 import {
-  PUBLISHER_GRAPH_ID,
   PUBLISHER_USER_NODE_ID,
-  SEEKER_AGENT_ID,
   SEEKER_GRAPH_ID,
   SEEKER_USER_NODE_ID,
 } from '../lib/pipeline-config';
@@ -49,23 +47,23 @@ export class SeekerWorkerService implements OnModuleInit, OnModuleDestroy {
 
         try {
           const envelope = JSON.parse(message.value.toString()) as CotDeltaEnvelope;
-          const observation = this.buildSeekerObservation(envelope, publisherId);
+          const seekerDelta = this.buildSeekerDelta(envelope, publisherId);
           const verification = await this.falkordb.verifyCotDelta(
             SEEKER_GRAPH_ID,
-            observation,
+            seekerDelta,
           );
-          const result = await this.falkordb.mergeCotDelta(observation);
+          const result = await this.falkordb.mergeCotDelta(seekerDelta);
           this.events.broadcast({
             type: 'decision.ingested',
-            decision_id: observation.decision_id!,
+            decision_id: seekerDelta.decision_id!,
             graph_id: SEEKER_GRAPH_ID,
-            updated_at: observation.updated_at,
+            updated_at: seekerDelta.updated_at,
             falkordb: result,
             verification,
             worker: 'seeker',
           });
           this.logger.log(
-            `Seeker worker verified=${verification.verified} MERGE ${observation.decision_id} → ${result.graph}`,
+            `Seeker worker verified=${verification.verified} MERGE ${seekerDelta.decision_id} → ${result.graph}`,
           );
         } catch (err) {
           this.logger.error(`Seeker worker failed: ${err}`);
@@ -81,66 +79,73 @@ export class SeekerWorkerService implements OnModuleInit, OnModuleDestroy {
     await this.consumer?.disconnect();
   }
 
-  private buildSeekerObservation(
+  private buildSeekerDelta(
     envelope: CotDeltaEnvelope,
     publisherId: string,
   ): DecisionEvent {
-    const tradeEdge = envelope.payload.edges.find((e) => e.Action && e.target);
-    const obsId = `obs-${envelope.decision_id}`;
+    const publisherUserIds = new Set(
+      envelope.payload.nodes
+        .filter((n) => n.node_type === 'user')
+        .map((n) => n.node_id),
+    );
+    publisherUserIds.add(PUBLISHER_USER_NODE_ID);
+
+    const publisherAgentIds = new Set([publisherId]);
+
+    const remapId = (id: string): string => {
+      if (publisherUserIds.has(id)) return SEEKER_USER_NODE_ID;
+      if (publisherAgentIds.has(id)) return SEEKER_USER_NODE_ID;
+      return id;
+    };
+
+    const nodesById = new Map<string, DecisionEvent['nodes'][number]>();
+    for (const node of envelope.payload.nodes) {
+      const nodeId = remapId(node.node_id);
+      const isSeekerUser = node.node_type === 'user' && nodeId === SEEKER_USER_NODE_ID;
+      if (node.node_type === 'agent') continue;
+      nodesById.set(nodeId, {
+        ...node,
+        node_id: nodeId,
+        properties: {
+          ...(node.properties ?? {}),
+          ...(isSeekerUser ? { role: 'seeker_user' } : {}),
+        },
+      });
+    }
+
+    nodesById.set(SEEKER_USER_NODE_ID, {
+      ...(nodesById.get(SEEKER_USER_NODE_ID) ?? {
+        node_id: SEEKER_USER_NODE_ID,
+        node_type: 'user',
+        label: 'User',
+      }),
+      node_id: SEEKER_USER_NODE_ID,
+      node_type: 'user',
+      properties: {
+        ...(nodesById.get(SEEKER_USER_NODE_ID)?.properties ?? {}),
+        role: 'seeker_user',
+      },
+    });
+
     return {
+      ...envelope.payload,
       graph_id: SEEKER_GRAPH_ID,
-      schema_version: '1.0',
-      operation: 'assert',
-      decision_id: `seek-observe-${envelope.decision_id}`,
-      updated_at: envelope.updated_at,
-      nodes: [
-        {
-          node_id: SEEKER_USER_NODE_ID,
-          node_type: 'user',
-          properties: { role: 'seeker_user' },
-          label: 'User',
-        },
-        {
-          node_id: SEEKER_AGENT_ID,
-          node_type: 'agent',
-          properties: {
-            role: 'seeker',
-            watches_graph: PUBLISHER_GRAPH_ID,
-            watches_user: PUBLISHER_USER_NODE_ID,
-          },
-          label: 'Agent',
-        },
-        {
-          node_id: obsId,
-          node_type: 'feedback',
-          properties: {
-            kind: 'observation',
-            publisher_id: publisherId,
-            publisher_decision_id: envelope.decision_id,
-            trade_id: tradeEdge?.target,
-            thesis: tradeEdge?.metadata?.thesis,
-          },
-          label: 'Observation',
-        },
-      ],
-      edges: [
-        {
-          source: SEEKER_USER_NODE_ID,
-          target: SEEKER_AGENT_ID,
-          relationship_type: 'HAS_AGENT',
-          metadata: { role: 'seeker' },
-        },
-        {
-          source: SEEKER_AGENT_ID,
-          target: obsId,
-          relationship_type: 'OBSERVED_DECISION',
+      decision_id: envelope.decision_id,
+      nodes: [...nodesById.values()],
+      edges: envelope.payload.edges
+        .filter((edge) => edge.relationship_type !== 'HAS_AGENT')
+        .map((edge) => ({
+          ...edge,
+          source: remapId(edge.source),
+          target: edge.target ? remapId(edge.target) : undefined,
+          targets: edge.targets?.map(remapId),
           metadata: {
-            publisher_graph: envelope.graph_id,
-            publisher_decision_id: envelope.decision_id,
-            trade_action: tradeEdge?.Action,
+            ...(edge.metadata ?? {}),
+            source_publisher_id: publisherId,
+            source_publisher_graph: envelope.graph_id,
+            source_publisher_decision_id: envelope.decision_id,
           },
-        },
-      ],
+        })),
     };
   }
 }
