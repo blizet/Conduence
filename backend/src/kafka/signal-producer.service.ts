@@ -18,6 +18,14 @@ export type CotDeltaEnvelope = {
   payload: ReturnType<typeof DecisionEventSchema.parse>;
 };
 
+/** Generic envelope for any autonomous mind-agent feed on its dedicated topic. */
+export type AgentFeedEnvelope = {
+  event_type: string;
+  agent_id: string;
+  updated_at: string;
+  payload: unknown;
+};
+
 @Injectable()
 export class SignalProducerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SignalProducerService.name);
@@ -82,5 +90,30 @@ export class SignalProducerService implements OnModuleInit, OnModuleDestroy {
       `Produced ${envelope.decision_id} → ${MARKET_SIGNALS_TOPIC} key=${envelope.graph_id}`,
     );
     return { ...envelope, topic: MARKET_SIGNALS_TOPIC };
+  }
+
+  /** Publish autonomous mind-agent feed to that agent's dedicated topic. */
+  async publishAgentFeed(
+    envelope: AgentFeedEnvelope,
+    topic: string,
+  ): Promise<AgentFeedEnvelope & { topic: string }> {
+    await this.producer.send({
+      topic,
+      messages: [
+        {
+          key: envelope.agent_id,
+          value: JSON.stringify(envelope),
+          headers: {
+            agent_id: envelope.agent_id,
+            event_type: envelope.event_type,
+          },
+        },
+      ],
+    });
+
+    this.logger.log(
+      `Produced ${envelope.event_type} → ${topic} agent=${envelope.agent_id}`,
+    );
+    return { ...envelope, topic };
   }
 }

@@ -2,6 +2,7 @@ import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { FalkorDbService } from '../falkordb/falkordb.service';
 import { SignalIngressService } from '../ingress/signal-ingress.service';
 import { MARKET_SIGNALS_TOPIC } from '../lib/event-sourced.config';
+import { listAutonomousAgentFeedTopics } from '../autonomous/agent-catalog';
 import { PUBLISHER_AGENT_ID } from '../lib/pipeline-config';
 @Controller('api')
 export class ApiController {
@@ -17,7 +18,9 @@ export class ApiController {
 
   @Get('topics')
   topics() {
-    return { topics: [MARKET_SIGNALS_TOPIC] };
+    return {
+      topics: [MARKET_SIGNALS_TOPIC, ...listAutonomousAgentFeedTopics()],
+    };
   }
 
   @Get('graphs')

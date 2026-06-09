@@ -4,21 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "nest build && nest start --watch",
-    "build": "nest build",
-    "start": "node dist/main.js",
-    "seed": "tsx scripts/seed-decisions.ts",
-    "migrate-decisions": "tsx scripts/migrate-decisions-lifecycle.ts",
-    "sync-gemini": "tsx scripts/sync-gemini-decisions.ts",
-    "publisher-agent": "tsx scripts/publisher-agent.ts",
-    "seeker-agent": "tsx scripts/seeker-agent.ts",
-    "main-agent": "tsx scripts/main-agent.ts",
-    "smoke-agents": "tsx scripts/smoke-agents.ts",
-    "dummy-agent": "tsx scripts/publisher-agent.ts",
-    "migrate-topology": "tsx scripts/migrate-graph-topology.ts",
-    "clear-all": "tsx scripts/clear-all.ts",
-    "relabel-correlated": "tsx scripts/relabel-correlated-markets.ts"
+    "build": "npm run build -w @cot-kb/agents && nest build",
+    "start": "node dist/main.js"
   },
   "dependencies": {
+    "@cot-kb/agents": "file:../agents",
     "@nestjs/common": "^11.0.12",
     "@nestjs/core": "^11.0.12",
     "@nestjs/platform-fastify": "^11.0.12",
@@ -26,10 +16,8 @@
     "@nestjs/websockets": "^11.0.12",
     "falkordb": "^6.6.2",
     "fastify": "^5.2.1",
-    "@google/generative-ai": "^0.24.0",
     "dotenv": "^16.4.7",
     "kafkajs": "^2.2.4",
-    "rss-parser": "^3.13.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "ws": "^8.18.1",
@@ -39,7 +27,6 @@
     "@nestjs/cli": "^11.0.6",
     "@types/node": "^22.13.10",
     "@types/ws": "^8.18.0",
-    "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
 }

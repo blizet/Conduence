@@ -1,8 +1,46 @@
+# Dependencies
 node_modules/
-.next/
+
+# Build output
 dist/
+backend/dist/
+.next/
+*.tsbuildinfo
+
+# Environment & secrets
 .env
 .env.local
+.env.*.local
+backend/.env
+frontend/.env.local
+agents/.env
+
+# Runtime logs
+data/logs/
+backend/data/logs/
+
+# Graphify cache (keep graphify-out/graph.json etc.)
+graphify-out/cache/
+
+# Python (legacy)
 *.pyc
 __pycache__/
 .venv/
+*.egg-info/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Debug
+.cursor/debug-*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

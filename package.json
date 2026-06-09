@@ -1,20 +1,28 @@
 {
+
   "name": "cot-kb",
+
   "private": true,
-  "workspaces": ["backend", "frontend"],
+
+  "workspaces": ["agents", "backend", "frontend"],
+
   "scripts": {
+
     "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+
     "dev:backend": "npm run dev -w backend",
+
     "dev:frontend": "npm run dev -w frontend",
-    "seed": "npm run seed -w backend",
-    "migrate-decisions": "npm run migrate-decisions -w backend",
-    "sync-gemini": "npm run sync-gemini -w backend",
-    "publisher-agent": "npm run publisher-agent -w backend",
-    "seeker-agent": "npm run seeker-agent -w backend",
-    "dummy-agent": "npm run dummy-agent -w backend",
-    "clear-all": "npm run clear-all -w backend"
+
+    "news-agent": "npm run news-agent -w @cot-kb/agents"
+
   },
+
   "devDependencies": {
+
     "concurrently": "^9.1.2"
+
   }
+
 }
+

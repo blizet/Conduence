@@ -1,5 +1,12 @@
 import { graphIdFor, graphIdToTopic, userSlugFromNodeId } from './graph-topology';
 
+/** Main playground graph (CoT Builder + graph view). */
+export const MAIN_USER_NODE_ID = process.env.MAIN_USER_NODE_ID ?? 'user_771';
+export const MAIN_USER_SLUG = userSlugFromNodeId(MAIN_USER_NODE_ID);
+export const MAIN_GRAPH_ID =
+  process.env.MAIN_GRAPH_ID ?? graphIdFor(MAIN_USER_SLUG, 'main');
+export const MAIN_AGENT_ID = `${MAIN_USER_SLUG}.main`;
+
 /** Publisher and seeker are different end-users with separate graphs. */
 export const PUBLISHER_USER_NODE_ID = process.env.COT_PUBLISHER_USER_ID ?? 'user_117';
 export const SEEKER_USER_NODE_ID = process.env.COT_SEEKER_USER_ID ?? 'User_902';

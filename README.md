@@ -73,13 +73,14 @@ See [docs/services.md](docs/services.md).
 ## Architecture
 
 ```text
-Publisher POST /api/signals/cot  (or npm run seed / publisher-agent)
+POST /api/signals/cot  (npm run seed / publisher-agent / main-agent)
         │
         ▼
 Redpanda  market.signals.public  (key=graph_id, header publisher_id)
         │
-        ├─ PublisherWorker ──► MERGE user_117.publisher.v1 (FalkorDB only)
-        └─ SeekerWorker    ──► verify + MERGE user_902.seeker.v1 (FalkorDB only)
+        ├─ PublisherWorker ──► MERGE user_117.publisher.v1
+        ├─ SeekerWorker    ──► MERGE user_902.seeker.v1 (publisher whale mirror)
+        └─ MainWorker      ──► MERGE user_771.main.v1 (main-agent CoT)
         │
         ▼
 Next.js dashboard (:3001) — REST snapshot + WS feed
@@ -100,11 +101,15 @@ Next.js dashboard (:3001) — REST snapshot + WS feed
 ```
 backend/           NestJS + Fastify + KafkaJS + FalkorDB
 frontend/          Next.js dashboard (React Flow)
+config/            Runtime config (e.g. whale-wallets.json)
 data/decisions/    One JSON per decision event
+data/logs/         Main-agent log — one JSONL with cycles + CoT (gitignored)
 schema/            JSON Schema (mirrored by Zod in backend)
 docker-compose.yml Redpanda, FalkorDB, Redis, Neo4j
 AGENTS.md          LLM wiki maintainer instructions
 ```
+
+`npm run seed` publishes **whale/publisher** deltas to `market.signals.public`. `npm run main-agent` publishes CoT to the same topic; **MainWorker** builds `user_771.main.v1` in FalkorDB. All main-agent output is appended to `data/logs/main-agent.jsonl` only.
 
 ## FalkorDB Browser login
 
