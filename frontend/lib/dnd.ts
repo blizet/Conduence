@@ -1,7 +1,13 @@
 import type { PaletteItem, WorkflowNodeData } from '@/nodes/types';
 import {
+  DEFAULT_COT_CORRELATED_JSON,
+  DEFAULT_COT_DECISION_JSON,
+  DEFAULT_COT_GRAPH_ID,
+  DEFAULT_COT_USER_NODE_ID,
   DEFAULT_LLM_SYSTEM_PROMPT,
   DEFAULT_LLM_USER_PROMPT,
+  DEFAULT_WHALE_WALLET_SYSTEM_PROMPT,
+  DEFAULT_WHALE_WALLET_USER_PROMPT,
 } from '@/nodes/constants';
 
 let nodeId = 0;
@@ -22,6 +28,30 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     newsFilterCategories: [],
   },
   newsAgent: { apiKey: '', newsPollLimit: '20' },
+  clob: {
+    clobMode: 'read',
+    clobTokenSource: 'manual',
+    executeSide: 'BOTH',
+    tokenId: '',
+    tradeSize: '',
+    tradePrice: '',
+    apiKey: '',
+    apiSecret: '',
+    apiPassphrase: '',
+  },
+  cotBuilder: {
+    graphId: DEFAULT_COT_GRAPH_ID,
+    userNodeId: DEFAULT_COT_USER_NODE_ID,
+    autoEmit: false,
+    decisionJson: DEFAULT_COT_DECISION_JSON,
+    correlatedJson: DEFAULT_COT_CORRELATED_JSON,
+  },
+  whaleWallet: {
+    walletAddresses: [''],
+    apiKey: '',
+    systemPrompt: DEFAULT_WHALE_WALLET_SYSTEM_PROMPT,
+    userPrompt: DEFAULT_WHALE_WALLET_USER_PROMPT,
+  },
 };
 
 export function createNodeData(item: PaletteItem): WorkflowNodeData {

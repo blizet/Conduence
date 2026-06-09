@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AgentsController } from './api/tools.controller';
+import { AgentsController, ToolsController } from './api/tools.controller';
 import { MarketplaceController } from './api/marketplace.controller';
 import { ApiController } from './api/api.controller';
 import { FalkorDbService } from './falkordb/falkordb.service';
@@ -10,7 +10,7 @@ import { EventsGateway } from './ws/events.gateway';
 import { AutonomousAgentStreamService } from './autonomous/autonomous-agent-stream.service';
 
 @Module({
-  controllers: [ApiController, AgentsController, MarketplaceController],
+  controllers: [ApiController, AgentsController, ToolsController, MarketplaceController],
   providers: [
     FalkorDbService,
     SignalProducerService,

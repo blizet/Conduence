@@ -13,6 +13,7 @@ const POSITION_MAP: Record<HandleConfig['position'], Position> = {
 const CATEGORY_LABEL: Record<NodeCategory, string> = {
   tool: 'tool',
   mindagent: 'mind',
+  subagent: 'sub',
 };
 
 type GlassNodeProps = {

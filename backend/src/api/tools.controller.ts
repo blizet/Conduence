@@ -1,5 +1,87 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { coinDeskAgent } from '@cot-kb/agents';
+import {
+  buildCotDecision,
+  clobTool,
+  trackWhaleWallets,
+  type CorrelatedMarketsResult,
+  type GeminiTradeDecision,
+} from '../tools';
+import { normalizeDecision } from '../lib/normalize';
+import { DecisionEventSchema } from '../schemas/decision.schema';
+
+@Controller('api/tools')
+export class ToolsController {
+  @Post('clob/quote')
+  async clobQuote(@Body() body: { tokenId: string }) {
+    if (!body.tokenId?.trim()) {
+      return { error: 'tokenId is required' };
+    }
+    return clobTool.quote({ tokenId: body.tokenId.trim() });
+  }
+
+  @Post('clob/execute')
+  async clobExecute(
+    @Body()
+    body: {
+      tokenId: string;
+      side: 'BUY' | 'SELL';
+      size: number;
+      price: number;
+      apiKey?: string;
+      apiSecret?: string;
+      apiPassphrase?: string;
+    },
+  ) {
+    if (!body.tokenId?.trim()) {
+      return { error: 'tokenId is required' };
+    }
+    return clobTool.execute(body);
+  }
+
+  @Post('cot/build')
+  cotBuild(
+    @Body()
+    body: {
+      decision: GeminiTradeDecision;
+      correlated: CorrelatedMarketsResult;
+      graphId?: string;
+      userNodeId?: string;
+    },
+  ) {
+    if (body.decision?.action === 'HOLD') {
+      return { hold: true, message: 'HOLD decisions do not emit CoT' };
+    }
+
+    const draft = buildCotDecision(body.decision, body.correlated, {
+      graphId: body.graphId,
+      userNodeId: body.userNodeId,
+    });
+
+    if (!draft) {
+      return { hold: true, message: 'No CoT produced for this decision' };
+    }
+
+    const parsed = DecisionEventSchema.parse(draft);
+    const cot = normalizeDecision(parsed);
+    return { cot };
+  }
+
+  @Post('whale/track')
+  async whaleTrack(
+    @Body()
+    body: {
+      walletAddresses?: string[];
+      polymarketMarkets?: CorrelatedMarketsResult['polymarket'];
+      keywords?: string[];
+      headline?: string;
+      conditionId?: string;
+      apiKey?: string;
+    },
+  ) {
+    return trackWhaleWallets(body);
+  }
+}
 
 function requireApiKey(apiKey?: string): string | { error: string } {
   const key = apiKey?.trim();

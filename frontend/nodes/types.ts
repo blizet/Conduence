@@ -1,6 +1,10 @@
 import type { Node } from '@xyflow/react';
 
-export type NodeCategory = 'tool' | 'mindagent';
+export type NodeCategory = 'tool' | 'mindagent' | 'subagent';
+
+export type ClobMode = 'read' | 'execute';
+export type ClobTokenSource = 'upstream' | 'manual';
+export type ClobExecuteSide = 'BUY' | 'SELL' | 'BOTH';
 
 export type WorkflowNodeData = {
   label: string;
@@ -8,6 +12,8 @@ export type WorkflowNodeData = {
   category: NodeCategory;
   accent: string;
   apiKey?: string;
+  apiSecret?: string;
+  apiPassphrase?: string;
   systemPrompt?: string;
   userPrompt?: string;
   model?: string;
@@ -15,6 +21,27 @@ export type WorkflowNodeData = {
   maxTokens?: string;
   newsPollLimit?: string;
   newsFilterCategories?: string[];
+  graphId?: string;
+  userNodeId?: string;
+  backendUrl?: string;
+  autoEmit?: boolean;
+  decisionJson?: string;
+  correlatedJson?: string;
+  cotOutput?: string;
+  cotStatus?: string;
+  tokenId?: string;
+  tradeSide?: 'BUY' | 'SELL';
+  tradeSize?: string;
+  tradePrice?: string;
+  clobMode?: ClobMode;
+  clobTokenSource?: ClobTokenSource;
+  executeSide?: ClobExecuteSide;
+  clobStatus?: string;
+  clobQuoteJson?: string;
+  walletAddresses?: string[];
+  conditionId?: string;
+  whaleStatus?: string;
+  whaleOutput?: string;
 };
 
 export type WorkflowNode = Node<WorkflowNodeData>;

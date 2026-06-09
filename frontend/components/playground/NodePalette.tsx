@@ -26,6 +26,7 @@ function PaletteEntry({ item }: { item: PaletteItem }) {
 
 const SECTIONS: { category: NodeCategory; title: string; className: string }[] = [
   { category: 'tool', title: 'Tools', className: 'palette-section-title--tools' },
+  { category: 'subagent', title: 'Subagents', className: 'palette-section-title--subagents' },
   { category: 'mindagent', title: 'Mind Agents', className: 'palette-section-title--mindagents' },
 ];
 

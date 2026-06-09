@@ -2,7 +2,10 @@ import type { NodeTypes } from '@xyflow/react';
 import type { PaletteItem } from './types';
 import { LlmNode } from './mindagents/LlmNode';
 import { NewsAgentNode } from './mindagents/NewsAgentNode';
+import { WhaleWalletNode } from './subagents/WhaleWalletNode';
+import { ClobToolNode } from './tools/ClobToolNode';
 import { ConditionNode } from './tools/ConditionNode';
+import { CotBuilderNode } from './tools/CotBuilderNode';
 import { EndNode } from './tools/EndNode';
 import { OutputNode } from './tools/OutputNode';
 import { StartNode } from './tools/StartNode';
@@ -14,8 +17,11 @@ export const nodeTypes: NodeTypes = {
   condition: ConditionNode,
   transform: TransformNode,
   output: OutputNode,
+  clob: ClobToolNode,
+  cotBuilder: CotBuilderNode,
   llm: LlmNode,
   newsAgent: NewsAgentNode,
+  whaleWallet: WhaleWalletNode,
 };
 
 export const PALETTE_ITEMS: PaletteItem[] = [
@@ -53,6 +59,27 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Emit workflow result',
     category: 'tool',
     accent: '#60a5fa',
+  },
+  {
+    type: 'clob',
+    label: 'CLOB',
+    description: 'Polymarket orderbook quotes & trade execution',
+    category: 'tool',
+    accent: '#a78bfa',
+  },
+  {
+    type: 'cotBuilder',
+    label: 'CoT Builder',
+    description: 'Format LLM decision + markets into graph JSON',
+    category: 'tool',
+    accent: '#34d399',
+  },
+  {
+    type: 'whaleWallet',
+    label: 'Whale Wallet',
+    description: 'Track proxy wallets against news & markets',
+    category: 'subagent',
+    accent: '#38bdf8',
   },
   {
     type: 'newsAgent',

@@ -21,7 +21,6 @@ export type CoinDeskArticle = {
   summary?: string;
 };
 
-/** Latest Articles — `/news/v1/article/list` */
 export type CoinDeskLatestArticlesRequest = {
   apiKey: string;
   limit?: number;
@@ -41,7 +40,6 @@ export type CoinDeskNewsResult = {
   raw?: unknown;
 };
 
-/** Sources — `/news/v1/source/list` */
 export type CoinDeskSourcesRequest = {
   apiKey: string;
   language?: string;
@@ -49,20 +47,17 @@ export type CoinDeskSourcesRequest = {
   status?: string;
 };
 
-/** Categories — `/news/v1/category/list` */
 export type CoinDeskCategoriesRequest = {
   apiKey: string;
   status?: string;
 };
 
-/** Single Article — `/news/v1/article/get` */
 export type CoinDeskArticleGetRequest = {
   apiKey: string;
   sourceId: string;
   guid: string;
 };
 
-/** News Search — `/news/v1/search` */
 export type CoinDeskSearchRequest = {
   apiKey: string;
   query: string;
