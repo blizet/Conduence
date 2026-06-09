@@ -97,16 +97,6 @@ export class FalkorDbService implements OnModuleInit, OnModuleDestroy {
 
 
 
-  /** @deprecated Use mergeCotDelta */
-
-  async ingestDecision(raw: DecisionEvent) {
-
-    return this.mergeCotDelta(raw);
-
-  }
-
-
-
   /**
 
    * Structural + graph Cypher checks before seeker MERGE (isolated seeker graph).

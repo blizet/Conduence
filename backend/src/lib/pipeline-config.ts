@@ -1,4 +1,4 @@
-import { graphIdFor, graphIdToTopic, userSlugFromNodeId } from './graph-topology';
+import { graphIdFor, userSlugFromNodeId } from './graph-topology';
 
 /** Main playground graph (CoT Builder + graph view). */
 export const MAIN_USER_NODE_ID = process.env.MAIN_USER_NODE_ID ?? 'user_771';
@@ -21,10 +21,3 @@ export const SEEKER_GRAPH_ID =
 
 export const PUBLISHER_AGENT_ID = `${PUBLISHER_USER_SLUG}.publisher`;
 export const SEEKER_AGENT_ID = `${SEEKER_USER_SLUG}.seeker`;
-
-/** @deprecated Per-user topics replaced by market.signals.public */
-export const PUBLISHER_KAFKA_TOPIC =
-  process.env.KAFKA_PUBLISHER_TOPIC ?? graphIdToTopic(PUBLISHER_GRAPH_ID);
-
-/** @deprecated Use PUBLISHER_USER_NODE_ID */
-export const DEFAULT_USER_NODE_ID = PUBLISHER_USER_NODE_ID;

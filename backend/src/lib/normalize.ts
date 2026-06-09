@@ -100,6 +100,21 @@ function remapNodeId(payload: DecisionEvent, from: string, to: string): void {
   }
 }
 
+function collapseAgentIntoUser(payload: DecisionEvent, userNodeId: string, agentId: string): void {
+  if (userNodeId === agentId) return;
+
+  for (const edge of payload.edges) {
+    if (edge.source === agentId) edge.source = userNodeId;
+    if (edge.target === agentId) edge.target = userNodeId;
+    if (edge.targets) {
+      edge.targets = edge.targets.map((t) => (t === agentId ? userNodeId : t));
+    }
+  }
+
+  payload.edges = payload.edges.filter((e) => e.relationship_type !== 'HAS_AGENT');
+  payload.nodes = payload.nodes.filter((n) => n.node_id !== agentId && n.node_type !== 'agent');
+}
+
 /** Stable per-trade leaf id; safe if normalize runs more than once (seed + worker). */
 export function scopedLeafId(leafId: string, tradeId: string): string {
   const suffix = `__${tradeId}`;
@@ -298,7 +313,11 @@ export function normalizeDecision(raw: DecisionEvent): DecisionEvent {
       payload.graph_id = graphIdFor(ctx.userSlug, ctx.role);
     }
     remapLegacyAgent(payload, ctx.agentId);
-    ensureHasAgentEdge(payload, ctx.userNodeId, ctx.agentId, ctx.role);
+    if (ctx.role === 'seeker') {
+      collapseAgentIntoUser(payload, ctx.userNodeId, ctx.agentId);
+    } else {
+      ensureHasAgentEdge(payload, ctx.userNodeId, ctx.agentId, ctx.role);
+    }
   } else {
     const userNodeId = primaryUserNodeId(payload.nodes);
     if (userNodeId) {

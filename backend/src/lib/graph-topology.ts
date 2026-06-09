@@ -2,8 +2,6 @@ import type { DecisionEvent } from '../schemas/decision.schema';
 
 export type AgentRole = 'publisher' | 'seeker' | 'main';
 
-const TOPIC_PREFIX = 'cot.decisions';
-
 export function userSlugFromNodeId(nodeId: string): string {
   const m = nodeId.match(/^User_(.+)$/i);
   if (m) return `user_${m[1].toLowerCase()}`;
@@ -31,29 +29,6 @@ export function parseGraphId(
   const m = graphId.match(/^(.+)\.(publisher|seeker|main)\.(v\d+)$/);
   if (!m) return null;
   return { userSlug: m[1], role: m[2] as AgentRole, version: m[3] };
-}
-
-/** graph_id user_771.publisher.v1 → topic cot.decisions.user_771.publisher */
-export function graphIdToTopic(graphId: string): string {
-  const parsed = parseGraphId(graphId);
-  if (!parsed) {
-    return `${TOPIC_PREFIX}.${graphId.replace(/\./g, '_')}`;
-  }
-  return `${TOPIC_PREFIX}.${parsed.userSlug}.${parsed.role}`;
-}
-
-export function topicToGraphId(topic: string): string | null {
-  if (!topic.startsWith(`${TOPIC_PREFIX}.`)) return null;
-  const rest = topic.slice(TOPIC_PREFIX.length + 1);
-  const parts = rest.split('.');
-  if (parts.length >= 2) {
-    const role = parts[parts.length - 1] as AgentRole;
-    const userSlug = parts.slice(0, -1).join('.');
-    if (role === 'publisher' || role === 'seeker' || role === 'main') {
-      return graphIdFor(userSlug, role);
-    }
-  }
-  return null;
 }
 
 export function primaryUserNodeId(nodes: { node_type: string; node_id: string }[]): string | null {
@@ -85,12 +60,4 @@ export function resolveAgentContext(event: DecisionEvent): {
     agentId: agentNodeId(userSlug, 'publisher'),
     userNodeId,
   };
-}
-
-export function discoverTopicsFromGraphIds(graphIds: Iterable<string>): string[] {
-  const topics = new Set<string>();
-  for (const gid of graphIds) {
-    topics.add(graphIdToTopic(gid));
-  }
-  return [...topics].sort();
 }

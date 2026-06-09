@@ -9,7 +9,3 @@ export function decodeHeader(headers: IHeaders | undefined, key: string): string
   }
   return Buffer.isBuffer(v) ? v.toString('utf-8') : String(v);
 }
-
-export function encodeHeaders(entries: Record<string, string>): Record<string, string> {
-  return entries;
-}
