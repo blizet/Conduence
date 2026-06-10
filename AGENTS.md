@@ -58,15 +58,14 @@ Optional (recommended): `decision_id`, `schema_version`, `operation`, `provenanc
 
 Periodically check: contradictions, stale claims, orphan wiki pages, missing concept pages, edges pointing to missing nodes. Suggest `cot ingest-all` after fixing decision files.
 
-## CLI / runtime (TypeScript stack)
+## CLI / runtime
 
 ```bash
 docker compose up -d
 npm install
-npm run dev:backend      # NestJS Fastify :4000 + Kafka consumer + WS
+npm run install:backend  # pip install -r backend/requirements.txt
+npm run dev:backend      # FastAPI :4000 + Kafka consumer + WS
 npm run dev:frontend     # Next.js dashboard :3001
-npm run seed             # publish data/decisions → Redpanda
-npm run dummy-agent      # simulate agents (optional)
 ```
 
 Legacy Python `cot` CLI still available under `src/cot_kb/` for Redis/Neo4j sync.

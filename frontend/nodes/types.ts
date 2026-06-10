@@ -42,6 +42,36 @@ export type WorkflowNodeData = {
   conditionId?: string;
   whaleStatus?: string;
   whaleOutput?: string;
+  workflowStatus?: 'idle' | 'running' | 'success' | 'error';
+  workflowResult?: string;
+  workflowError?: string;
+  outputStatus?: string;
+  outputPayload?: string;
+  outputSource?: string;
+  cmcSymbols?: string;
+  cmcConvert?: string;
+  defillamaMode?:
+    | 'protocols'
+    | 'protocol'
+    | 'tvl'
+    | 'chains'
+    | 'historicalChainTvl'
+    | 'chain'
+    | 'tokenProtocols';
+  defillamaProtocol?: string;
+  defillamaChain?: string;
+  defillamaSymbol?: string;
+  cryptonewsTickers?: string;
+  cryptonewsItems?: string;
+  cryptonewsSentiment?: string;
+  cryptonewsKeywords?: string;
+  cryptoquantMetric?: string;
+  cryptoquantSymbol?: string;
+  cryptoquantWindow?: string;
+  cryptoquantExchange?: string;
+  tavilyQuery?: string;
+  tavilySearchDepth?: 'basic' | 'advanced';
+  tavilyMaxResults?: string;
 };
 
 export type WorkflowNode = Node<WorkflowNodeData>;

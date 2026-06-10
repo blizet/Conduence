@@ -4,6 +4,7 @@ import type { NodeProps } from '@xyflow/react';
 import { DEFAULT_LLM_SYSTEM_PROMPT, DEFAULT_LLM_USER_PROMPT } from '../constants';
 import { GlassNode } from '../shared/GlassNode';
 import { ApiKeyField } from '../shared/ApiKeyField';
+import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
 import { PromptField } from '../shared/PromptField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import { LLM_INPUT_COUNT, LLM_OUTPUT_COUNT, MARKET_CATEGORIES, type WorkflowNode } from '../types';
@@ -69,34 +70,28 @@ export function LlmNode({ id, data, selected }: NodeProps<WorkflowNode>) {
           placeholder="Gemini / OpenAI key…"
           onChange={(v) => updateData({ apiKey: v })}
         />
-        <div className="node-input-row">
-          <input
-            className="node-input"
-            type="text"
-            placeholder="Model (gemini-2.0-flash)"
-            value={data.model ?? ''}
-            onChange={(e) => updateData({ model: e.target.value })}
-            onKeyDown={stopNodeKeyPropagation}
-          />
-        </div>
-        <div className="node-input-row">
-          <input
-            className="node-input"
-            type="text"
-            placeholder="Temperature (0.7)"
+        <LabeledInput
+          label="Model"
+          placeholder="gemini-2.0-flash"
+          value={data.model ?? ''}
+          onChange={(v) => updateData({ model: v })}
+        />
+        <LabeledInputRow>
+          <LabeledInput
+            label="Temperature"
+            inline
+            placeholder="0.7"
             value={data.temperature ?? ''}
-            onChange={(e) => updateData({ temperature: e.target.value })}
-            onKeyDown={stopNodeKeyPropagation}
+            onChange={(v) => updateData({ temperature: v })}
           />
-          <input
-            className="node-input"
-            type="text"
-            placeholder="Max tokens"
+          <LabeledInput
+            label="Max tokens"
+            inline
+            placeholder="2048"
             value={data.maxTokens ?? ''}
-            onChange={(e) => updateData({ maxTokens: e.target.value })}
-            onKeyDown={stopNodeKeyPropagation}
+            onChange={(v) => updateData({ maxTokens: v })}
           />
-        </div>
+        </LabeledInputRow>
         <PromptField
           label="System prompt"
           value={data.systemPrompt ?? DEFAULT_LLM_SYSTEM_PROMPT}

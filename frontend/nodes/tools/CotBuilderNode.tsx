@@ -9,6 +9,7 @@ import {
   DEFAULT_COT_USER_NODE_ID,
 } from '../constants';
 import { GlassNode } from '../shared/GlassNode';
+import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
 import { PromptField } from '../shared/PromptField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import type { WorkflowNode } from '../types';
@@ -133,35 +134,28 @@ export function CotBuilderNode({ id, data, selected }: NodeProps<WorkflowNode>) 
       ]}
     >
       <div onKeyDown={stopNodeKeyPropagation}>
-        <div className="node-input-row">
-          <input
-            className="node-input"
-            type="text"
-            placeholder="Graph ID"
+        <LabeledInputRow>
+          <LabeledInput
+            label="Graph ID"
+            inline
+            placeholder="user_771.main.v1"
             value={data.graphId ?? DEFAULT_COT_GRAPH_ID}
-            onChange={(e) => updateData({ graphId: e.target.value })}
-            onKeyDown={stopNodeKeyPropagation}
+            onChange={(v) => updateData({ graphId: v })}
           />
-          <input
-            className="node-input"
-            type="text"
-            placeholder="User node ID"
+          <LabeledInput
+            label="User node ID"
+            inline
+            placeholder="user_771"
             value={data.userNodeId ?? DEFAULT_COT_USER_NODE_ID}
-            onChange={(e) => updateData({ userNodeId: e.target.value })}
-            onKeyDown={stopNodeKeyPropagation}
+            onChange={(v) => updateData({ userNodeId: v })}
           />
-        </div>
-        <div className="node-field">
-          <div className="node-field__label">Backend URL</div>
-          <input
-            className="node-input"
-            type="text"
-            placeholder="http://localhost:4000"
-            value={data.backendUrl ?? ''}
-            onChange={(e) => updateData({ backendUrl: e.target.value })}
-            onKeyDown={stopNodeKeyPropagation}
-          />
-        </div>
+        </LabeledInputRow>
+        <LabeledInput
+          label="Backend URL"
+          placeholder="http://localhost:4000"
+          value={data.backendUrl ?? ''}
+          onChange={(v) => updateData({ backendUrl: v })}
+        />
         <label className="node-checkbox-row">
           <input
             type="checkbox"

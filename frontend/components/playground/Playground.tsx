@@ -16,8 +16,8 @@ import {
   type Connection,
   type Edge,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 import { createNodeData, DND_TYPE, getNodeId } from '@/lib/dnd';
+import { runWorkflow } from '@/lib/workflow-runner';
 import { getPaletteItem, nodeTypes as registeredNodeTypes } from '@/nodes';
 import type { WorkflowNode } from '@/nodes/types';
 import { NodePalette } from './NodePalette';
@@ -39,18 +39,54 @@ function minimapNodeColor(node: WorkflowNode): string {
 
 type FlowCanvasProps = {
   onCountsChange: (nodes: number, edges: number) => void;
+  runSignal: number;
+  onRunStateChange: (running: boolean) => void;
 };
 
-function FlowCanvas({ onCountsChange }: FlowCanvasProps) {
+function FlowCanvas({ onCountsChange, runSignal, onRunStateChange }: FlowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const nodesRef = useRef<WorkflowNode[]>([]);
+  const edgesRef = useRef<Edge[]>([]);
+  const runningRef = useRef(false);
   const nodeTypes = useMemo(() => registeredNodeTypes, []);
+
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
 
   useEffect(() => {
     onCountsChange(nodes.length, edges.length);
   }, [nodes, edges, onCountsChange]);
+
+  useEffect(() => {
+    if (!runSignal || runningRef.current) return;
+    runningRef.current = true;
+    onRunStateChange(true);
+
+    const patchNode = (nodeId: string, patch: Partial<WorkflowNode['data']>) => {
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node,
+        ),
+      );
+    };
+
+    void runWorkflow({
+      nodes: nodesRef.current,
+      edges: edgesRef.current,
+      patchNode,
+    }).finally(() => {
+      runningRef.current = false;
+      onRunStateChange(false);
+    });
+  }, [onRunStateChange, runSignal, setNodes]);
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -102,6 +138,7 @@ function FlowCanvas({ onCountsChange }: FlowCanvasProps) {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        colorMode="dark"
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -141,6 +178,10 @@ type PlaygroundInnerProps = {
   onToggleMarketplace: () => void;
   onCloseMarketplace: () => void;
   onCountsChange: (nodes: number, edges: number) => void;
+  onRunWorkflow: () => void;
+  runBusy: boolean;
+  runSignal: number;
+  onRunStateChange: (running: boolean) => void;
 };
 
 function PlaygroundInner({
@@ -152,6 +193,10 @@ function PlaygroundInner({
   onToggleMarketplace,
   onCloseMarketplace,
   onCountsChange,
+  onRunWorkflow,
+  runBusy,
+  runSignal,
+  onRunStateChange,
 }: PlaygroundInnerProps) {
   return (
     <div className="playground-shell">
@@ -172,6 +217,15 @@ function PlaygroundInner({
           </button>
           <button
             type="button"
+            className="graph-view-toggle"
+            onClick={onRunWorkflow}
+            disabled={showGraph || runBusy}
+            title={showGraph ? 'Switch to workflow canvas first' : 'Run connected workflow'}
+          >
+            {runBusy ? 'Running…' : 'Run Workflow'}
+          </button>
+          <button
+            type="button"
             className={`graph-view-toggle${showGraph ? ' graph-view-toggle--active' : ''}`}
             onClick={onToggleGraph}
             title={showGraph ? 'Back to workflow canvas' : 'View CoT knowledge graph'}
@@ -188,7 +242,15 @@ function PlaygroundInner({
       </header>
       <div className="playground-body">
         {!showGraph && <NodePalette />}
-        {showGraph ? <CotGraphView /> : <FlowCanvas onCountsChange={onCountsChange} />}
+        {showGraph ? (
+          <CotGraphView />
+        ) : (
+          <FlowCanvas
+            onCountsChange={onCountsChange}
+            runSignal={runSignal}
+            onRunStateChange={onRunStateChange}
+          />
+        )}
       </div>
     </div>
   );
@@ -199,6 +261,8 @@ function PlaygroundWithState() {
   const [edgeCount, setEdgeCount] = useState(0);
   const [showGraph, setShowGraph] = useState(false);
   const [showMarketplace, setShowMarketplace] = useState(false);
+  const [runBusy, setRunBusy] = useState(false);
+  const [runSignal, setRunSignal] = useState(0);
 
   const onCountsChange = useCallback((nodes: number, edges: number) => {
     setNodeCount(nodes);
@@ -217,6 +281,14 @@ function PlaygroundWithState() {
     setShowMarketplace(false);
   }, []);
 
+  const onRunWorkflow = useCallback(() => {
+    setRunSignal((value) => value + 1);
+  }, []);
+
+  const onRunStateChange = useCallback((running: boolean) => {
+    setRunBusy(running);
+  }, []);
+
   return (
     <PlaygroundInner
       nodeCount={nodeCount}
@@ -227,6 +299,10 @@ function PlaygroundWithState() {
       onToggleMarketplace={onToggleMarketplace}
       onCloseMarketplace={onCloseMarketplace}
       onCountsChange={onCountsChange}
+      onRunWorkflow={onRunWorkflow}
+      runBusy={runBusy}
+      runSignal={runSignal}
+      onRunStateChange={onRunStateChange}
     />
   );
 }

@@ -1,3 +1,5 @@
+@import '@xyflow/react/dist/style.css';
+
 :root {
   --bg-base: #050508;
   --bg-mesh-1: rgba(56, 89, 255, 0.08);
@@ -426,7 +428,8 @@ body {
   color: var(--text-primary);
 }
 
-.node-textarea {
+.node-textarea,
+.node-output-payload {
   width: 100%;
   min-width: 0;
   padding: 4px 5px;
@@ -437,32 +440,50 @@ body {
   background: rgba(0, 0, 0, 0.25);
   color: var(--text-primary);
   outline: none;
-  resize: vertical;
   font-family: inherit;
   scrollbar-width: thin;
   scrollbar-color: #4a4a52 #1e1e24;
+  color-scheme: dark;
 }
 
-.node-textarea::-webkit-scrollbar {
+.node-textarea {
+  resize: vertical;
+}
+
+.node-output-payload {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace;
+}
+
+.node-textarea::-webkit-scrollbar,
+.node-output-payload::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-.node-textarea::-webkit-scrollbar-track {
+.node-textarea::-webkit-scrollbar-track,
+.node-output-payload::-webkit-scrollbar-track {
   background: #1e1e24;
   border-radius: 3px;
 }
 
-.node-textarea::-webkit-scrollbar-thumb {
+.node-textarea::-webkit-scrollbar-thumb,
+.node-output-payload::-webkit-scrollbar-thumb {
   background: #4a4a52;
   border-radius: 3px;
 }
 
-.node-textarea::-webkit-scrollbar-thumb:hover {
+.node-textarea::-webkit-scrollbar-thumb:hover,
+.node-output-payload::-webkit-scrollbar-thumb:hover {
   background: #5c5c66;
 }
 
-.node-textarea::-webkit-scrollbar-corner {
+.node-textarea::-webkit-scrollbar-corner,
+.node-output-payload::-webkit-scrollbar-corner {
   background: #1e1e24;
 }
 
@@ -676,6 +697,46 @@ body {
 /* React Flow overrides */
 .react-flow {
   background: transparent !important;
+}
+
+/* Custom nodes use GlassNode — XYFlow reserved types (output/input/default) ship a white card. */
+.react-flow__node.react-flow__node-input,
+.react-flow__node.react-flow__node-default,
+.react-flow__node.react-flow__node-output,
+.react-flow__node.react-flow__node-group,
+.playground-canvas .react-flow__node-input,
+.playground-canvas .react-flow__node-default,
+.playground-canvas .react-flow__node-output,
+.playground-canvas .react-flow__node-group {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+  text-align: left !important;
+}
+
+.react-flow__node.react-flow__node-input.selectable:hover,
+.react-flow__node.react-flow__node-default.selectable:hover,
+.react-flow__node.react-flow__node-output.selectable:hover,
+.react-flow__node.react-flow__node-group.selectable:hover,
+.react-flow__node.react-flow__node-input.selectable.selected,
+.react-flow__node.react-flow__node-default.selectable.selected,
+.react-flow__node.react-flow__node-output.selectable.selected,
+.react-flow__node.react-flow__node-group.selectable.selected,
+.playground-canvas .react-flow__node-input.selectable:hover,
+.playground-canvas .react-flow__node-default.selectable:hover,
+.playground-canvas .react-flow__node-output.selectable:hover,
+.playground-canvas .react-flow__node-group.selectable:hover,
+.playground-canvas .react-flow__node-input.selectable.selected,
+.playground-canvas .react-flow__node-default.selectable.selected,
+.playground-canvas .react-flow__node-output.selectable.selected,
+.playground-canvas .react-flow__node-group.selectable.selected {
+  box-shadow: none !important;
 }
 
 .react-flow__handle {

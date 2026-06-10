@@ -52,6 +52,37 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     systemPrompt: DEFAULT_WHALE_WALLET_SYSTEM_PROMPT,
     userPrompt: DEFAULT_WHALE_WALLET_USER_PROMPT,
   },
+  coinmarketcap: {
+    apiKey: '',
+    cmcSymbols: 'BTC,ETH',
+    cmcConvert: 'USD',
+  },
+  defillama: {
+    defillamaMode: 'protocols',
+    defillamaProtocol: 'lido',
+    defillamaChain: 'Ethereum',
+    defillamaSymbol: 'usdt',
+  },
+  cryptonews: {
+    apiKey: '',
+    cryptonewsTickers: 'BTC',
+    cryptonewsItems: '10',
+    cryptonewsSentiment: '',
+    cryptonewsKeywords: '',
+  },
+  cryptoquant: {
+    apiKey: '',
+    cryptoquantMetric: 'btc/exchange-flows/inflow',
+    cryptoquantSymbol: 'btc',
+    cryptoquantWindow: 'day',
+    cryptoquantExchange: '',
+  },
+  tavily: {
+    apiKey: '',
+    tavilyQuery: '',
+    tavilySearchDepth: 'basic',
+    tavilyMaxResults: '5',
+  },
 };
 
 export function createNodeData(item: PaletteItem): WorkflowNodeData {

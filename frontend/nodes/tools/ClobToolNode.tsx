@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { GlassNode } from '../shared/GlassNode';
 import { ApiKeyField } from '../shared/ApiKeyField';
+import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import type { ClobExecuteSide, ClobMode, ClobTokenSource, WorkflowNode } from '../types';
 
@@ -218,24 +219,22 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
                 })}
               </div>
             </div>
-            <div className="node-input-row">
-              <input
-                className="node-input"
-                type="text"
-                placeholder="Size"
+            <LabeledInputRow>
+              <LabeledInput
+                label="Order size"
+                inline
+                placeholder="100"
                 value={data.tradeSize ?? ''}
-                onChange={(e) => updateData({ tradeSize: e.target.value })}
-                onKeyDown={stopNodeKeyPropagation}
+                onChange={(v) => updateData({ tradeSize: v })}
               />
-              <input
-                className="node-input"
-                type="text"
-                placeholder="Price"
+              <LabeledInput
+                label="Limit price"
+                inline
+                placeholder="0.50"
                 value={data.tradePrice ?? ''}
-                onChange={(e) => updateData({ tradePrice: e.target.value })}
-                onKeyDown={stopNodeKeyPropagation}
+                onChange={(v) => updateData({ tradePrice: v })}
               />
-            </div>
+            </LabeledInputRow>
             <ApiKeyField
               label="CLOB API key"
               value={data.apiKey ?? ''}

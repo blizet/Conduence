@@ -4,11 +4,16 @@ import { LlmNode } from './mindagents/LlmNode';
 import { NewsAgentNode } from './mindagents/NewsAgentNode';
 import { WhaleWalletNode } from './subagents/WhaleWalletNode';
 import { ClobToolNode } from './tools/ClobToolNode';
+import { CoinMarketCapNode } from './tools/CoinMarketCapNode';
 import { ConditionNode } from './tools/ConditionNode';
 import { CotBuilderNode } from './tools/CotBuilderNode';
+import { CryptoNewsNode } from './tools/CryptoNewsNode';
+import { CryptoQuantNode } from './tools/CryptoQuantNode';
+import { DefiLlamaNode } from './tools/DefiLlamaNode';
 import { EndNode } from './tools/EndNode';
 import { OutputNode } from './tools/OutputNode';
 import { StartNode } from './tools/StartNode';
+import { TavilyNode } from './tools/TavilyNode';
 import { TransformNode } from './tools/TransformNode';
 
 export const nodeTypes: NodeTypes = {
@@ -16,9 +21,15 @@ export const nodeTypes: NodeTypes = {
   end: EndNode,
   condition: ConditionNode,
   transform: TransformNode,
+  workflowOutput: OutputNode,
   output: OutputNode,
   clob: ClobToolNode,
   cotBuilder: CotBuilderNode,
+  coinmarketcap: CoinMarketCapNode,
+  defillama: DefiLlamaNode,
+  cryptonews: CryptoNewsNode,
+  cryptoquant: CryptoQuantNode,
+  tavily: TavilyNode,
   llm: LlmNode,
   newsAgent: NewsAgentNode,
   whaleWallet: WhaleWalletNode,
@@ -54,7 +65,7 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     accent: '#22d3ee',
   },
   {
-    type: 'output',
+    type: 'workflowOutput',
     label: 'Output',
     description: 'Emit workflow result',
     category: 'tool',
@@ -73,6 +84,41 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Format LLM decision + markets into graph JSON',
     category: 'tool',
     accent: '#34d399',
+  },
+  {
+    type: 'coinmarketcap',
+    label: 'CoinMarketCap',
+    description: 'Fetch crypto quotes from CoinMarketCap',
+    category: 'tool',
+    accent: '#facc15',
+  },
+  {
+    type: 'defillama',
+    label: 'DefiLlama',
+    description: 'Free TVL endpoints (no key); optional Pro API key for paid endpoints',
+    category: 'tool',
+    accent: '#22c55e',
+  },
+  {
+    type: 'cryptonews',
+    label: 'CryptoNews API',
+    description: 'Fetch filtered crypto headlines and sentiment',
+    category: 'tool',
+    accent: '#60a5fa',
+  },
+  {
+    type: 'cryptoquant',
+    label: 'CryptoQuant',
+    description: 'Fetch on-chain and exchange metrics',
+    category: 'tool',
+    accent: '#a855f7',
+  },
+  {
+    type: 'tavily',
+    label: 'Tavily',
+    description: 'Web search and extraction for agent context',
+    category: 'tool',
+    accent: '#fb7185',
   },
   {
     type: 'whaleWallet',

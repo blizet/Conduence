@@ -19,8 +19,8 @@ agents/.env
 data/logs/
 backend/data/logs/
 
-# Graphify cache (keep graphify-out/graph.json etc.)
-graphify-out/cache/
+# Graphify generated output (refresh manually: graphify update .)
+graphify-out/
 
 # Python (legacy)
 *.pyc

@@ -1,28 +1,14 @@
 {
-
   "name": "cot-kb",
-
   "private": true,
-
-  "workspaces": ["agents", "backend", "frontend"],
-
+  "workspaces": ["frontend"],
   "scripts": {
-
-    "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
-
-    "dev:backend": "npm run dev -w backend",
-
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 4000",
     "dev:frontend": "npm run dev -w frontend",
-
-    "news-agent": "npm run news-agent -w @cot-kb/agents"
-
+    "install:backend": "cd backend && pip install -r requirements.txt"
   },
-
   "devDependencies": {
-
     "concurrently": "^9.1.2"
-
   }
-
 }
-

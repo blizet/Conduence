@@ -1,6 +1,6 @@
 # CoT Knowledge Base
 
-Decision graph platform: **Redpanda** (events) → **NestJS/Fastify** (orchestration) → **FalkorDB** (graph) → **Next.js** (dashboard).
+Decision graph platform: **Redpanda** (events) → **FastAPI** (orchestration) → **FalkorDB** (graph) → **Next.js** (dashboard).
 
 ## Tech stack
 
@@ -8,7 +8,7 @@ Decision graph platform: **Redpanda** (events) → **NestJS/Fastify** (orchestra
 |-------|------------|
 | Event streaming | Redpanda + KafkaJS |
 | Graph memory | FalkorDB + `@falkordb/falkordb` (openCypher) |
-| Backend | NestJS on Fastify, Zod validation, WebSockets |
+| Backend | FastAPI, Pydantic validation, WebSockets |
 | Frontend | Next.js, React Flow, WebSocket live feed |
 
 Legacy Python CLI (`src/cot_kb/`) is optional — the primary path is `backend/` + `frontend/`.
@@ -21,8 +21,9 @@ Legacy Python CLI (`src/cot_kb/`) is optional — the primary path is `backend/`
 # 1. Infrastructure
 docker compose up -d
 
-# 2. Install JS workspace
+# 2. Install dependencies
 npm install
+npm run install:backend
 
 # 3. Env files
 copy backend\.env.example backend\.env
@@ -65,7 +66,7 @@ Open **http://localhost:3001** (your dashboard). Default graph: `user_771.publis
 | **CoT Dashboard** | http://localhost:3001 | Next.js + React Flow |
 | FalkorDB Browser | http://localhost:3000 | Login: `redis://falkordb-server:6379` |
 | Redpanda Console | http://localhost:8080 | Topic `market.signals.public` |
-| RedisInsight | http://localhost:8001 | Not used by NestJS graph ingest (optional legacy Python only) |
+| RedisInsight | http://localhost:8001 | Not used by FastAPI graph ingest (optional legacy Python only) |
 | Neo4j Browser | http://localhost:7474 | Optional (legacy Python sync) |
 
 See [docs/services.md](docs/services.md).
@@ -99,7 +100,7 @@ Next.js dashboard (:3001) — REST snapshot + WS feed
 ## Project layout
 
 ```
-backend/           NestJS + Fastify + KafkaJS + FalkorDB
+backend/           FastAPI + aiokafka + FalkorDB
 frontend/          Next.js dashboard (React Flow)
 config/            Runtime config (e.g. whale-wallets.json)
 data/decisions/    One JSON per decision event
