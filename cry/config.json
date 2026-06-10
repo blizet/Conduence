@@ -1,0 +1,13 @@
+{
+  "whale_wallets": [
+    "0x0000000000000000000000000000000000000001",
+    "0x0000000000000000000000000000000000000002"
+  ],
+  "whale_poll_s": 30,
+  "divergence_poll_s": 60,
+  "news_poll_s": 60,
+  "arbitrage_poll_s": 15,
+  "mind_agents": ["cryptoNewsAgent", "arbitrageAgent"],
+  "min_confidence": 0.55,
+  "portfolio_usd": 10000
+}
