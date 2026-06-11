@@ -6,20 +6,48 @@ import { useInstalledNodeTypes } from '@/lib/marketplace';
 import { PALETTE_ITEMS } from '@/nodes';
 import type { NodeCategory, PaletteItem } from '@/nodes/types';
 import { GlassPanel } from './GlassPanel';
+import { getChipShapeClass, getPaletteIcon } from './paletteIcons';
 
 function onDragStart(event: React.DragEvent, item: PaletteItem) {
   event.dataTransfer.setData(DND_TYPE, item.type);
   event.dataTransfer.effectAllowed = 'move';
 }
 
+function PaletteChip({ item, size }: { item: PaletteItem; size?: number }) {
+  return (
+    <span
+      className={`palette-chip ${getChipShapeClass(item)}`}
+      style={{ '--chip-accent': item.accent } as React.CSSProperties}
+    >
+      {getPaletteIcon(item.type, size)}
+    </span>
+  );
+}
+
 function PaletteEntry({ item }: { item: PaletteItem }) {
   return (
     <div className="palette-item" draggable onDragStart={(e) => onDragStart(e, item)}>
-      <div className="palette-item__dot" style={{ color: item.accent, background: item.accent }} />
-      <div>
+      <PaletteChip item={item} />
+      <div className="palette-item__text">
         <div className="palette-item__label">{item.label}</div>
         <div className="palette-item__desc">{item.description}</div>
       </div>
+      <span className="palette-item__grip" aria-hidden>
+        ⋮⋮
+      </span>
+    </div>
+  );
+}
+
+function RailEntry({ item }: { item: PaletteItem }) {
+  return (
+    <div
+      className="palette-rail-item"
+      draggable
+      onDragStart={(e) => onDragStart(e, item)}
+      title={`${item.label} — drag to canvas`}
+    >
+      <PaletteChip item={item} size={14} />
     </div>
   );
 }
@@ -35,32 +63,27 @@ export function NodePalette() {
   const [collapsed, setCollapsed] = useState(false);
   const installedNodeTypes = useInstalledNodeTypes();
 
+  const available = useMemo(
+    () =>
+      PALETTE_ITEMS.filter(
+        (item) => item.category !== 'mindagent' || installedNodeTypes.has(item.type),
+      ),
+    [installedNodeTypes],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return PALETTE_ITEMS.filter((item) => {
-      if (item.category === 'mindagent' && !installedNodeTypes.has(item.type)) {
-        return false;
-      }
-      if (!q) return true;
-      return (
+    if (!q) return available;
+    return available.filter(
+      (item) =>
         item.label.toLowerCase().includes(q) ||
         item.description.toLowerCase().includes(q) ||
-        item.category.includes(q)
-      );
-    });
-  }, [query, installedNodeTypes]);
+        item.category.includes(q),
+    );
+  }, [query, available]);
 
   return (
-    <GlassPanel
-      className={`palette-panel${collapsed ? ' palette-panel--collapsed' : ''}`}
-      style={{
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 0,
-        position: 'relative',
-      }}
-    >
+    <GlassPanel className={`palette-panel${collapsed ? ' palette-panel--collapsed' : ''}`}>
       <button
         type="button"
         className="palette-collapse-btn"
@@ -96,17 +119,12 @@ export function NodePalette() {
           </div>
 
           <div className="palette-scroll dark-scroll">
-            {SECTIONS.map(({ category, title, className }, sectionIndex) => {
+            {SECTIONS.map(({ category, title, className }) => {
               const items = filtered.filter((item) => item.category === category);
               if (items.length === 0) return null;
               return (
-                <div key={category}>
-                  <div
-                    className={`palette-section-title ${className}`}
-                    style={sectionIndex > 0 ? { marginTop: 12 } : undefined}
-                  >
-                    {title}
-                  </div>
+                <div key={category} className="palette-section">
+                  <div className={`palette-section-title ${className}`}>{title}</div>
                   {items.map((item) => (
                     <PaletteEntry key={item.type} item={item} />
                   ))}
@@ -124,8 +142,18 @@ export function NodePalette() {
       )}
 
       {collapsed && (
-        <div className="palette-collapsed-label" aria-hidden>
-          NODES
+        <div className="palette-rail dark-scroll">
+          {SECTIONS.map(({ category }) => {
+            const items = available.filter((item) => item.category === category);
+            if (items.length === 0) return null;
+            return (
+              <div key={category} className="palette-rail-group">
+                {items.map((item) => (
+                  <RailEntry key={item.type} item={item} />
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
     </GlassPanel>

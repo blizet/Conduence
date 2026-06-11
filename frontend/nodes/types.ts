@@ -1,4 +1,5 @@
 import type { Node } from '@xyflow/react';
+import type { LlmProvider } from '@/lib/llm-providers';
 
 export type NodeCategory = 'tool' | 'mindagent' | 'subagent';
 
@@ -12,6 +13,8 @@ export type WorkflowNodeData = {
   category: NodeCategory;
   accent: string;
   apiKey?: string;
+  llmApiKey?: string;
+  llmProvider?: LlmProvider;
   apiSecret?: string;
   apiPassphrase?: string;
   systemPrompt?: string;
@@ -72,6 +75,21 @@ export type WorkflowNodeData = {
   tavilyQuery?: string;
   tavilySearchDepth?: 'basic' | 'advanced';
   tavilyMaxResults?: string;
+  coingeckoIds?: string;
+  gammaKeywords?: string;
+  gammaLimit?: string;
+  gammaMinVolume?: string;
+  gammaMinLiquidity?: string;
+  gammaMaxSpread?: string;
+  pmWallet?: string;
+  pmWalletAction?: 'trades' | 'positions';
+  pmWalletLimit?: string;
+  divBaseId?: string;
+  divOtherId?: string;
+  divBaseChange?: string;
+  divOtherChange?: string;
+  divExpectedCorr?: string;
+  simulate?: boolean;
 };
 
 export type WorkflowNode = Node<WorkflowNodeData>;

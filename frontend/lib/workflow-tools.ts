@@ -20,7 +20,11 @@ export type RunnableToolType =
   | 'defillama'
   | 'cryptonews'
   | 'cryptoquant'
-  | 'tavily';
+  | 'tavily'
+  | 'coingecko'
+  | 'polymarketGamma'
+  | 'polymarketWallet'
+  | 'divergence';
 
 export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType>([
   'clob',
@@ -31,6 +35,10 @@ export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType
   'cryptonews',
   'cryptoquant',
   'tavily',
+  'coingecko',
+  'polymarketGamma',
+  'polymarketWallet',
+  'divergence',
 ]);
 
 async function postJson(path: string, body: Record<string, unknown>, backendUrl?: string) {
@@ -156,6 +164,79 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     };
     const { response, payload } = await postJson('/api/tools/tavily/fetch', request, data.backendUrl);
     return normalizeResult('tavily', payload, request, response.ok);
+  }
+  if (type === 'coingecko') {
+    const request = {
+      ids: (data.coingeckoIds ?? 'bitcoin').trim() || 'bitcoin',
+    };
+    const { response, payload } = await postJson('/api/tools/coingecko/fetch', request, data.backendUrl);
+    return normalizeResult('coingecko', payload, request, response.ok);
+  }
+  if (type === 'polymarketGamma') {
+    const request = {
+      keywords: (data.gammaKeywords ?? '').trim(),
+      limit: Number(data.gammaLimit ?? '8') || 8,
+      minVolume24h: Number(data.gammaMinVolume ?? '10000') || 10000,
+      minLiquidity: Number(data.gammaMinLiquidity ?? '10000') || 10000,
+      maxSpread: Number(data.gammaMaxSpread ?? '0.05') || 0.05,
+    };
+    const { response, payload } = await postJson('/api/tools/gamma/markets', request, data.backendUrl);
+    return normalizeResult('polymarketGamma', payload, request, response.ok);
+  }
+  if (type === 'polymarketWallet') {
+    const request = {
+      wallet: (data.pmWallet ?? '').trim(),
+      action: data.pmWalletAction ?? 'trades',
+      limit: Number(data.pmWalletLimit ?? '20') || 20,
+    };
+    const { response, payload } = await postJson('/api/tools/polymarket/wallet', request, data.backendUrl);
+    return normalizeResult('polymarketWallet', payload, request, response.ok);
+  }
+  if (type === 'divergence') {
+    // Local computation — ported from cry/tools/divergence.py
+    const DIVERGENCE_THRESHOLD = 3.0; // percentage points of unexplained move
+    const baseChange = Number(data.divBaseChange ?? '');
+    const otherChange = Number(data.divOtherChange ?? '');
+    const expectedCorr = Number(data.divExpectedCorr ?? '');
+    const baseId = (data.divBaseId ?? 'base').trim() || 'base';
+    const otherId = (data.divOtherId ?? 'other').trim() || 'other';
+    const request = { baseId, otherId, baseChange, otherChange, expectedCorr };
+
+    if ([baseChange, otherChange, expectedCorr].some((v) => Number.isNaN(v))) {
+      return {
+        ok: false,
+        source: 'divergence',
+        request,
+        error: 'baseChange, otherChange and expectedCorr must be numbers',
+      };
+    }
+    if (expectedCorr < -1 || expectedCorr > 1) {
+      return { ok: false, source: 'divergence', request, error: 'expectedCorr must be in [-1, 1]' };
+    }
+
+    const expectedOther = baseChange * expectedCorr;
+    const gap = otherChange - expectedOther;
+    const diverging = Math.abs(gap) >= DIVERGENCE_THRESHOLD;
+    const direction = gap > 0 ? 'above' : 'below';
+    const note =
+      `${otherId} moved ${otherChange >= 0 ? '+' : ''}${otherChange.toFixed(1)}% vs expected ` +
+      `${expectedOther >= 0 ? '+' : ''}${expectedOther.toFixed(1)}% (corr ${expectedCorr >= 0 ? '+' : ''}${expectedCorr.toFixed(2)} ` +
+      `with ${baseId} which moved ${baseChange >= 0 ? '+' : ''}${baseChange.toFixed(1)}%) — ` +
+      `${Math.abs(gap).toFixed(1)}pp ${direction} expectation`;
+
+    return {
+      ok: true,
+      source: 'divergence',
+      request,
+      data: {
+        diverging,
+        gap_pp: Math.round(gap * 100) / 100,
+        expected_change: Math.round(expectedOther * 100) / 100,
+        actual_change: Math.round(otherChange * 100) / 100,
+        note,
+      },
+      error: null,
+    };
   }
   if (type === 'whaleWallet') {
     const request = {

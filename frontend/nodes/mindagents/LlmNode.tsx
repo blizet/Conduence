@@ -3,8 +3,8 @@
 import type { NodeProps } from '@xyflow/react';
 import { DEFAULT_LLM_SYSTEM_PROMPT, DEFAULT_LLM_USER_PROMPT } from '../constants';
 import { GlassNode } from '../shared/GlassNode';
-import { ApiKeyField } from '../shared/ApiKeyField';
-import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
+import { LlmProviderFields } from '../shared/LlmProviderFields';
+import type { LlmProvider } from '@/lib/llm-providers';
 import { PromptField } from '../shared/PromptField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import { LLM_INPUT_COUNT, LLM_OUTPUT_COUNT, MARKET_CATEGORIES, type WorkflowNode } from '../types';
@@ -64,34 +64,19 @@ export function LlmNode({ id, data, selected }: NodeProps<WorkflowNode>) {
       handles={[...inputHandles, ...outputHandles]}
     >
       <div onKeyDown={stopNodeKeyPropagation}>
-        <ApiKeyField
-          label="LLM API key"
-          value={data.apiKey ?? ''}
-          placeholder="Gemini / OpenAI key…"
-          onChange={(v) => updateData({ apiKey: v })}
+        <LlmProviderFields
+          provider={data.llmProvider}
+          model={data.model}
+          apiKey={data.apiKey}
+          temperature={data.temperature}
+          maxTokens={data.maxTokens}
+          showSampling
+          onProviderChange={(p: LlmProvider) => updateData({ llmProvider: p })}
+          onModelChange={(v) => updateData({ model: v })}
+          onApiKeyChange={(v) => updateData({ apiKey: v })}
+          onTemperatureChange={(v) => updateData({ temperature: v })}
+          onMaxTokensChange={(v) => updateData({ maxTokens: v })}
         />
-        <LabeledInput
-          label="Model"
-          placeholder="gemini-2.0-flash"
-          value={data.model ?? ''}
-          onChange={(v) => updateData({ model: v })}
-        />
-        <LabeledInputRow>
-          <LabeledInput
-            label="Temperature"
-            inline
-            placeholder="0.7"
-            value={data.temperature ?? ''}
-            onChange={(v) => updateData({ temperature: v })}
-          />
-          <LabeledInput
-            label="Max tokens"
-            inline
-            placeholder="2048"
-            value={data.maxTokens ?? ''}
-            onChange={(v) => updateData({ maxTokens: v })}
-          />
-        </LabeledInputRow>
         <PromptField
           label="System prompt"
           value={data.systemPrompt ?? DEFAULT_LLM_SYSTEM_PROMPT}
@@ -140,8 +125,25 @@ export function LlmNode({ id, data, selected }: NodeProps<WorkflowNode>) {
         </div>
         <div className="node-field">
           <div className="node-field__hint">
-            {LLM_INPUT_COUNT} in · {LLM_OUTPUT_COUNT} out · emits decision JSON only
+            {LLM_INPUT_COUNT} in · {LLM_OUTPUT_COUNT} out · LangGraph orchestrator
           </div>
+          {data.workflowStatus && data.workflowStatus !== 'idle' ? (
+            <div className={`node-field__hint node-field__hint--${data.workflowStatus}`}>
+              {data.workflowStatus === 'running'
+                ? 'Orchestrator running…'
+                : data.workflowStatus === 'success'
+                  ? 'Orchestrator complete — see result below'
+                  : `Error: ${data.workflowError || 'orchestrator failed'}`}
+            </div>
+          ) : null}
+          {data.workflowResult ? (
+            <PromptField
+              label="Orchestrator result"
+              value={data.workflowResult}
+              rows={4}
+              onChange={() => {}}
+            />
+          ) : null}
         </div>
       </div>
     </GlassNode>

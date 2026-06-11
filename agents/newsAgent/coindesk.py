@@ -1,9 +1,10 @@
+import os
 from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 
-from app.config import AGENT_FETCH_TIMEOUT_MS
+AGENT_FETCH_TIMEOUT_MS = int(os.getenv("AGENT_FETCH_TIMEOUT_MS", "15000"))
 
 COINDESK_BASE = "https://data-api.coindesk.com"
 NEWS_V1 = f"{COINDESK_BASE}/news/v1"

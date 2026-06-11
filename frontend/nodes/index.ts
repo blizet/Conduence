@@ -1,17 +1,23 @@
 import type { NodeTypes } from '@xyflow/react';
 import type { PaletteItem } from './types';
+import { ArbitrageAgentNode } from './mindagents/ArbitrageAgentNode';
 import { LlmNode } from './mindagents/LlmNode';
 import { NewsAgentNode } from './mindagents/NewsAgentNode';
+import { DivergenceAgentNode } from './subagents/DivergenceAgentNode';
 import { WhaleWalletNode } from './subagents/WhaleWalletNode';
 import { ClobToolNode } from './tools/ClobToolNode';
+import { CoinGeckoNode } from './tools/CoinGeckoNode';
 import { CoinMarketCapNode } from './tools/CoinMarketCapNode';
 import { ConditionNode } from './tools/ConditionNode';
 import { CotBuilderNode } from './tools/CotBuilderNode';
 import { CryptoNewsNode } from './tools/CryptoNewsNode';
 import { CryptoQuantNode } from './tools/CryptoQuantNode';
 import { DefiLlamaNode } from './tools/DefiLlamaNode';
+import { DivergenceNode } from './tools/DivergenceNode';
 import { EndNode } from './tools/EndNode';
 import { OutputNode } from './tools/OutputNode';
+import { PolymarketGammaNode } from './tools/PolymarketGammaNode';
+import { PolymarketWalletNode } from './tools/PolymarketWalletNode';
 import { StartNode } from './tools/StartNode';
 import { TavilyNode } from './tools/TavilyNode';
 import { TransformNode } from './tools/TransformNode';
@@ -30,9 +36,15 @@ export const nodeTypes: NodeTypes = {
   cryptonews: CryptoNewsNode,
   cryptoquant: CryptoQuantNode,
   tavily: TavilyNode,
+  coingecko: CoinGeckoNode,
+  polymarketGamma: PolymarketGammaNode,
+  polymarketWallet: PolymarketWalletNode,
+  divergence: DivergenceNode,
   llm: LlmNode,
   newsAgent: NewsAgentNode,
+  arbitrageAgent: ArbitrageAgentNode,
   whaleWallet: WhaleWalletNode,
+  divergenceAgent: DivergenceAgentNode,
 };
 
 export const PALETTE_ITEMS: PaletteItem[] = [
@@ -121,11 +133,46 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     accent: '#fb7185',
   },
   {
+    type: 'coingecko',
+    label: 'CoinGecko',
+    description: 'Spot price + 24h change — free API, no key',
+    category: 'tool',
+    accent: '#84cc16',
+  },
+  {
+    type: 'polymarketGamma',
+    label: 'Polymarket Markets',
+    description: 'Keyword search of open markets, ranked by quality score',
+    category: 'tool',
+    accent: '#818cf8',
+  },
+  {
+    type: 'polymarketWallet',
+    label: 'Polymarket Wallet',
+    description: 'Recent trades / open positions of a wallet',
+    category: 'tool',
+    accent: '#2dd4bf',
+  },
+  {
+    type: 'divergence',
+    label: 'Divergence',
+    description: 'Flag assets moving against their expected correlation',
+    category: 'tool',
+    accent: '#e879f9',
+  },
+  {
     type: 'whaleWallet',
     label: 'Whale Wallet',
-    description: 'Track proxy wallets against news & markets',
+    description: 'Polls proxy wallets — emits whale signals (snap Polymarket Wallet tool)',
     category: 'subagent',
     accent: '#38bdf8',
+  },
+  {
+    type: 'divergenceAgent',
+    label: 'Divergence Agent',
+    description: 'Watches graph pairs for correlation decoupling (snap CoinGecko + Divergence)',
+    category: 'subagent',
+    accent: '#e879f9',
   },
   {
     type: 'newsAgent',
@@ -133,6 +180,13 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'CoinDesk news — autonomous mind agent',
     category: 'mindagent',
     accent: '#fb923c',
+  },
+  {
+    type: 'arbitrageAgent',
+    label: 'Arbitrage Agent',
+    description: 'Polymarket × Kalshi arb scanner — autonomous mind agent',
+    category: 'mindagent',
+    accent: '#c084fc',
   },
   {
     type: 'llm',

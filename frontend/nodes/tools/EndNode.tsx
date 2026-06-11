@@ -21,6 +21,7 @@ export function EndNode({ data, selected }: NodeProps<WorkflowNode>) {
       accent={data.accent}
       icon={<StopIcon />}
       selected={selected}
+      shape="terminal"
       handles={[{ type: 'target', position: 'left' }]}
     />
   );

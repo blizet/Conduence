@@ -16,6 +16,9 @@ export function AgentMarketplace({ open, onClose }: AgentMarketplaceProps) {
     startNewsStream,
     stopNewsStream,
     getStoredApiKey,
+    agentFeeds,
+    startAgent,
+    stopAgent,
   } = useAgentFeed();
 
   if (!open) return null;
@@ -95,12 +98,32 @@ export function AgentMarketplace({ open, onClose }: AgentMarketplaceProps) {
                         {newsStreamRunning ? 'Stop live feed' : 'Start live feed'}
                       </button>
                     )}
+
+                    {agent.autonomous && agent.id !== 'newsAgent' && isInstalled && (
+                      <button
+                        type="button"
+                        className={`marketplace-btn${agentFeeds[agent.id]?.running ? ' marketplace-btn--stop' : ''}`}
+                        onClick={() =>
+                          void (agentFeeds[agent.id]?.running
+                            ? stopAgent(agent.id)
+                            : startAgent(agent.id))
+                        }
+                      >
+                        {agentFeeds[agent.id]?.running ? 'Stop live feed' : 'Start live feed'}
+                      </button>
+                    )}
                   </div>
                   {agent.id === 'newsAgent' && isInstalled && newsStreamRunning && (
                     <p className="marketplace-card__live">Live · streaming to Redpanda</p>
                   )}
                   {agent.id === 'newsAgent' && newsStreamError && (
                     <p className="marketplace-card__error">{newsStreamError}</p>
+                  )}
+                  {agent.autonomous && agent.id !== 'newsAgent' && isInstalled && agentFeeds[agent.id]?.running && (
+                    <p className="marketplace-card__live">Live · streaming to Redpanda</p>
+                  )}
+                  {agent.autonomous && agent.id !== 'newsAgent' && agentFeeds[agent.id]?.error && (
+                    <p className="marketplace-card__error">{agentFeeds[agent.id]?.error}</p>
                   )}
                 </div>
               </article>

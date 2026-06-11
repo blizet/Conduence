@@ -3,6 +3,7 @@
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode, WorkflowNodeData } from '@/nodes/types';
 import { RUNNABLE_TOOL_TYPES, executeToolNode } from './workflow-tools';
+import { downstreamNodes, findLlmNode, runOrchestrator } from './orchestrator-runner';
 
 type NodePatchFn = (nodeId: string, patch: Partial<WorkflowNodeData>) => void;
 
@@ -142,10 +143,12 @@ export async function runWorkflow({
   nodes,
   edges,
   patchNode,
+  feedSignals,
 }: {
   nodes: WorkflowNode[];
   edges: Edge[];
   patchNode: NodePatchFn;
+  feedSignals?: Record<string, { latest?: unknown }>;
 }): Promise<void> {
   const candidateIds = runnableUpstreamOfOutputs(nodes, edges);
   const order = topologicalRunnableOrder(candidateIds, nodes, edges);
@@ -196,5 +199,43 @@ export async function runWorkflow({
     if (!result.ok) {
       break;
     }
+  }
+
+  const llmNode = findLlmNode(nodes);
+  if (!llmNode) return;
+
+  patchNode(llmNode.id, { workflowStatus: 'running', workflowError: '', workflowResult: '' });
+  const orch = await runOrchestrator({
+    nodes,
+    edges,
+    feedSignals,
+    backendUrl: llmNode.data.backendUrl,
+  });
+
+  patchNode(llmNode.id, {
+    workflowStatus: orch.ok ? 'success' : 'error',
+    workflowError: orch.error ?? (orch.errors ?? []).join('; '),
+    workflowResult: JSON.stringify(orch, null, 2),
+    decisionJson: orch.decision ? JSON.stringify(orch.decision, null, 2) : undefined,
+    correlatedJson: orch.correlated ? JSON.stringify(orch.correlated, null, 2) : undefined,
+  });
+
+  for (const cotNode of downstreamNodes(llmNode.id, nodes, edges, 'cotBuilder')) {
+    patchNode(cotNode.id, {
+      decisionJson: orch.decision ? JSON.stringify(orch.decision, null, 2) : cotNode.data.decisionJson,
+      correlatedJson: orch.correlated
+        ? JSON.stringify(orch.correlated, null, 2)
+        : cotNode.data.correlatedJson,
+      cotOutput: orch.cot ? JSON.stringify(orch.cot, null, 2) : '',
+      cotStatus: orch.cot ? 'success' : orch.ok ? 'skipped' : 'error',
+    });
+  }
+
+  for (const outNode of downstreamNodes(llmNode.id, nodes, edges, 'workflowOutput')) {
+    patchNode(outNode.id, {
+      outputStatus: orch.ok ? 'success' : 'error',
+      outputPayload: JSON.stringify(orch, null, 2),
+      outputSource: 'llm',
+    });
   }
 }

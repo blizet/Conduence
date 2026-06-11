@@ -16,6 +16,16 @@ const CATEGORY_LABEL: Record<NodeCategory, string> = {
   subagent: 'sub',
 };
 
+/**
+ * Visual shape language (n8n-inspired, usability-preserving):
+ * - trigger:  half-pill, rounded entry edge — workflow entry points
+ * - terminal: half-pill mirrored — workflow exits
+ * - route:    diamond icon plate — branching / decision nodes
+ * - agent:    large gradient-header card — mind agents (the "brains")
+ * - card:     standard glass card — tools & everything else
+ */
+export type NodeShape = 'card' | 'trigger' | 'terminal' | 'route' | 'agent';
+
 type GlassNodeProps = {
   label: string;
   description?: string;
@@ -25,6 +35,7 @@ type GlassNodeProps = {
   handles: HandleConfig[];
   selected?: boolean;
   wide?: boolean;
+  shape?: NodeShape;
   children?: React.ReactNode;
 };
 
@@ -37,19 +48,25 @@ export function GlassNode({
   handles,
   selected,
   wide,
+  shape,
   children,
 }: GlassNodeProps) {
+  const resolvedShape: NodeShape =
+    shape ?? (category === 'mindagent' ? 'agent' : 'card');
+
   return (
     <div
-      className={`glass-node${selected ? ' selected' : ''}${wide ? ' glass-node--wide' : ''}`}
-      style={{
-        position: 'relative',
-        boxShadow: selected
-          ? `inset 0 1px 0 rgba(255,255,255,0.08), 0 0 16px ${accent}40, 0 2px 12px rgba(0,0,0,0.4)`
-          : undefined,
-      }}
+      className={[
+        'glass-node',
+        `glass-node--${resolvedShape}`,
+        selected ? 'selected' : '',
+        wide ? 'glass-node--wide' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{ '--node-accent': accent } as React.CSSProperties}
     >
-      <div className="glass-node__accent" style={{ background: accent, boxShadow: `0 0 8px ${accent}80` }} />
+      <div className="glass-node__accent" />
 
       {handles.map((h) => (
         <Handle
@@ -68,13 +85,15 @@ export function GlassNode({
       ))}
 
       <div className="glass-node__header">
-        <div className="glass-node__icon" style={{ color: accent, background: `${accent}18`, borderColor: `${accent}40` }}>
-          {icon}
+        <div className="glass-node__icon">
+          <span className="glass-node__icon-inner">{icon}</span>
         </div>
         <div className="glass-node__meta">
           <div className="glass-node__title-row">
             <span className="glass-node__label">{label}</span>
-            <span className={`glass-node__badge glass-node__badge--${category}`}>{CATEGORY_LABEL[category]}</span>
+            <span className={`glass-node__badge glass-node__badge--${category}`}>
+              {CATEGORY_LABEL[category]}
+            </span>
           </div>
           {description && !children && <div className="glass-node__desc">{description}</div>}
         </div>

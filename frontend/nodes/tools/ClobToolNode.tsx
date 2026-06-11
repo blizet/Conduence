@@ -176,7 +176,7 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
         <div className="node-field">
           <div className="node-field__label">Token ID</div>
           <input
-            className="node-input"
+            className="node-input nodrag"
             type="text"
             placeholder="CLOB token_id"
             value={data.tokenId ?? ''}

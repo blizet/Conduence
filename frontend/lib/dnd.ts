@@ -1,3 +1,4 @@
+import { DEFAULT_LLM_PROVIDER, defaultModelForProvider } from '@/lib/llm-providers';
 import type { PaletteItem, WorkflowNodeData } from '@/nodes/types';
 import {
   DEFAULT_COT_CORRELATED_JSON,
@@ -19,8 +20,9 @@ export function getNodeId(): string {
 
 const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
   llm: {
+    llmProvider: DEFAULT_LLM_PROVIDER,
     apiKey: '',
-    model: 'gemini-2.0-flash',
+    model: defaultModelForProvider(DEFAULT_LLM_PROVIDER),
     temperature: '0.7',
     maxTokens: '2048',
     systemPrompt: DEFAULT_LLM_SYSTEM_PROMPT,
@@ -47,10 +49,20 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     correlatedJson: DEFAULT_COT_CORRELATED_JSON,
   },
   whaleWallet: {
+    simulate: false,
     walletAddresses: [''],
     apiKey: '',
+    llmProvider: DEFAULT_LLM_PROVIDER,
+    llmApiKey: '',
+    model: defaultModelForProvider(DEFAULT_LLM_PROVIDER),
     systemPrompt: DEFAULT_WHALE_WALLET_SYSTEM_PROMPT,
     userPrompt: DEFAULT_WHALE_WALLET_USER_PROMPT,
+  },
+  divergenceAgent: {
+    simulate: false,
+    llmProvider: DEFAULT_LLM_PROVIDER,
+    llmApiKey: '',
+    model: defaultModelForProvider(DEFAULT_LLM_PROVIDER),
   },
   coinmarketcap: {
     apiKey: '',

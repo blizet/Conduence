@@ -35,6 +35,16 @@ export const MARKETPLACE_CATALOG: MarketplaceAgent[] = [
     accent: '#fb923c',
     feedTopic: 'agent.feeds.newsAgent.public',
   },
+  {
+    id: 'arbitrageAgent',
+    nodeType: 'arbitrageAgent',
+    name: 'Arbitrage Agent',
+    description:
+      'Polymarket × Kalshi cross-platform arb scanner — fee-aware net edge, same-event matching',
+    autonomous: true,
+    accent: '#c084fc',
+    feedTopic: 'agent.feeds.arbitrageAgent.public',
+  },
 ];
 
 type InstalledAgentsContextValue = {

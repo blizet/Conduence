@@ -19,7 +19,7 @@ export function ApiKeyField({
     <div className="node-field" onKeyDown={stopNodeKeyPropagation}>
       <div className="node-field__label">{label}</div>
       <input
-        className="node-input"
+        className="node-input nodrag"
         type="password"
         placeholder={placeholder}
         value={value}

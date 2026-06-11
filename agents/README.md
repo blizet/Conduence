@@ -1,52 +1,39 @@
-# News Agent — autonomous CoinDesk polling (@cot-kb/agents)
+# Mind agents (`agents/`)
 
-## Setup
+Autonomous mind agents live here — one folder per agent, same layout as `cry/mindAgent/`.
 
-```bash
-cp .env.example .env
-# Set COINDESK_API_KEY in agents/.env
+```
+agents/
+  newsAgent/
+    agent.py       # entrypoint + stream contract
+    coindesk.py    # CoinDesk API client
+    news_utils.py  # sentiment / keywords
+  arbitrageAgent/
+    agent.py       # Polymarket × Kalshi scanner
 ```
 
-## Run headless (CLI)
+The backend loads agents dynamically via `backend/app/mind_agents/loader.py` and registers them in `backend/app/signal_registry.py`. Sub-agents (Whale Wallet, Divergence) stay under `backend/app/subagents/`.
 
-From repo root:
+## Run standalone (CLI)
 
-```bash
-npm run news-agent
-```
-
-Or from this package:
+From each agent folder:
 
 ```bash
-npm run news-agent
+cd agents/newsAgent
+python agent.py --simulate
+python agent.py --interval 30
+
+cd agents/arbitrageAgent
+python agent.py --simulate
+python agent.py --interval 15
 ```
 
-## Environment (`agents/.env`)
+## Environment
 
-| Variable | Purpose |
-|----------|---------|
-| `COINDESK_API_KEY` | CoinDesk Data API key (required) |
-| `NEWS_ARTICLE_LIMIT` | Articles per poll (default 20) |
-| `NEWS_POLL_INTERVAL_MS` | Poll interval (default 60000) |
+| Variable | Agent | Purpose |
+|----------|-------|---------|
+| `COINDESK_API_KEY` | newsAgent | CoinDesk Data API key |
+| `NEWS_POLL_INTERVAL_MS` | newsAgent | Poll interval (default 30000) |
+| `ARB_POLL_INTERVAL_MS` | arbitrageAgent | Scan interval |
 
-## Other env locations
-
-| Path | Used when |
-|------|-----------|
-| **`agents/.env`** | `npm run news-agent` CLI |
-| **`backend/.env`** | Nest wrapper starts stream without passing `apiKey` in request |
-| **`frontend/.env.local`** | Optional `NEXT_PUBLIC_COINDESK_API_KEY` for playground node default |
-
-Playground / marketplace streaming uses the **backend wrapper** (`COINDESK_API_KEY` in `backend/.env` or key on the News Agent node).
-
-## CoinDesk News API (via `@cot-kb/agents`)
-
-| Endpoint | Path | Client method |
-|----------|------|---------------|
-| Latest Articles | `/news/v1/article/list` | `fetchLatestArticles` |
-| Sources | `/news/v1/source/list` | `fetchSources` |
-| Categories | `/news/v1/category/list` | `fetchCategories` |
-| Single Article | `/news/v1/article/get` | `fetchArticle` |
-| News Search | `/news/v1/search` | `search` |
-
-Backend proxies: `POST /api/agents/coindesk/{articles/list|sources|categories|article/get|search}`
+For canvas / marketplace streaming, set keys on the node or in `backend/.env`.

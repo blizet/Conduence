@@ -21,7 +21,7 @@ export function PromptField({
     <div className="node-field" onKeyDown={stopNodeKeyPropagation}>
       <div className="node-field__label">{label}</div>
       <textarea
-        className="node-textarea"
+        className="node-textarea nodrag nowheel"
         rows={rows}
         placeholder={placeholder}
         value={value}

@@ -2,22 +2,33 @@ from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-from app.agents import coindesk
-from app.agents.registry import MARKETPLACE_CATALOG, get_autonomous_agent, list_autonomous_agent_feed_topics
+from app.mind_agents.loader import get_coindesk_module
+from app.signal_registry import (
+    MARKETPLACE_CATALOG,
+    get_signal_producer,
+    list_signal_producer_feed_topics,
+)
+
+coindesk = get_coindesk_module()
 from app.lib.event_sourced_config import MARKET_SIGNALS_TOPIC
 from app.lib.normalize import normalize_decision
 from app.lib.pipeline_config import PUBLISHER_AGENT_ID
 from app.schemas.decision import DecisionEvent
 from app.tools.clob import execute_clob_trade, get_clob_quote
+from app.tools.coingecko import fetch_coingecko
 from app.tools.coinmarketcap import fetch_coinmarketcap
 from app.tools.cot_builder import build_cot_decision
 from app.tools.cryptonews import fetch_cryptonews
 from app.tools.cryptoquant import fetch_cryptoquant
 from app.tools.defillama import fetch_defillama
+from app.tools.polymarket_gamma import fetch_gamma_markets
+from app.tools.polymarket_wallet import fetch_polymarket_wallet
 from app.tools.tavily import fetch_tavily
 from app.tools.whale_wallet import track_whale_wallets
+from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
 
 router = APIRouter(prefix="/api")
+orchestrator_router = APIRouter(prefix="/api/orchestrator")
 
 
 def _require_api_key(api_key: str | None) -> str | dict[str, str]:
@@ -41,7 +52,7 @@ async def health(request: Request) -> dict[str, Any]:
 
 @router.get("/topics")
 async def topics() -> dict[str, list[str]]:
-    return {"topics": [MARKET_SIGNALS_TOPIC, *list_autonomous_agent_feed_topics()]}
+    return {"topics": [MARKET_SIGNALS_TOPIC, *list_signal_producer_feed_topics()]}
 
 
 @router.get("/graphs")
@@ -156,6 +167,21 @@ async def tavily_fetch(body: dict[str, Any]) -> dict[str, Any]:
     return await fetch_tavily(body)
 
 
+@tools_router.post("/coingecko/fetch")
+async def coingecko_fetch(body: dict[str, Any]) -> dict[str, Any]:
+    return await fetch_coingecko(body)
+
+
+@tools_router.post("/gamma/markets")
+async def gamma_markets(body: dict[str, Any]) -> dict[str, Any]:
+    return await fetch_gamma_markets(body)
+
+
+@tools_router.post("/polymarket/wallet")
+async def polymarket_wallet(body: dict[str, Any]) -> dict[str, Any]:
+    return await fetch_polymarket_wallet(body)
+
+
 agents_router = APIRouter(prefix="/api/agents")
 
 
@@ -221,20 +247,53 @@ async def catalog() -> dict[str, Any]:
 
 @marketplace_router.get("/agents/{agent_id}/status")
 async def agent_status(agent_id: str, request: Request) -> dict[str, Any]:
-    if not get_autonomous_agent(agent_id):
-        raise HTTPException(status_code=404, detail=f"Unknown autonomous agent: {agent_id}")
+    if not get_signal_producer(agent_id):
+        raise HTTPException(status_code=404, detail=f"Unknown signal producer: {agent_id}")
     return request.app.state.autonomous_streams.status(agent_id)
 
 
 @marketplace_router.post("/agents/{agent_id}/start")
 async def start_agent(agent_id: str, request: Request, body: dict[str, Any] | None = None) -> dict[str, Any]:
-    if not get_autonomous_agent(agent_id):
-        raise HTTPException(status_code=404, detail=f"Unknown autonomous agent: {agent_id}")
+    if not get_signal_producer(agent_id):
+        raise HTTPException(status_code=404, detail=f"Unknown signal producer: {agent_id}")
     return await request.app.state.autonomous_streams.start(agent_id, body or {})
 
 
 @marketplace_router.post("/agents/{agent_id}/stop")
 async def stop_agent(agent_id: str, request: Request) -> dict[str, Any]:
-    if not get_autonomous_agent(agent_id):
-        raise HTTPException(status_code=404, detail=f"Unknown autonomous agent: {agent_id}")
+    if not get_signal_producer(agent_id):
+        raise HTTPException(status_code=404, detail=f"Unknown signal producer: {agent_id}")
     return request.app.state.autonomous_streams.stop(agent_id)
+
+
+@orchestrator_router.post("/run")
+async def orchestrator_run(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    signal = normalize_inbound_signal(body.get("signal") or body)
+    canvas = body.get("canvas") or {"nodes": [], "edges": []}
+    config = body.get("config") or {}
+    memory = body.get("memory")
+    stream = request.app.state.orchestrator_stream
+    if memory is None and stream:
+        memory = stream.get_memory()
+    result = await run_orchestrator(signal=signal, canvas=canvas, config=config, memory=memory)
+    if stream:
+        stream.set_memory(result.get("memory") or stream.get_memory())
+        stream._last_result = result
+    return result
+
+
+@orchestrator_router.get("/status")
+async def orchestrator_status(request: Request) -> dict[str, Any]:
+    return request.app.state.orchestrator_stream.status()
+
+
+@orchestrator_router.post("/start")
+async def orchestrator_start(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    canvas = body.get("canvas") or {"nodes": [], "edges": []}
+    config = body.get("config") or {}
+    return await request.app.state.orchestrator_stream.start(canvas, config)
+
+
+@orchestrator_router.post("/stop")
+async def orchestrator_stop(request: Request) -> dict[str, Any]:
+    return request.app.state.orchestrator_stream.stop()

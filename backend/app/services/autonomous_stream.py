@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from app.agents.registry import get_autonomous_agent
+from app.signal_registry import get_signal_producer
 from app.kafka.producer import SignalProducerService
 from app.ws.events import EventsManager
 
@@ -11,9 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class AutonomousAgentStreamService:
-    def __init__(self, producer: SignalProducerService, events: EventsManager) -> None:
+    def __init__(
+        self,
+        producer: SignalProducerService,
+        events: EventsManager,
+        orchestrator: Any | None = None,
+    ) -> None:
         self._producer = producer
         self._events = events
+        self._orchestrator = orchestrator
         self._sessions: dict[str, dict[str, Any]] = {}
         self._stop_flags: dict[str, bool] = {}
         self._tasks: dict[str, asyncio.Task] = {}
@@ -28,13 +34,14 @@ class AutonomousAgentStreamService:
         self._tasks.clear()
 
     def status(self, agent_id: str) -> dict[str, Any]:
-        defn = get_autonomous_agent(agent_id)
+        defn = get_signal_producer(agent_id)
         if not defn:
-            return {"ok": False, "error": f"Unknown autonomous agent: {agent_id}"}
+            return {"ok": False, "error": f"Unknown signal producer: {agent_id}"}
         session = self._sessions.get(agent_id)
         return {
             "ok": True,
             "agentId": agent_id,
+            "category": defn.get("category", "mindagent"),
             "running": session.get("running", False) if session else False,
             "emittedCount": session.get("emittedCount", 0) if session else 0,
             "lastSignal": session.get("lastSignal") if session else None,
@@ -45,9 +52,9 @@ class AutonomousAgentStreamService:
 
     async def start(self, agent_id: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
         config = config or {}
-        defn = get_autonomous_agent(agent_id)
+        defn = get_signal_producer(agent_id)
         if not defn:
-            return {"ok": False, "error": f"Unknown autonomous agent: {agent_id}"}
+            return {"ok": False, "error": f"Unknown signal producer: {agent_id}"}
 
         existing = self._sessions.get(agent_id)
         if existing and existing.get("running"):
@@ -135,3 +142,15 @@ class AutonomousAgentStreamService:
                 "payload": signal,
             }
         )
+
+        if self._orchestrator is not None:
+            try:
+                await self._orchestrator.enqueue(
+                    {
+                        "agent_id": agent_id,
+                        "event_type": event_type,
+                        "payload": signal,
+                    }
+                )
+            except Exception as exc:
+                logger.warning("Orchestrator enqueue failed: %s", exc)

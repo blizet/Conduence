@@ -23,7 +23,7 @@ import type { WorkflowNode } from '@/nodes/types';
 import { NodePalette } from './NodePalette';
 import { AgentMarketplace } from './AgentMarketplace';
 import { InstalledAgentsProvider } from '@/lib/marketplace';
-import { AgentFeedProvider } from '@/lib/agent-feed';
+import { AgentFeedProvider, useAgentFeed } from '@/lib/agent-feed';
 
 const CotGraphView = dynamic(
   () => import('./CotGraphView').then((mod) => mod.CotGraphView),
@@ -46,6 +46,7 @@ type FlowCanvasProps = {
 function FlowCanvas({ onCountsChange, runSignal, onRunStateChange }: FlowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
+  const { agentFeeds } = useAgentFeed();
   const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const nodesRef = useRef<WorkflowNode[]>([]);
@@ -82,11 +83,12 @@ function FlowCanvas({ onCountsChange, runSignal, onRunStateChange }: FlowCanvasP
       nodes: nodesRef.current,
       edges: edgesRef.current,
       patchNode,
+      feedSignals: agentFeeds,
     }).finally(() => {
       runningRef.current = false;
       onRunStateChange(false);
     });
-  }, [onRunStateChange, runSignal, setNodes]);
+  }, [agentFeeds, onRunStateChange, runSignal, setNodes]);
 
   const onConnect = useCallback(
     (connection: Connection) => {

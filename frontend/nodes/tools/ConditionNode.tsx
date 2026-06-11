@@ -21,6 +21,7 @@ export function ConditionNode({ data, selected }: NodeProps<WorkflowNode>) {
       accent={data.accent}
       icon={<BranchIcon />}
       selected={selected}
+      shape="route"
       handles={[
         { type: 'target', position: 'left' },
         { type: 'source', position: 'right', id: 'true', label: 'true', style: { top: '35%' } },

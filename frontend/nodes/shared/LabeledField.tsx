@@ -31,7 +31,7 @@ export function LabeledInput({
     >
       <div className="node-field__label">{label}</div>
       <input
-        className="node-input"
+        className="node-input nodrag"
         type={type}
         placeholder={placeholder}
         value={value}
@@ -61,7 +61,7 @@ export function LabeledTextarea({
     <div className="node-field" onKeyDown={stopNodeKeyPropagation}>
       <div className="node-field__label">{label}</div>
       <textarea
-        className="node-textarea"
+        className="node-textarea nodrag nowheel"
         rows={rows}
         placeholder={placeholder}
         value={value}
@@ -94,7 +94,7 @@ export function LabeledSelect({
     >
       <div className="node-field__label">{label}</div>
       <select
-        className="node-input"
+        className="node-input nodrag"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={stopNodeKeyPropagation}

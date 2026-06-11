@@ -21,6 +21,7 @@ export function StartNode({ data, selected }: NodeProps<WorkflowNode>) {
       accent={data.accent}
       icon={<PlayIcon />}
       selected={selected}
+      shape="trigger"
       handles={[{ type: 'source', position: 'right' }]}
     />
   );

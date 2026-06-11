@@ -36,7 +36,7 @@ export function OutputNode({ data, selected }: NodeProps<WorkflowNode>) {
         {hasPayload && (
           <div className="node-field">
             <div className="node-field__label">Output payload</div>
-            <pre className="node-output-payload">{data.outputPayload}</pre>
+            <pre className="node-output-payload nodrag nowheel">{data.outputPayload}</pre>
           </div>
         )}
       </div>
