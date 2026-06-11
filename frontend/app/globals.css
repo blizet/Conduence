@@ -17,7 +17,7 @@
   --accent-cyan: #22d3ee;
   --accent-purple: #a78bfa;
   --edge-color: rgba(34, 211, 238, 0.5);
-  --grid-dot: #1e2235;
+  --grid-dot: #b6b8c2;
   --blur: blur(24px) saturate(150%);
   --radius: 14px;
   --radius-sm: 8px;
@@ -331,7 +331,7 @@ body {
   position: relative;
   background:
     linear-gradient(165deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.02) 45%),
-    rgba(14, 16, 24, 0.6);
+    rgba(14, 16, 24, 0.94);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   border: 1px solid var(--glass-border);
@@ -495,7 +495,7 @@ body {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--node-accent) 9%, transparent), transparent 56px),
     linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 45%),
-    rgba(14, 16, 24, 0.66);
+    rgba(14, 16, 24, 0.95);
 }
 
 .glass-node--agent .glass-node__accent {
@@ -1631,4 +1631,128 @@ select.node-input {
 .node-feed-preview__headline {
   margin-top: 3px;
   color: var(--text-primary);
+}
+
+/* ── Light theme for node palette — matches whitish-grey canvas ── */
+.palette-panel {
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.85), rgba(244, 244, 247, 0.65) 45%),
+    rgba(247, 247, 249, 0.9);
+  border: 1px solid rgba(20, 24, 38, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 12px 40px rgba(20, 24, 38, 0.12);
+}
+
+.palette-panel .palette-header {
+  border-bottom: 1px solid rgba(20, 24, 38, 0.08);
+}
+
+.palette-panel .palette-header__title {
+  color: rgba(35, 40, 58, 0.6);
+}
+
+.palette-panel .palette-search {
+  background: rgba(20, 24, 38, 0.04);
+  border-color: rgba(20, 24, 38, 0.12);
+  color: #23283a;
+}
+
+.palette-panel .palette-search::placeholder {
+  color: rgba(35, 40, 58, 0.4);
+}
+
+.palette-panel .palette-search:focus {
+  border-color: rgba(20, 24, 38, 0.28);
+}
+
+.palette-panel .palette-section-title {
+  color: rgba(35, 40, 58, 0.45);
+}
+
+.palette-panel .palette-section-title--tools {
+  color: #0e8aa6;
+}
+
+.palette-panel .palette-section-title--subagents {
+  color: #7c5fd3;
+}
+
+.palette-panel .palette-section-title--mindagents {
+  color: #d23d80;
+}
+
+.palette-panel .palette-item:hover {
+  background: rgba(20, 24, 38, 0.05);
+  border-color: rgba(20, 24, 38, 0.1);
+  box-shadow: none;
+}
+
+.palette-panel .palette-item__label {
+  color: #1d2130;
+}
+
+.palette-panel .palette-item__desc {
+  color: rgba(35, 40, 58, 0.55);
+}
+
+.palette-panel .palette-item__grip {
+  color: rgba(35, 40, 58, 0.4);
+}
+
+.palette-panel .palette-chip {
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--chip-accent) 24%, transparent), transparent 70%),
+    rgba(20, 24, 38, 0.04);
+  border-color: color-mix(in srgb, var(--chip-accent) 55%, transparent);
+  color: color-mix(in srgb, var(--chip-accent) 78%, #1d2130);
+}
+
+.palette-panel .palette-collapse-btn {
+  border-color: rgba(20, 24, 38, 0.14);
+  background: rgba(20, 24, 38, 0.04);
+  color: rgba(35, 40, 58, 0.6);
+}
+
+.palette-panel .palette-collapse-btn:hover {
+  background: rgba(20, 24, 38, 0.08);
+  color: #1d2130;
+  border-color: rgba(20, 24, 38, 0.25);
+}
+
+.palette-panel .palette-footer {
+  border-top: 1px solid rgba(20, 24, 38, 0.08);
+  color: rgba(35, 40, 58, 0.45);
+}
+
+.palette-panel .palette-empty {
+  color: rgba(35, 40, 58, 0.45);
+}
+
+.palette-panel .palette-rail-group + .palette-rail-group {
+  border-top: 1px solid rgba(20, 24, 38, 0.1);
+}
+
+.palette-panel .palette-rail-item:hover {
+  background: rgba(20, 24, 38, 0.06);
+}
+
+.palette-panel .dark-scroll {
+  scrollbar-color: rgba(20, 24, 38, 0.25) transparent;
+}
+
+.palette-panel .dark-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.palette-panel .dark-scroll::-webkit-scrollbar-thumb {
+  background: rgba(20, 24, 38, 0.22);
+}
+
+.palette-panel .dark-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 24, 38, 0.35);
+}
+
+.palette-panel .dark-scroll::-webkit-scrollbar-corner {
+  background: transparent;
 }

@@ -155,7 +155,13 @@ function FlowCanvas({ onCountsChange, runSignal, onRunStateChange }: FlowCanvasP
         }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} color="#1e2235" gap={24} />
+        <Background
+          variant={BackgroundVariant.Dots}
+          bgColor="#ededf0"
+          color="#b6b8c2"
+          gap={24}
+          size={1.5}
+        />
         <Controls position="bottom-left" showInteractive />
         <MiniMap
           position="bottom-right"
