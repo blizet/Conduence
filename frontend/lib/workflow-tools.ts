@@ -10,6 +10,7 @@ export type ToolExecutionResult = {
   request: Record<string, unknown>;
   data?: unknown;
   error?: string | null;
+  durationMs?: number;
 };
 
 export type RunnableToolType =
@@ -43,18 +44,20 @@ export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType
 
 async function postJson(path: string, body: Record<string, unknown>, backendUrl?: string) {
   const base = (backendUrl ?? API_BASE).replace(/\/$/, '');
+  const started = performance.now();
   const response = await fetch(`${base}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  const durationMs = Math.round(performance.now() - started);
   let payload: unknown = null;
   try {
     payload = await response.json();
   } catch {
     payload = { error: `Invalid JSON response (${response.status})` };
   }
-  return { response, payload };
+  return { response, payload, durationMs };
 }
 
 function sanitizeRequest(request: Record<string, unknown>): Record<string, unknown> {
@@ -62,11 +65,44 @@ function sanitizeRequest(request: Record<string, unknown>): Record<string, unkno
   return rest;
 }
 
+export function formatToolResultDisplay(result: ToolExecutionResult): string {
+  return JSON.stringify(result, null, 2);
+}
+
+export function toolResultPatch(result: ToolExecutionResult): {
+  workflowStatus: 'success' | 'error';
+  workflowError: string;
+  workflowResult: string;
+  workflowDurationMs: number | undefined;
+} {
+  return {
+    workflowStatus: result.ok ? 'success' : 'error',
+    workflowError: result.error ?? '',
+    workflowResult: formatToolResultDisplay(result),
+    workflowDurationMs: result.durationMs,
+  };
+}
+
+export function clearFetchState(): {
+  workflowStatus: 'running';
+  workflowError: string;
+  workflowResult: string;
+  workflowDurationMs: undefined;
+} {
+  return {
+    workflowStatus: 'running',
+    workflowError: '',
+    workflowResult: '',
+    workflowDurationMs: undefined,
+  };
+}
+
 function normalizeResult(
   source: string,
   payload: unknown,
   request: Record<string, unknown>,
   httpOk: boolean,
+  durationMs?: number,
 ): ToolExecutionResult {
   const safeRequest = sanitizeRequest(request);
 
@@ -81,6 +117,7 @@ function normalizeResult(
     return {
       ...normalized,
       request: sanitizeRequest(normalized.request ?? safeRequest),
+      durationMs: normalized.durationMs ?? durationMs,
     };
   }
 
@@ -93,7 +130,7 @@ function normalizeResult(
       detail === 'Not Found'
         ? 'Backend route not found — restart the backend (npm run dev:backend)'
         : detail;
-    return { ok: false, source, request: safeRequest, error: message };
+    return { ok: false, source, request: safeRequest, error: message, durationMs };
   }
 
   const possibleError =
@@ -109,90 +146,140 @@ function normalizeResult(
     request: safeRequest,
     data: possibleError ? undefined : payload,
     error: possibleError || null,
+    durationMs,
+  };
+}
+
+function toolAccessPayload(data: WorkflowNodeData): Record<string, unknown> {
+  return {
+    accessMode: data.toolAccessMode ?? 'public',
+    endpoint: data.toolEndpoint ?? undefined,
+    apiKey: (data.apiKey ?? '').trim(),
   };
 }
 
 export async function executeToolNode(type: string, data: WorkflowNodeData): Promise<ToolExecutionResult> {
   if (type === 'coinmarketcap') {
     const request = {
+      ...toolAccessPayload(data),
       symbols: (data.cmcSymbols ?? 'BTC').trim() || 'BTC',
       convert: (data.cmcConvert ?? 'USD').trim() || 'USD',
-      apiKey: (data.apiKey ?? '').trim(),
     };
-    const { response, payload } = await postJson('/api/tools/coinmarketcap/fetch', request, data.backendUrl);
-    return normalizeResult('coinmarketcap', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/coinmarketcap/fetch',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('coinmarketcap', payload, request, response.ok, durationMs);
   }
   if (type === 'defillama') {
+    const endpoint = data.toolEndpoint ?? data.defillamaMode ?? 'protocols';
     const request = {
-      mode: data.defillamaMode ?? 'protocols',
+      ...toolAccessPayload(data),
+      endpoint,
+      mode: endpoint,
       protocol: (data.defillamaProtocol ?? '').trim(),
       chain: (data.defillamaChain ?? '').trim(),
       symbol: (data.defillamaSymbol ?? '').trim(),
-      apiKey: (data.apiKey ?? '').trim(),
+      timestamp: (data.defillamaTimestamp ?? '').trim() || undefined,
     };
-    const { response, payload } = await postJson('/api/tools/defillama/fetch', request, data.backendUrl);
-    return normalizeResult('defillama', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/defillama/fetch',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('defillama', payload, request, response.ok, durationMs);
   }
   if (type === 'cryptonews') {
     const request = {
+      ...toolAccessPayload(data),
       tickers: (data.cryptonewsTickers ?? 'BTC').trim() || 'BTC',
       items: Number(data.cryptonewsItems ?? '10') || 10,
       sentiment: (data.cryptonewsSentiment ?? '').trim() || undefined,
       keywords: (data.cryptonewsKeywords ?? '').trim() || undefined,
-      apiKey: (data.apiKey ?? '').trim(),
     };
-    const { response, payload } = await postJson('/api/tools/cryptonews/fetch', request, data.backendUrl);
-    return normalizeResult('cryptonews', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/cryptonews/fetch',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('cryptonews', payload, request, response.ok, durationMs);
   }
   if (type === 'cryptoquant') {
     const request = {
+      ...toolAccessPayload(data),
       metric: (data.cryptoquantMetric ?? '').trim(),
       symbol: (data.cryptoquantSymbol ?? 'btc').trim() || 'btc',
       window: (data.cryptoquantWindow ?? 'day').trim() || 'day',
       exchange: (data.cryptoquantExchange ?? '').trim() || undefined,
-      apiKey: (data.apiKey ?? '').trim(),
     };
-    const { response, payload } = await postJson('/api/tools/cryptoquant/fetch', request, data.backendUrl);
-    return normalizeResult('cryptoquant', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/cryptoquant/fetch',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('cryptoquant', payload, request, response.ok, durationMs);
   }
   if (type === 'tavily') {
     const request = {
+      ...toolAccessPayload(data),
       query: (data.tavilyQuery ?? '').trim(),
+      urls: (data.tavilyUrls ?? '').trim() || undefined,
       searchDepth: data.tavilySearchDepth ?? 'basic',
       maxResults: Number(data.tavilyMaxResults ?? '5') || 5,
-      apiKey: (data.apiKey ?? '').trim(),
     };
-    const { response, payload } = await postJson('/api/tools/tavily/fetch', request, data.backendUrl);
-    return normalizeResult('tavily', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson('/api/tools/tavily/fetch', request, data.backendUrl);
+    return normalizeResult('tavily', payload, request, response.ok, durationMs);
   }
   if (type === 'coingecko') {
     const request = {
+      ...toolAccessPayload(data),
       ids: (data.coingeckoIds ?? 'bitcoin').trim() || 'bitcoin',
+      query: (data.coingeckoQuery ?? '').trim() || undefined,
+      coinId: (data.coingeckoCoinId ?? '').trim() || undefined,
+      network: (data.coingeckoNetwork ?? '').trim() || undefined,
+      poolAddress: (data.coingeckoPoolAddress ?? '').trim() || undefined,
+      days: (data.coingeckoDays ?? '30').trim() || '30',
     };
-    const { response, payload } = await postJson('/api/tools/coingecko/fetch', request, data.backendUrl);
-    return normalizeResult('coingecko', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/coingecko/fetch',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('coingecko', payload, request, response.ok, durationMs);
   }
   if (type === 'polymarketGamma') {
     const request = {
+      ...toolAccessPayload(data),
       keywords: (data.gammaKeywords ?? '').trim(),
       limit: Number(data.gammaLimit ?? '8') || 8,
       minVolume24h: Number(data.gammaMinVolume ?? '10000') || 10000,
       minLiquidity: Number(data.gammaMinLiquidity ?? '10000') || 10000,
       maxSpread: Number(data.gammaMaxSpread ?? '0.05') || 0.05,
     };
-    const { response, payload } = await postJson('/api/tools/gamma/markets', request, data.backendUrl);
-    return normalizeResult('polymarketGamma', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/gamma/markets',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('polymarketGamma', payload, request, response.ok, durationMs);
   }
   if (type === 'polymarketWallet') {
     const request = {
+      ...toolAccessPayload(data),
       wallet: (data.pmWallet ?? '').trim(),
       action: data.pmWalletAction ?? 'trades',
       limit: Number(data.pmWalletLimit ?? '20') || 20,
     };
-    const { response, payload } = await postJson('/api/tools/polymarket/wallet', request, data.backendUrl);
-    return normalizeResult('polymarketWallet', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/polymarket/wallet',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('polymarketWallet', payload, request, response.ok, durationMs);
   }
   if (type === 'divergence') {
+    const started = performance.now();
     // Local computation — ported from cry/tools/divergence.py
     const DIVERGENCE_THRESHOLD = 3.0; // percentage points of unexplained move
     const baseChange = Number(data.divBaseChange ?? '');
@@ -202,16 +289,25 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     const otherId = (data.divOtherId ?? 'other').trim() || 'other';
     const request = { baseId, otherId, baseChange, otherChange, expectedCorr };
 
+    const durationMs = () => Math.round(performance.now() - started);
+
     if ([baseChange, otherChange, expectedCorr].some((v) => Number.isNaN(v))) {
       return {
         ok: false,
         source: 'divergence',
         request,
         error: 'baseChange, otherChange and expectedCorr must be numbers',
+        durationMs: durationMs(),
       };
     }
     if (expectedCorr < -1 || expectedCorr > 1) {
-      return { ok: false, source: 'divergence', request, error: 'expectedCorr must be in [-1, 1]' };
+      return {
+        ok: false,
+        source: 'divergence',
+        request,
+        error: 'expectedCorr must be in [-1, 1]',
+        durationMs: durationMs(),
+      };
     }
 
     const expectedOther = baseChange * expectedCorr;
@@ -236,6 +332,7 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
         note,
       },
       error: null,
+      durationMs: durationMs(),
     };
   }
   if (type === 'whaleWallet') {
@@ -244,8 +341,8 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
       conditionId: (data.conditionId ?? '').trim() || undefined,
       apiKey: (data.apiKey ?? '').trim() || undefined,
     };
-    const { response, payload } = await postJson('/api/tools/whale/track', request, data.backendUrl);
-    return normalizeResult('whaleWallet', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson('/api/tools/whale/track', request, data.backendUrl);
+    return normalizeResult('whaleWallet', payload, request, response.ok, durationMs);
   }
   if (type === 'cotBuilder') {
     const decision = JSON.parse(data.decisionJson ?? '{}');
@@ -256,15 +353,15 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
       graphId: data.graphId,
       userNodeId: data.userNodeId,
     };
-    const { response, payload } = await postJson('/api/tools/cot/build', request, data.backendUrl);
-    return normalizeResult('cotBuilder', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson('/api/tools/cot/build', request, data.backendUrl);
+    return normalizeResult('cotBuilder', payload, request, response.ok, durationMs);
   }
   if (type === 'clob') {
     const request = {
       tokenId: (data.tokenId ?? '').trim(),
     };
-    const { response, payload } = await postJson('/api/tools/clob/quote', request, data.backendUrl);
-    return normalizeResult('clob', payload, request, response.ok);
+    const { response, payload, durationMs } = await postJson('/api/tools/clob/quote', request, data.backendUrl);
+    return normalizeResult('clob', payload, request, response.ok, durationMs);
   }
   return {
     ok: false,

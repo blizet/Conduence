@@ -47,6 +47,8 @@ npm run seeker-agent
 
 Open **http://localhost:3001** (your dashboard). Default graph: `user_771.publisher.v1`.
 
+**Full walkthrough** (kalshiSports publisher, marketplace, orchestrator workflow, CoT graph): **[docs/run-setup.md](docs/run-setup.md)**.
+
 **Important:** Start **backend before** `npm run seed`, or messages are published with no consumer and FalkorDB/Redis stay empty.
 
 ## Agents
@@ -69,7 +71,7 @@ Open **http://localhost:3001** (your dashboard). Default graph: `user_771.publis
 | RedisInsight | http://localhost:8001 | Not used by FastAPI graph ingest (optional legacy Python only) |
 | Neo4j Browser | http://localhost:7474 | Optional (legacy Python sync) |
 
-See [docs/services.md](docs/services.md).
+See [docs/services.md](docs/services.md) (if present) and **[docs/run-setup.md](docs/run-setup.md)** for the full playground + kalshiSports + marketplace walkthrough.
 
 ## Architecture
 

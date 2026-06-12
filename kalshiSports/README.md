@@ -79,6 +79,37 @@ Every trade event is printed and appended to `out/trades.jsonl`. Run paper
 mode for 2–4 weeks, then check `report.py`: the strategy only has an edge if
 the **realized win rate beats the average entry price + fees**.
 
+## CoT_kb marketplace wrapper
+
+kalshiSports can emit signals to the CoT_kb platform feed so subscribers see live
+ticks and trade events in the Mind Agent Marketplace (no SDK — HTTP only).
+
+1. Copy `kalshiSports/.env.example` → `.env` and set:
+
+```bash
+COT_WRAPPER_ENABLED=1
+COT_API_URL=http://localhost:4000
+COT_AGENT_ID=sportsScanner.user_demo
+COT_PUBLISHER_KEY=cot-dev-wrapper-key   # must match backend COT_WRAPPER_API_KEY
+```
+
+2. Start the CoT backend (`npm run dev:backend`) and Redpanda (`docker compose up -d`).
+
+3. Run the scanner — wrapper emits every tick + trade events:
+
+```bash
+python main.py --simulate
+```
+
+4. In the playground marketplace, install **Kalshi Sports Scanner** (External).
+   Status shows **Live · receiving** when the publisher process is running.
+
+Full platform walkthrough (infra, orchestrator, graph, publishing workflows):
+**[../docs/run-setup.md](../docs/run-setup.md)**
+
+Wrapper code: `cot_wrapper.py` (~40 lines). Hooks: `runner.py` (ticks + heartbeat),
+`app/orchestrator/nodes.py` (`publish_outputs` on ENTER/exit).
+
 ## Live-mode wiring
 
 - **Kalshi** (`tools/kalshi.py`) — public `GET /markets` + `GET /markets/{t}/orderbook`
@@ -94,6 +125,7 @@ the **realized win rate beats the average entry price + fees**.
 
 ```
 kalshiSports/
+├── cot_wrapper.py                   HTTP wrapper → CoT_kb /api/feeds/…/signal
 ├── main.py                          entrypoint (CLI)
 ├── report.py                        win-rate vs price report from the log
 ├── config.json                      strategy thresholds + sizing

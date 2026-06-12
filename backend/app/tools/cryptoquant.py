@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 
 from app.config import TOOL_FETCH_TIMEOUT_MS
+from app.tools.access import resolve_access, resolve_api_key
 
 CRYPTOQUANT_BASE_URL = "https://api.cryptoquant.com/v1"
 
@@ -23,35 +24,45 @@ def _normalized(
 
 
 async def fetch_cryptoquant(body: dict[str, Any]) -> dict[str, Any]:
-    api_key = (body.get("apiKey") or "").strip()
+    access_mode, endpoint, access_error = resolve_access(
+        "cryptoquant", body, default_endpoint="metric"
+    )
+    api_key = resolve_api_key("cryptoquant", body)
     metric = (body.get("metric") or "").strip()
     exchange = (body.get("exchange") or "").strip()
     symbol = (body.get("symbol") or "btc").strip().lower()
     window = (body.get("window") or "day").strip().lower()
 
-    request = {
+    request: dict[str, Any] = {
+        "accessMode": access_mode,
+        "endpoint": endpoint,
         "metric": metric,
         "exchange": exchange,
         "symbol": symbol,
         "window": window,
     }
 
-    if not api_key:
-        return _normalized(request=request, error="apiKey is required")
-    if not metric:
-        return _normalized(request=request, error="metric is required")
+    if access_error:
+        return _normalized(request=request, error=access_error)
 
-    # CryptoQuant endpoints vary by plan/metric. This route keeps the metric path configurable.
-    endpoint = f"{CRYPTOQUANT_BASE_URL}/{metric.lstrip('/')}"
-    params: dict[str, Any] = {"symbol": symbol, "window": window}
-    if exchange:
-        params["exchange"] = exchange
+    if endpoint == "entity_list":
+        url = f"{CRYPTOQUANT_BASE_URL}/btc/status/entity-list"
+        params: dict[str, Any] = {}
+    elif endpoint == "metric":
+        if not metric:
+            return _normalized(request=request, error="metric is required")
+        url = f"{CRYPTOQUANT_BASE_URL}/{metric.lstrip('/')}"
+        params = {"symbol": symbol, "window": window}
+        if exchange:
+            params["exchange"] = exchange
+    else:
+        return _normalized(request=request, error=f"Unknown CryptoQuant endpoint: {endpoint}")
 
     timeout = TOOL_FETCH_TIMEOUT_MS / 1000
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(
-                endpoint,
+                url,
                 params=params,
                 headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
             )

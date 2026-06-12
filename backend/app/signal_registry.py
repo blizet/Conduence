@@ -1,9 +1,14 @@
-"""Signal producer registry — mind agents (agents/) + sub-agents (app/subagents/)."""
+"""Signal producer registry — mind agents (agents/) + sub-agents + external wrappers."""
 
 from __future__ import annotations
 
 from typing import Any, AsyncIterator
 
+from app.external_agents.registry import (
+    EXTERNAL_MARKETPLACE_ENTRIES,
+    get_external_agent,
+    list_external_feed_topics,
+)
 from app.mind_agents.loader import get_arbitrage_agent, get_news_agent
 
 
@@ -65,13 +70,15 @@ AUTONOMOUS_AGENT_REGISTRY: dict[str, dict[str, Any]] = {
     },
 }
 
-MARKETPLACE_CATALOG = [
+_HOSTED_MARKETPLACE_CATALOG = [
     {
         "id": "llm",
         "nodeType": "llm",
         "name": "LLM Analyzer",
         "description": "LangGraph orchestrator — synthesizes feeds, tools, and graph into trade decisions",
         "autonomous": False,
+        "hosted": True,
+        "source": "hosted",
         "accent": "#f472b6",
         "core": True,
     },
@@ -81,6 +88,8 @@ MARKETPLACE_CATALOG = [
         "name": "News Agent",
         "description": "Autonomous CoinDesk feed → dedicated Redpanda topic for subscribers",
         "autonomous": True,
+        "hosted": True,
+        "source": "hosted",
         "accent": "#fb923c",
         "feedTopic": agent_feed_topic("newsAgent"),
         "eventType": "news.signal",
@@ -92,6 +101,8 @@ MARKETPLACE_CATALOG = [
         "name": "Arbitrage Agent",
         "description": "Polymarket x Kalshi cross-platform arb scanner — fee-aware net edge after all gates",
         "autonomous": True,
+        "hosted": True,
+        "source": "hosted",
         "accent": "#c084fc",
         "feedTopic": agent_feed_topic("arbitrageAgent"),
         "eventType": "arbitrage.signal",
@@ -103,6 +114,8 @@ MARKETPLACE_CATALOG = [
         "name": "Whale Wallet",
         "description": "Polls proxy wallets — emits whale signals when new trades appear (snap Polymarket Wallet tool)",
         "autonomous": True,
+        "hosted": True,
+        "source": "hosted",
         "category": "subagent",
         "accent": "#38bdf8",
         "feedTopic": agent_feed_topic("whaleWallet"),
@@ -115,6 +128,8 @@ MARKETPLACE_CATALOG = [
         "name": "Divergence Agent",
         "description": "Watches graph asset pairs for correlation decoupling (snap CoinGecko + Divergence tools)",
         "autonomous": True,
+        "hosted": True,
+        "source": "hosted",
         "category": "subagent",
         "accent": "#e879f9",
         "feedTopic": agent_feed_topic("divergenceAgent"),
@@ -122,6 +137,20 @@ MARKETPLACE_CATALOG = [
         "agentPath": "backend/app/subagents/divergence_subagent.py",
     },
 ]
+
+MARKETPLACE_CATALOG = [*_HOSTED_MARKETPLACE_CATALOG, *EXTERNAL_MARKETPLACE_ENTRIES]
+
+
+def is_external_agent(agent_id: str) -> bool:
+    return get_external_agent(agent_id) is not None
+
+
+def is_hosted_agent(agent_id: str) -> bool:
+    return get_signal_producer(agent_id) is not None and not is_external_agent(agent_id)
+
+
+def get_marketplace_agent(agent_id: str) -> dict[str, Any] | None:
+    return get_external_agent(agent_id) or get_signal_producer(agent_id)
 
 
 def get_autonomous_agent(agent_id: str) -> dict[str, Any] | None:
@@ -141,4 +170,8 @@ def get_signal_producer(agent_id: str) -> dict[str, Any] | None:
 def list_signal_producer_feed_topics() -> list[str]:
     from app.subagents.registry import list_sub_agent_feed_topics
 
-    return [*list_autonomous_agent_feed_topics(), *list_sub_agent_feed_topics()]
+    return [
+        *list_autonomous_agent_feed_topics(),
+        *list_sub_agent_feed_topics(),
+        *list_external_feed_topics(),
+    ]

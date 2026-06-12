@@ -3,6 +3,7 @@ import type { PaletteItem } from './types';
 import { ArbitrageAgentNode } from './mindagents/ArbitrageAgentNode';
 import { LlmNode } from './mindagents/LlmNode';
 import { NewsAgentNode } from './mindagents/NewsAgentNode';
+import { SportsScannerNode } from './mindagents/SportsScannerNode';
 import { DivergenceAgentNode } from './subagents/DivergenceAgentNode';
 import { WhaleWalletNode } from './subagents/WhaleWalletNode';
 import { ClobToolNode } from './tools/ClobToolNode';
@@ -43,6 +44,7 @@ export const nodeTypes: NodeTypes = {
   llm: LlmNode,
   newsAgent: NewsAgentNode,
   arbitrageAgent: ArbitrageAgentNode,
+  sportsScanner: SportsScannerNode,
   whaleWallet: WhaleWalletNode,
   divergenceAgent: DivergenceAgentNode,
 };
@@ -194,6 +196,13 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Main analyzer — prompts + multi I/O',
     category: 'mindagent',
     accent: '#f472b6',
+  },
+  {
+    type: 'sportsScanner',
+    label: 'Kalshi Sports Scanner',
+    description: 'External late-game soccer feed — publisher runs kalshiSports + HTTP wrapper',
+    category: 'mindagent',
+    accent: '#4ade80',
   },
 ];
 

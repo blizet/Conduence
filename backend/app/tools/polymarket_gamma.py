@@ -16,6 +16,7 @@ from typing import Any
 import httpx
 
 from app.config import TOOL_FETCH_TIMEOUT_MS
+from app.tools.access import resolve_access
 from app.tools.endpoints import GAMMA
 
 VOLUME_RED_FLAG = 10_000.0
@@ -109,6 +110,69 @@ def _normalized(
 
 
 async def fetch_gamma_markets(body: dict[str, Any]) -> dict[str, Any]:
+    access_mode, endpoint, access_error = resolve_access(
+        "polymarketGamma", body, default_endpoint="markets_search"
+    )
+    if access_error:
+        return _normalized(request={"accessMode": access_mode, "endpoint": endpoint}, error=access_error)
+
+    if endpoint == "events_list":
+        return await _fetch_gamma_events(body, access_mode, endpoint)
+
+    if endpoint == "markets_list":
+        return await _fetch_gamma_markets_list(body, access_mode, endpoint)
+
+    return await _fetch_gamma_markets_search(body, access_mode, endpoint)
+
+
+async def _fetch_gamma_events(body: dict[str, Any], access_mode: str, endpoint: str) -> dict[str, Any]:
+    limit = int(body.get("limit") or 20)
+    request = {"accessMode": access_mode, "endpoint": endpoint, "limit": limit}
+    timeout = TOOL_FETCH_TIMEOUT_MS / 1000
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(
+                f"{GAMMA.base}/events",
+                params={"closed": "false", "active": "true", "limit": limit},
+            )
+            if response.status_code >= 400:
+                detail = response.text.strip()[:200] or f"HTTP {response.status_code}"
+                return _normalized(request=request, error=f"Gamma request failed ({response.status_code}): {detail}")
+            payload = response.json()
+            return _normalized(request=request, data={"events": payload if isinstance(payload, list) else []})
+    except Exception as exc:
+        return _normalized(request=request, error=str(exc))
+
+
+async def _fetch_gamma_markets_list(body: dict[str, Any], access_mode: str, endpoint: str) -> dict[str, Any]:
+    limit = int(body.get("limit") or 8)
+    request = {"accessMode": access_mode, "endpoint": endpoint, "limit": limit}
+    timeout = TOOL_FETCH_TIMEOUT_MS / 1000
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(
+                GAMMA.markets,
+                params={
+                    "closed": "false",
+                    "active": "true",
+                    "limit": limit,
+                    "order": "volume24hr",
+                    "ascending": "false",
+                },
+            )
+            if response.status_code >= 400:
+                detail = response.text.strip()[:200] or f"HTTP {response.status_code}"
+                return _normalized(request=request, error=f"Gamma request failed ({response.status_code}): {detail}")
+            raw = response.json()
+    except Exception as exc:
+        return _normalized(request=request, error=str(exc))
+
+    markets = [_parse_market(m) for m in raw if isinstance(raw, list)]
+    markets = [m for m in markets if m]
+    return _normalized(request=request, data={"markets": markets[:limit], "scanned": len(raw) if isinstance(raw, list) else 0})
+
+
+async def _fetch_gamma_markets_search(body: dict[str, Any], access_mode: str, endpoint: str) -> dict[str, Any]:
     raw_keywords = body.get("keywords") or ""
     if isinstance(raw_keywords, list):
         keywords = [str(k).strip().lower() for k in raw_keywords if str(k).strip()]
@@ -121,6 +185,8 @@ async def fetch_gamma_markets(body: dict[str, Any]) -> dict[str, Any]:
     max_spread = float(body.get("maxSpread") or SPREAD_MAX)
 
     request = {
+        "accessMode": access_mode,
+        "endpoint": endpoint,
         "keywords": keywords,
         "limit": limit,
         "minVolume24h": min_volume_24h,

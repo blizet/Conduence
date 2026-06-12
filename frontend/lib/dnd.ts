@@ -28,6 +28,8 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     systemPrompt: DEFAULT_LLM_SYSTEM_PROMPT,
     userPrompt: DEFAULT_LLM_USER_PROMPT,
     newsFilterCategories: [],
+    contextGraph: 'correlation',
+    graphId: DEFAULT_COT_GRAPH_ID,
   },
   newsAgent: { apiKey: '', newsPollLimit: '20' },
   clob: {
@@ -65,17 +67,24 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     model: defaultModelForProvider(DEFAULT_LLM_PROVIDER),
   },
   coinmarketcap: {
+    toolAccessMode: 'private',
+    toolEndpoint: 'quotes_latest',
     apiKey: '',
     cmcSymbols: 'BTC,ETH',
     cmcConvert: 'USD',
   },
   defillama: {
+    toolAccessMode: 'public',
+    toolEndpoint: 'protocols',
     defillamaMode: 'protocols',
     defillamaProtocol: 'lido',
     defillamaChain: 'Ethereum',
     defillamaSymbol: 'usdt',
+    apiKey: '',
   },
   cryptonews: {
+    toolAccessMode: 'private',
+    toolEndpoint: 'ticker_news',
     apiKey: '',
     cryptonewsTickers: 'BTC',
     cryptonewsItems: '10',
@@ -83,6 +92,8 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     cryptonewsKeywords: '',
   },
   cryptoquant: {
+    toolAccessMode: 'private',
+    toolEndpoint: 'metric',
     apiKey: '',
     cryptoquantMetric: 'btc/exchange-flows/inflow',
     cryptoquantSymbol: 'btc',
@@ -90,10 +101,27 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     cryptoquantExchange: '',
   },
   tavily: {
+    toolAccessMode: 'private',
+    toolEndpoint: 'search',
     apiKey: '',
     tavilyQuery: '',
     tavilySearchDepth: 'basic',
     tavilyMaxResults: '5',
+    tavilyUrls: '',
+  },
+  coingecko: {
+    toolAccessMode: 'public',
+    toolEndpoint: 'simple_price',
+    coingeckoIds: 'bitcoin,ethereum',
+  },
+  polymarketGamma: {
+    toolAccessMode: 'public',
+    toolEndpoint: 'markets_search',
+    gammaKeywords: 'bitcoin',
+  },
+  polymarketWallet: {
+    toolAccessMode: 'public',
+    toolEndpoint: 'wallet_trades',
   },
 };
 

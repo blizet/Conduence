@@ -6,24 +6,15 @@ import time
 from typing import Any
 
 from app.lib.normalize import normalize_decision
-from app.orchestrator.compile import compile_canvas
-from app.orchestrator.correlation_graph import CorrelationGraph, DEFAULT_GRAPH_PATH
-from app.orchestrator.decision_engine import DecisionEngine, _signal_sign
+from app.orchestrator.compile import compile_orchestrator
+from app.orchestrator.decision_engine import DecisionEngine
+from app.orchestrator.graph_registry import match_active_graph, resolve_correlation_graph
 from app.orchestrator.llm_synthesize import synthesize_decision
 from app.orchestrator.planner import plan_tool_calls
 from app.orchestrator.state import OrchestratorState
 from app.orchestrator.tools_registry import ToolRegistry
 from app.schemas.decision import DecisionEvent
 from app.tools.cot_builder import build_cot_decision
-
-_graph: CorrelationGraph | None = None
-
-
-def _get_graph() -> CorrelationGraph:
-    global _graph
-    if _graph is None:
-        _graph = CorrelationGraph(DEFAULT_GRAPH_PATH)
-    return _graph
 
 
 def _append_step(state: OrchestratorState, name: str) -> list[str]:
@@ -47,7 +38,11 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
     signal = _normalize_signal(state.get("signal") or {})
     config = state.get("config") or {}
     canvas = state.get("canvas") or {}
-    compiled = compile_canvas(canvas.get("nodes") or [], canvas.get("edges") or [])
+    compiled = compile_orchestrator(
+        canvas.get("nodes") or [],
+        canvas.get("edges") or [],
+        config=config,
+    )
 
     cot_output = next((o for o in compiled["output_nodes"] if o.get("type") == "cotBuilder"), None)
     cot_data = (cot_output or {}).get("data") or {}
@@ -60,18 +55,24 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
         "subagent_configs": compiled.get("subagent_configs") or {},
         "subagent_tools": compiled.get("subagent_tools") or {},
         "output_nodes": [o["type"] for o in compiled["output_nodes"] if o.get("type")],
+        "tool_registry": compiled.get("tool_registry") or {},
+        "graph_registry": compiled.get("graph_registry") or {},
+        "skills_registry": compiled.get("skills_registry") or {},
+        "skills": (compiled.get("skills_registry") or {}).get("skills") or [],
+        "context_graph": compiled.get("context_graph") or "correlation",
         "config": {
             "feed_sources": compiled.get("feed_sources") or [],
             **config,
             "llm_config": compiled["llm_config"],
             "min_confidence": float(config.get("min_confidence", 0.55)),
             "portfolio_usd": float(config.get("portfolio_usd", 10_000)),
-            "graphId": config.get("graphId") or cot_data.get("graphId"),
+            "graphId": config.get("graphId") or cot_data.get("graphId") or compiled.get("graph_registry", {}).get("decision_graph_id"),
             "userNodeId": config.get("userNodeId") or cot_data.get("userNodeId"),
         },
         "recent_signals": state.get("recent_signals") or [],
         "diverging_nodes": state.get("diverging_nodes") or {},
         "tool_results": {},
+        "rag_context": {},
         "errors": [],
         "evidence": [],
         "steps": _append_step(state, "ingest_signal"),
@@ -129,7 +130,7 @@ async def fast_publish_arbitrage(state: OrchestratorState) -> dict[str, Any]:
 
 async def remember_signal(state: OrchestratorState) -> dict[str, Any]:
     signal = state.get("signal") or {}
-    graph = _get_graph()
+    graph = resolve_correlation_graph(state.get("graph_registry"))
     engine = DecisionEngine(graph)
     recent = engine.remember(state.get("recent_signals") or [], signal)
     diverging = engine.update_divergence(state.get("diverging_nodes") or {}, signal)
@@ -142,31 +143,23 @@ async def remember_signal(state: OrchestratorState) -> dict[str, Any]:
 
 async def match_graph(state: OrchestratorState) -> dict[str, Any]:
     signal = state.get("signal") or {}
-    graph = _get_graph()
-    sign = _signal_sign(signal)
-    text = " ".join(signal.get("keywords", [])) + " " + signal.get("summary", signal.get("headline", ""))
-    origins = graph.match_keywords(text)
-    impacts: list[dict[str, Any]] = []
-    for origin in origins:
-        for impact in graph.propagate(origin.id, strength=sign or 1.0):
-            impacts.append(
-                {
-                    "node_id": impact.node.id,
-                    "node_type": impact.node.type,
-                    "label": impact.node.label,
-                    "score": impact.score,
-                    "path": impact.path,
-                    "rationale": impact.rationale,
-                    "keywords": impact.node.keywords,
-                    "coingecko_id": impact.node.coingecko_id,
-                }
-            )
-    return {"graph_impacts": impacts, "steps": _append_step(state, "match_graph")}
+    registry = state.get("graph_registry") or {}
+    impacts, rag = match_active_graph(
+        registry,
+        signal,
+        state.get("recent_signals") or [],
+    )
+    return {
+        "graph_impacts": impacts,
+        "rag_context": rag,
+        "steps": _append_step(state, "match_graph"),
+    }
 
 
 async def plan_tools(state: OrchestratorState) -> dict[str, Any]:
-    registry = ToolRegistry(state.get("connected_tools"))
-    graph = _get_graph()
+    connected = (state.get("tool_registry") or {}).get("connected") or state.get("connected_tools")
+    registry = ToolRegistry(connected)
+    graph = resolve_correlation_graph(state.get("graph_registry"))
     calls = plan_tool_calls(
         registry,
         graph,
@@ -178,7 +171,8 @@ async def plan_tools(state: OrchestratorState) -> dict[str, Any]:
 
 
 async def invoke_tools(state: OrchestratorState) -> dict[str, Any]:
-    registry = ToolRegistry(state.get("connected_tools"))
+    connected = (state.get("tool_registry") or {}).get("connected") or state.get("connected_tools")
+    registry = ToolRegistry(connected)
     results = await registry.invoke_parallel(state.get("planned_calls") or [])
     errors = [f"{k}: {v.get('error')}" for k, v in results.items() if not v.get("ok")]
     return {
@@ -189,7 +183,7 @@ async def invoke_tools(state: OrchestratorState) -> dict[str, Any]:
 
 
 async def evaluate(state: OrchestratorState) -> dict[str, Any]:
-    graph = _get_graph()
+    graph = resolve_correlation_graph(state.get("graph_registry"))
     config = state.get("config") or {}
     engine = DecisionEngine(
         graph,
@@ -221,6 +215,9 @@ async def llm_synthesize_node(state: OrchestratorState) -> dict[str, Any]:
         state.get("suggestions") or [],
         state.get("tool_results") or {},
         state.get("evidence") or [],
+        rag_context=state.get("rag_context") or {},
+        skills=state.get("skills") or [],
+        graph_registry=state.get("graph_registry") or {},
     )
     return {
         "decision": decision,

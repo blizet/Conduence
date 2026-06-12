@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
+import { clearFetchState, executeToolNode, toolResultPatch } from '@/lib/workflow-tools';
+import { FetchResultPanel } from '../shared/FetchResultPanel';
 import { GlassNode } from '../shared/GlassNode';
 import { ApiKeyField } from '../shared/ApiKeyField';
 import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
@@ -52,45 +54,61 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
     }
 
     setBusy(true);
-    updateData({ clobStatus: isExecute ? 'Submitting…' : 'Fetching quote…' });
+    updateData({
+      ...clearFetchState(),
+      clobStatus: isExecute ? 'Submitting…' : 'Fetching quote…',
+    });
 
     try {
-      const backendUrl = (data.backendUrl ?? API).replace(/\/$/, '');
-      if (isExecute) {
-        const size = Number(data.tradeSize ?? 0);
-        const price = Number(data.tradePrice ?? 0);
-        const side = executeSide === 'BOTH' ? (data.tradeSide ?? 'BUY') : executeSide;
-        const res = await fetch(`${backendUrl}/api/tools/clob/execute`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tokenId,
-            side,
-            size,
-            price,
-            apiKey: data.apiKey,
-            apiSecret: data.apiSecret,
-            apiPassphrase: data.apiPassphrase,
-          }),
-        });
-        const body = (await res.json()) as { status?: string; message?: string; error?: string };
+      if (!isExecute) {
+        const result = await executeToolNode('clob', data);
         updateData({
-          clobStatus: body.message ?? body.error ?? body.status ?? 'Done',
+          ...toolResultPatch(result),
+          clobQuoteJson: result.ok ? JSON.stringify(result.data ?? result, null, 2) : '',
+          clobStatus: result.ok ? 'Quote fetched' : (result.error ?? 'Quote failed'),
         });
-      } else {
-        const res = await fetch(`${backendUrl}/api/tools/clob/quote`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tokenId }),
-        });
-        const body = await res.json();
-        updateData({
-          clobQuoteJson: JSON.stringify(body, null, 2),
-          clobStatus: res.ok ? 'Quote fetched' : String(body.error ?? res.status),
-        });
+        return;
       }
+
+      const backendUrl = (data.backendUrl ?? API).replace(/\/$/, '');
+      const size = Number(data.tradeSize ?? 0);
+      const price = Number(data.tradePrice ?? 0);
+      const side = executeSide === 'BOTH' ? (data.tradeSide ?? 'BUY') : executeSide;
+      const started = performance.now();
+      const res = await fetch(`${backendUrl}/api/tools/clob/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokenId,
+          side,
+          size,
+          price,
+          apiKey: data.apiKey,
+          apiSecret: data.apiSecret,
+          apiPassphrase: data.apiPassphrase,
+        }),
+      });
+      const durationMs = Math.round(performance.now() - started);
+      const body = (await res.json()) as Record<string, unknown>;
+      const ok = res.ok && !body.error;
+      updateData({
+        ...toolResultPatch({
+          ok,
+          source: 'clob',
+          request: { tokenId, side, size, price },
+          data: body,
+          error: ok ? null : String(body.error ?? body.message ?? res.status),
+          durationMs,
+        }),
+        clobStatus: String(body.message ?? body.error ?? body.status ?? (ok ? 'Done' : 'Failed')),
+      });
     } catch (err) {
-      updateData({ clobStatus: err instanceof Error ? err.message : 'Request failed' });
+      const message = err instanceof Error ? err.message : 'Request failed';
+      updateData({
+        workflowStatus: 'error',
+        workflowError: message,
+        clobStatus: message,
+      });
     } finally {
       setBusy(false);
     }
@@ -265,11 +283,12 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
           {busy ? 'Working…' : isExecute ? 'Execute trade' : 'Fetch quote'}
         </button>
 
-        {data.clobStatus && (
-          <div className="node-field__hint" style={{ marginTop: 4 }}>
-            {data.clobStatus}
-          </div>
-        )}
+        <FetchResultPanel
+          status={data.workflowStatus}
+          error={data.workflowError}
+          result={data.workflowResult}
+          durationMs={data.workflowDurationMs}
+        />
       </div>
     </GlassNode>
   );

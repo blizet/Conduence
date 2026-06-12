@@ -32,11 +32,19 @@ export function OutputNode({ data, selected }: NodeProps<WorkflowNode>) {
         <div className="node-field__hint">
           {statusLabel}
           {data.outputSource ? ` · Source: ${data.outputSource}` : ''}
+          {data.outputDurationMs != null
+            ? ` · ${data.outputDurationMs < 1000 ? `${data.outputDurationMs} ms` : `${(data.outputDurationMs / 1000).toFixed(2)} s`}`
+            : ''}
         </div>
         {hasPayload && (
           <div className="node-field">
             <div className="node-field__label">Output payload</div>
-            <pre className="node-output-payload nodrag nowheel">{data.outputPayload}</pre>
+            <textarea
+              className="node-textarea nodrag nowheel node-fetch-result"
+              rows={6}
+              readOnly
+              value={data.outputPayload}
+            />
           </div>
         )}
       </div>

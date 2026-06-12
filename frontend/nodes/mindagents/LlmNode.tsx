@@ -1,13 +1,15 @@
 'use client';
 
 import type { NodeProps } from '@xyflow/react';
-import { DEFAULT_LLM_SYSTEM_PROMPT, DEFAULT_LLM_USER_PROMPT } from '../constants';
+import { DEFAULT_LLM_SYSTEM_PROMPT, DEFAULT_LLM_USER_PROMPT, DEFAULT_COT_GRAPH_ID } from '../constants';
 import { GlassNode } from '../shared/GlassNode';
+import { LabeledInput } from '../shared/LabeledField';
 import { LlmProviderFields } from '../shared/LlmProviderFields';
 import type { LlmProvider } from '@/lib/llm-providers';
+import { FetchResultPanel } from '../shared/FetchResultPanel';
 import { PromptField } from '../shared/PromptField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
-import { LLM_INPUT_COUNT, LLM_OUTPUT_COUNT, MARKET_CATEGORIES, type WorkflowNode } from '../types';
+import { LLM_INPUT_COUNT, LLM_OUTPUT_COUNT, MARKET_CATEGORIES, type WorkflowNode, type WorkflowNodeData } from '../types';
 import { useAgentFeed } from '@/lib/agent-feed';
 
 function LlmIcon() {
@@ -34,8 +36,14 @@ function buildMultiHandles(
       id: `${prefix}-${i}`,
       style: { top: `${pct}%` },
     };
-  });
+  }  );
 }
+
+const CONTEXT_GRAPHS: { id: WorkflowNodeData['contextGraph']; label: string; hint: string }[] = [
+  { id: 'correlation', label: 'Correlation', hint: 'cry market co-movement graph' },
+  { id: 'decision', label: 'Decision', hint: 'Your FalkorDB CoT decisions' },
+  { id: 'whale_context', label: 'Whale context', hint: 'Shared whale-wallet graph' },
+];
 
 export function LlmNode({ id, data, selected }: NodeProps<WorkflowNode>) {
   const updateData = useNodeData(id);
@@ -77,6 +85,44 @@ export function LlmNode({ id, data, selected }: NodeProps<WorkflowNode>) {
           onTemperatureChange={(v) => updateData({ temperature: v })}
           onMaxTokensChange={(v) => updateData({ maxTokens: v })}
         />
+        <div className="node-field">
+          <div className="node-field__label">Context graph</div>
+          <div className="node-chips">
+            {CONTEXT_GRAPHS.map(({ id: graphId, label }) => {
+              const active = (data.contextGraph ?? 'correlation') === graphId;
+              return (
+                <button
+                  key={graphId}
+                  type="button"
+                  className={`node-chip${active ? ' node-chip--active' : ''}`}
+                  style={
+                    active
+                      ? {
+                          borderColor: data.accent,
+                          background: `${data.accent}22`,
+                          color: data.accent,
+                        }
+                      : undefined
+                  }
+                  onClick={() => updateData({ contextGraph: graphId })}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="node-field__hint">
+            {CONTEXT_GRAPHS.find((g) => g.id === (data.contextGraph ?? 'correlation'))?.hint}
+          </div>
+        </div>
+        {(data.contextGraph ?? 'correlation') === 'decision' && (
+          <LabeledInput
+            label="Decision graph ID"
+            placeholder={DEFAULT_COT_GRAPH_ID}
+            value={data.graphId ?? DEFAULT_COT_GRAPH_ID}
+            onChange={(v) => updateData({ graphId: v })}
+          />
+        )}
         <PromptField
           label="System prompt"
           value={data.systemPrompt ?? DEFAULT_LLM_SYSTEM_PROMPT}
@@ -127,23 +173,13 @@ export function LlmNode({ id, data, selected }: NodeProps<WorkflowNode>) {
           <div className="node-field__hint">
             {LLM_INPUT_COUNT} in · {LLM_OUTPUT_COUNT} out · LangGraph orchestrator
           </div>
-          {data.workflowStatus && data.workflowStatus !== 'idle' ? (
-            <div className={`node-field__hint node-field__hint--${data.workflowStatus}`}>
-              {data.workflowStatus === 'running'
-                ? 'Orchestrator running…'
-                : data.workflowStatus === 'success'
-                  ? 'Orchestrator complete — see result below'
-                  : `Error: ${data.workflowError || 'orchestrator failed'}`}
-            </div>
-          ) : null}
-          {data.workflowResult ? (
-            <PromptField
-              label="Orchestrator result"
-              value={data.workflowResult}
-              rows={4}
-              onChange={() => {}}
-            />
-          ) : null}
+          <FetchResultPanel
+            status={data.workflowStatus}
+            error={data.workflowError}
+            result={data.workflowResult}
+            durationMs={data.workflowDurationMs}
+            label="Orchestrator result"
+          />
         </div>
       </div>
     </GlassNode>

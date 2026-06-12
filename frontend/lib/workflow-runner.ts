@@ -2,7 +2,7 @@
 
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode, WorkflowNodeData } from '@/nodes/types';
-import { RUNNABLE_TOOL_TYPES, executeToolNode } from './workflow-tools';
+import { RUNNABLE_TOOL_TYPES, executeToolNode, toolResultPatch } from './workflow-tools';
 import { downstreamNodes, findLlmNode, runOrchestrator } from './orchestrator-runner';
 
 type NodePatchFn = (nodeId: string, patch: Partial<WorkflowNodeData>) => void;
@@ -156,10 +156,15 @@ export async function runWorkflow({
 
   for (const node of nodes) {
     if (isOutputNodeType(node.type)) {
-      patchNode(node.id, { outputStatus: '', outputPayload: '', outputSource: '' });
+      patchNode(node.id, { outputStatus: '', outputPayload: '', outputSource: '', outputDurationMs: undefined });
     }
     if (node.type && RUNNABLE_TOOL_TYPES.has(node.type)) {
-      patchNode(node.id, { workflowStatus: 'idle', workflowError: '', workflowResult: '' });
+      patchNode(node.id, {
+        workflowStatus: 'idle',
+        workflowError: '',
+        workflowResult: '',
+        workflowDurationMs: undefined,
+      });
     }
   }
 
@@ -167,7 +172,12 @@ export async function runWorkflow({
     const node = nodeById.get(nodeId);
     if (!node || !node.type || !RUNNABLE_TOOL_TYPES.has(node.type)) continue;
 
-    patchNode(nodeId, { workflowStatus: 'running', workflowError: '', workflowResult: '' });
+    patchNode(nodeId, {
+      workflowStatus: 'running',
+      workflowError: '',
+      workflowResult: '',
+      workflowDurationMs: undefined,
+    });
     let result;
     try {
       result = await executeToolNode(node.type, node.data);
@@ -180,11 +190,7 @@ export async function runWorkflow({
       };
     }
 
-    patchNode(nodeId, {
-      workflowStatus: result.ok ? 'success' : 'error',
-      workflowError: result.error ?? '',
-      workflowResult: JSON.stringify(result, null, 2),
-    });
+    patchNode(nodeId, toolResultPatch(result));
 
     const outputs = downstreamOutputIds(nodeId, nodes, edges);
     const outputPayload = JSON.stringify(result, null, 2);
@@ -193,6 +199,7 @@ export async function runWorkflow({
         outputStatus: result.ok ? 'success' : 'error',
         outputPayload,
         outputSource: result.source,
+        outputDurationMs: result.durationMs,
       });
     }
 
@@ -204,7 +211,12 @@ export async function runWorkflow({
   const llmNode = findLlmNode(nodes);
   if (!llmNode) return;
 
-  patchNode(llmNode.id, { workflowStatus: 'running', workflowError: '', workflowResult: '' });
+  patchNode(llmNode.id, {
+    workflowStatus: 'running',
+    workflowError: '',
+    workflowResult: '',
+    workflowDurationMs: undefined,
+  });
   const orch = await runOrchestrator({
     nodes,
     edges,
@@ -216,6 +228,7 @@ export async function runWorkflow({
     workflowStatus: orch.ok ? 'success' : 'error',
     workflowError: orch.error ?? (orch.errors ?? []).join('; '),
     workflowResult: JSON.stringify(orch, null, 2),
+    workflowDurationMs: orch.durationMs,
     decisionJson: orch.decision ? JSON.stringify(orch.decision, null, 2) : undefined,
     correlatedJson: orch.correlated ? JSON.stringify(orch.correlated, null, 2) : undefined,
   });
@@ -236,6 +249,7 @@ export async function runWorkflow({
       outputStatus: orch.ok ? 'success' : 'error',
       outputPayload: JSON.stringify(orch, null, 2),
       outputSource: 'llm',
+      outputDurationMs: orch.durationMs,
     });
   }
 }

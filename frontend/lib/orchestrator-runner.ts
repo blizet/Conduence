@@ -17,6 +17,7 @@ const DEMO_SIGNAL = {
 
 export type OrchestratorRunResult = {
   ok: boolean;
+  durationMs?: number;
   steps?: string[];
   decision?: Record<string, unknown>;
   suggestions?: Record<string, unknown>[];
@@ -65,6 +66,16 @@ function pickSignal(feeds: Record<string, { latest?: unknown }> | undefined): Re
   if (div && typeof div === 'object') {
     return { type: 'divergence', agent: 'divergenceAgent', ...(div as Record<string, unknown>) };
   }
+  const sports = feeds?.['sportsScanner.user_demo']?.latest;
+  if (sports && typeof sports === 'object') {
+    const payload = sports as Record<string, unknown>;
+    return {
+      type: payload.type ?? 'market_tick',
+      agent: 'sportsScanner',
+      ...payload,
+      summary: payload.summary ?? payload.thesis,
+    };
+  }
   return DEMO_SIGNAL;
 }
 
@@ -90,21 +101,25 @@ export async function runOrchestrator({
     config: config ?? {},
   };
 
+  const started = performance.now();
   try {
     const response = await fetch(`${base}/api/orchestrator/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    const durationMs = Math.round(performance.now() - started);
     const payload = (await response.json()) as OrchestratorRunResult;
     if (!response.ok) {
-      return { ok: false, error: payload.error ?? `HTTP ${response.status}` };
+      return { ok: false, error: payload.error ?? `HTTP ${response.status}`, durationMs };
     }
-    return { ...payload, ok: payload.ok ?? true };
+    const result = { ...payload, ok: payload.ok ?? true, durationMs };
+    return result;
   } catch (err) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Orchestrator request failed',
+      durationMs: Math.round(performance.now() - started),
     };
   }
 }

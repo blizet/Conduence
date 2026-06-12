@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
-import { executeToolNode } from '@/lib/workflow-tools';
+import { FetchResultPanel } from '../shared/FetchResultPanel';
 import { GlassNode } from '../shared/GlassNode';
+import { useToolFetch } from '../shared/useToolFetch';
 import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import type { WorkflowNode } from '../types';
@@ -20,27 +20,7 @@ function DivergenceIcon() {
 
 export function DivergenceNode({ id, data, selected }: NodeProps<WorkflowNode>) {
   const updateData = useNodeData(id);
-  const [busy, setBusy] = useState(false);
-
-  const runCompute = async () => {
-    setBusy(true);
-    updateData({ workflowStatus: 'running', workflowError: '', workflowResult: '' });
-    try {
-      const result = await executeToolNode('divergence', data);
-      updateData({
-        workflowStatus: result.ok ? 'success' : 'error',
-        workflowError: result.error ?? '',
-        workflowResult: JSON.stringify(result, null, 2),
-      });
-    } catch (err) {
-      updateData({
-        workflowStatus: 'error',
-        workflowError: err instanceof Error ? err.message : 'Computation failed',
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { busy, runFetch: runCompute } = useToolFetch('divergence', data, updateData);
 
   return (
     <GlassNode
@@ -107,11 +87,12 @@ export function DivergenceNode({ id, data, selected }: NodeProps<WorkflowNode>) 
         >
           {busy ? 'Computing…' : 'Check divergence'}
         </button>
-        {data.workflowStatus && (
-          <div className="node-field__hint" style={{ marginTop: 4 }}>
-            {data.workflowStatus === 'error' ? data.workflowError : data.workflowStatus}
-          </div>
-        )}
+        <FetchResultPanel
+          status={data.workflowStatus}
+          error={data.workflowError}
+          result={data.workflowResult}
+          durationMs={data.workflowDurationMs}
+        />
       </div>
     </GlassNode>
   );

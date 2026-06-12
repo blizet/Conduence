@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import {
   ReactFlow,
   Background,
@@ -22,6 +23,7 @@ import { getPaletteItem, nodeTypes as registeredNodeTypes } from '@/nodes';
 import type { WorkflowNode } from '@/nodes/types';
 import { NodePalette } from './NodePalette';
 import { AgentMarketplace } from './AgentMarketplace';
+import { PublishWorkflowModal } from './PublishWorkflowModal';
 import { InstalledAgentsProvider } from '@/lib/marketplace';
 import { AgentFeedProvider, useAgentFeed } from '@/lib/agent-feed';
 
@@ -34,16 +36,24 @@ const CotGraphView = dynamic(
 );
 
 function minimapNodeColor(node: WorkflowNode): string {
-  return node.data?.accent ?? '#22d3ee';
+  return node.data?.accent ?? '#5b8def';
 }
 
 type FlowCanvasProps = {
   onCountsChange: (nodes: number, edges: number) => void;
   runSignal: number;
   onRunStateChange: (running: boolean) => void;
+  onCanvasChange?: (nodes: WorkflowNode[], edges: Edge[]) => void;
+  loadCanvas?: { key: number; nodes: WorkflowNode[]; edges: Edge[] } | null;
 };
 
-function FlowCanvas({ onCountsChange, runSignal, onRunStateChange }: FlowCanvasProps) {
+function FlowCanvas({
+  onCountsChange,
+  runSignal,
+  onRunStateChange,
+  onCanvasChange,
+  loadCanvas,
+}: FlowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const { agentFeeds } = useAgentFeed();
@@ -65,6 +75,16 @@ function FlowCanvas({ onCountsChange, runSignal, onRunStateChange }: FlowCanvasP
   useEffect(() => {
     onCountsChange(nodes.length, edges.length);
   }, [nodes, edges, onCountsChange]);
+
+  useEffect(() => {
+    onCanvasChange?.(nodes, edges);
+  }, [nodes, edges, onCanvasChange]);
+
+  useEffect(() => {
+    if (!loadCanvas) return;
+    setNodes(loadCanvas.nodes);
+    setEdges(loadCanvas.edges);
+  }, [loadCanvas?.key, loadCanvas, setNodes, setEdges]);
 
   useEffect(() => {
     if (!runSignal || runningRef.current) return;
@@ -151,14 +171,14 @@ function FlowCanvas({ onCountsChange, runSignal, onRunStateChange }: FlowCanvasP
         panOnScroll
         defaultEdgeOptions={{
           animated: true,
-          style: { stroke: 'rgba(34, 211, 238, 0.5)' },
+          style: { stroke: 'rgba(91, 141, 239, 0.55)' },
         }}
         proOptions={{ hideAttribution: true }}
       >
         <Background
           variant={BackgroundVariant.Dots}
-          bgColor="#ededf0"
-          color="#b6b8c2"
+          bgColor="#000000"
+          color="#5c6578"
           gap={24}
           size={1.5}
         />
@@ -167,7 +187,7 @@ function FlowCanvas({ onCountsChange, runSignal, onRunStateChange }: FlowCanvasP
           position="bottom-right"
           className="playground-minimap"
           nodeColor={minimapNodeColor}
-          maskColor="rgba(5, 5, 8, 0.75)"
+          maskColor="rgba(0, 0, 0, 0.82)"
           pannable
           zoomable
           style={{ margin: 0 }}
@@ -182,14 +202,23 @@ type PlaygroundInnerProps = {
   edgeCount: number;
   showGraph: boolean;
   showMarketplace: boolean;
+  showPublish: boolean;
   onToggleGraph: () => void;
   onToggleMarketplace: () => void;
   onCloseMarketplace: () => void;
+  onOpenPublish: () => void;
+  onClosePublish: () => void;
   onCountsChange: (nodes: number, edges: number) => void;
   onRunWorkflow: () => void;
   runBusy: boolean;
   runSignal: number;
   onRunStateChange: (running: boolean) => void;
+  onCanvasChange: (nodes: WorkflowNode[], edges: Edge[]) => void;
+  canvasSnapshot: { nodes: WorkflowNode[]; edges: Edge[] };
+  onInstallWorkflow: (canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => void;
+  loadCanvas: { key: number; nodes: WorkflowNode[]; edges: Edge[] } | null;
+  workflowRefreshSignal: number;
+  onWorkflowPublished: () => void;
 };
 
 function PlaygroundInner({
@@ -197,29 +226,65 @@ function PlaygroundInner({
   edgeCount,
   showGraph,
   showMarketplace,
+  showPublish,
   onToggleGraph,
   onToggleMarketplace,
   onCloseMarketplace,
+  onOpenPublish,
+  onClosePublish,
   onCountsChange,
   onRunWorkflow,
   runBusy,
   runSignal,
   onRunStateChange,
+  onCanvasChange,
+  canvasSnapshot,
+  onInstallWorkflow,
+  loadCanvas,
+  workflowRefreshSignal,
+  onWorkflowPublished,
 }: PlaygroundInnerProps) {
   return (
     <div className="playground-shell">
-      <AgentMarketplace open={showMarketplace} onClose={onCloseMarketplace} />
+      <AgentMarketplace
+        open={showMarketplace}
+        onClose={onCloseMarketplace}
+        onInstallWorkflow={onInstallWorkflow}
+        workflowRefreshSignal={workflowRefreshSignal}
+      />
+      <PublishWorkflowModal
+        open={showPublish}
+        onClose={onClosePublish}
+        canvas={canvasSnapshot}
+        onPublished={onWorkflowPublished}
+      />
       <header className="playground-header">
-        <span className="playground-header__title">Workflow Playground</span>
+        <Image
+          src="/conduence-logo.png"
+          alt="Conduence"
+          width={250}
+          height={50}
+          className="playground-header__logo"
+          priority
+        />
         <div className="playground-header__actions">
           <span className="playground-header__stats">
             {nodeCount} nodes · {edgeCount} edges
           </span>
           <button
             type="button"
+            className="graph-view-toggle"
+            onClick={onOpenPublish}
+            disabled={showGraph || nodeCount === 0}
+            title={nodeCount === 0 ? 'Add nodes to the canvas first' : 'Publish this workflow to the marketplace'}
+          >
+            Publish
+          </button>
+          <button
+            type="button"
             className="graph-view-toggle marketplace-toggle"
             onClick={onToggleMarketplace}
-            title="Mind agent marketplace"
+            title="Mind agent marketplace — published workflows tagged Workflow"
           >
             Marketplace
           </button>
@@ -257,6 +322,8 @@ function PlaygroundInner({
             onCountsChange={onCountsChange}
             runSignal={runSignal}
             onRunStateChange={onRunStateChange}
+            onCanvasChange={onCanvasChange}
+            loadCanvas={loadCanvas}
           />
         )}
       </div>
@@ -269,12 +336,40 @@ function PlaygroundWithState() {
   const [edgeCount, setEdgeCount] = useState(0);
   const [showGraph, setShowGraph] = useState(false);
   const [showMarketplace, setShowMarketplace] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
   const [runBusy, setRunBusy] = useState(false);
   const [runSignal, setRunSignal] = useState(0);
+  const [workflowRefreshSignal, setWorkflowRefreshSignal] = useState(0);
+  const [loadCanvas, setLoadCanvas] = useState<{
+    key: number;
+    nodes: WorkflowNode[];
+    edges: Edge[];
+  } | null>(null);
+  const canvasSnapshotRef = useRef<{ nodes: WorkflowNode[]; edges: Edge[] }>({
+    nodes: [],
+    edges: [],
+  });
+  const [, bumpCanvasSnapshot] = useState(0);
 
   const onCountsChange = useCallback((nodes: number, edges: number) => {
     setNodeCount(nodes);
     setEdgeCount(edges);
+  }, []);
+
+  const onCanvasChange = useCallback((nodes: WorkflowNode[], edges: Edge[]) => {
+    canvasSnapshotRef.current = { nodes, edges };
+    bumpCanvasSnapshot((v) => v + 1);
+  }, []);
+
+  const onInstallWorkflow = useCallback((canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => {
+    setShowGraph(false);
+    setShowMarketplace(false);
+    setLoadCanvas({ key: Date.now(), ...canvas });
+  }, []);
+
+  const onWorkflowPublished = useCallback(() => {
+    setWorkflowRefreshSignal((v) => v + 1);
+    setShowMarketplace(true);
   }, []);
 
   const onToggleGraph = useCallback(() => {
@@ -303,14 +398,23 @@ function PlaygroundWithState() {
       edgeCount={edgeCount}
       showGraph={showGraph}
       showMarketplace={showMarketplace}
+      showPublish={showPublish}
       onToggleGraph={onToggleGraph}
       onToggleMarketplace={onToggleMarketplace}
       onCloseMarketplace={onCloseMarketplace}
+      onOpenPublish={() => setShowPublish(true)}
+      onClosePublish={() => setShowPublish(false)}
       onCountsChange={onCountsChange}
       onRunWorkflow={onRunWorkflow}
       runBusy={runBusy}
       runSignal={runSignal}
       onRunStateChange={onRunStateChange}
+      onCanvasChange={onCanvasChange}
+      canvasSnapshot={canvasSnapshotRef.current}
+      onInstallWorkflow={onInstallWorkflow}
+      loadCanvas={loadCanvas}
+      workflowRefreshSignal={workflowRefreshSignal}
+      onWorkflowPublished={onWorkflowPublished}
     />
   );
 }

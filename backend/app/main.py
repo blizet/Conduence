@@ -4,12 +4,20 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import agents_router, marketplace_router, orchestrator_router, router, tools_router
+from app.api.routes import (
+    agents_router,
+    feeds_router,
+    marketplace_router,
+    orchestrator_router,
+    router,
+    tools_router,
+)
 from app.config import PORT
 from app.falkordb.service import FalkorDbService
 from app.kafka.producer import SignalProducerService
 from app.kafka.worker import MainWorkerService
 from app.services.autonomous_stream import AutonomousAgentStreamService
+from app.services.external_feed import ExternalFeedService
 from app.services.ingress import SignalIngressService
 from app.services.orchestrator_stream import OrchestratorStreamService
 from app.ws.events import EventsManager
@@ -25,6 +33,7 @@ async def lifespan(app: FastAPI):
     producer = SignalProducerService()
     ingress = SignalIngressService(producer, events)
     orchestrator_stream = OrchestratorStreamService(events)
+    external_feeds = ExternalFeedService(producer, events, orchestrator_stream)
     autonomous_streams = AutonomousAgentStreamService(producer, events, orchestrator_stream)
     main_worker = MainWorkerService(falkordb, events)
 
@@ -48,6 +57,7 @@ async def lifespan(app: FastAPI):
     app.state.producer = producer
     app.state.ingress = ingress
     app.state.autonomous_streams = autonomous_streams
+    app.state.external_feeds = external_feeds
     app.state.orchestrator_stream = orchestrator_stream
     app.state.main_worker = main_worker
 
@@ -76,6 +86,7 @@ app.include_router(router)
 app.include_router(tools_router)
 app.include_router(agents_router)
 app.include_router(marketplace_router)
+app.include_router(feeds_router)
 app.include_router(orchestrator_router)
 
 

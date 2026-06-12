@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 from app.tools.clob import get_clob_quote
@@ -91,6 +92,47 @@ TOOL_HANDLERS: dict[str, ToolFn] = {
     "divergence": _invoke_divergence,
     "clob": _invoke_clob,
 }
+
+
+@dataclass
+class ToolSpec:
+    id: str
+    category: str
+    label: str
+    connected: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "category": self.category,
+            "label": self.label,
+            "connected": self.connected,
+        }
+
+
+def build_tool_specs(connected: list[str] | None = None) -> list[ToolSpec]:
+    connected_set = set(connected or list(TOOL_HANDLERS.keys()))
+    specs: list[ToolSpec] = []
+    for tool_id in TOOL_HANDLERS:
+        specs.append(
+            ToolSpec(
+                id=tool_id,
+                category=TOOL_CATEGORIES.get(tool_id, "tool"),
+                label=tool_id,
+                connected=tool_id in connected_set,
+            )
+        )
+    return specs
+
+
+def build_tool_registry_payload(connected: list[str] | None = None) -> dict[str, Any]:
+    specs = build_tool_specs(connected)
+    connected_ids = [s.id for s in specs if s.connected]
+    return {
+        "connected": connected_ids,
+        "specs": [s.to_dict() for s in specs if s.connected],
+        "all_tools": [s.to_dict() for s in specs],
+    }
 
 
 class ToolRegistry:

@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 
 from app.config import TOOL_FETCH_TIMEOUT_MS
+from app.tools.access import resolve_access, resolve_api_key
 
 CMC_BASE_URL = "https://pro-api.coinmarketcap.com"
 
@@ -23,26 +24,50 @@ def _normalized(
 
 
 async def fetch_coinmarketcap(body: dict[str, Any]) -> dict[str, Any]:
-    api_key = (body.get("apiKey") or "").strip()
+    access_mode, endpoint, access_error = resolve_access(
+        "coinmarketcap", body, default_endpoint="quotes_latest"
+    )
+    api_key = resolve_api_key("coinmarketcap", body)
     symbols = body.get("symbols") or body.get("symbol") or "BTC"
     convert = (body.get("convert") or "USD").strip() or "USD"
 
-    request = {"symbols": symbols, "convert": convert}
+    request: dict[str, Any] = {
+        "accessMode": access_mode,
+        "endpoint": endpoint,
+        "symbols": symbols,
+        "convert": convert,
+    }
 
-    if not api_key:
-        return _normalized(request=request, error="apiKey is required")
+    if access_error:
+        return _normalized(request=request, error=access_error)
 
-    params = {"symbol": symbols, "convert": convert}
     headers = {"X-CMC_PRO_API_KEY": api_key, "Accept": "application/json"}
     timeout = TOOL_FETCH_TIMEOUT_MS / 1000
 
+    if endpoint == "quotes_latest":
+        url = f"{CMC_BASE_URL}/v1/cryptocurrency/quotes/latest"
+        params: dict[str, Any] = {"symbol": symbols, "convert": convert}
+    elif endpoint == "listings_latest":
+        url = f"{CMC_BASE_URL}/v1/cryptocurrency/listings/latest"
+        params = {"convert": convert, "limit": int(body.get("limit") or 100)}
+    elif endpoint == "quotes_historical":
+        url = f"{CMC_BASE_URL}/v2/cryptocurrency/quotes/historical"
+        params = {"symbol": symbols, "convert": convert, "count": int(body.get("count") or 10)}
+    elif endpoint == "info":
+        url = f"{CMC_BASE_URL}/v2/cryptocurrency/info"
+        params = {"symbol": symbols}
+    elif endpoint == "global_metrics":
+        url = f"{CMC_BASE_URL}/v1/global-metrics/quotes/latest"
+        params = {"convert": convert}
+    elif endpoint == "trending":
+        url = f"{CMC_BASE_URL}/v1/cryptocurrency/trending/most-visited"
+        params = {"limit": int(body.get("limit") or 10)}
+    else:
+        return _normalized(request=request, error=f"Unknown CoinMarketCap endpoint: {endpoint}")
+
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(
-                f"{CMC_BASE_URL}/v1/cryptocurrency/quotes/latest",
-                params=params,
-                headers=headers,
-            )
+            response = await client.get(url, params=params, headers=headers)
             payload = response.json()
             if response.status_code >= 400:
                 message = payload.get("status", {}).get("error_message") if isinstance(payload, dict) else None

@@ -22,6 +22,8 @@ export type AgentFeedState = {
   running: boolean;
   error: string | null;
   feedTopic: string | null;
+  source?: 'hosted' | 'external';
+  lastSeen?: string | null;
 };
 
 type AgentFeedContextValue = {
@@ -192,15 +194,22 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
         if (!res.ok) return;
         const body = (await res.json()) as {
           running?: boolean;
+          live?: boolean;
+          source?: 'hosted' | 'external';
           feedTopic?: string;
           lastError?: string;
           lastSignal?: unknown;
           emittedCount?: number;
+          lastSeen?: string | null;
         };
+        const isExternal = body.source === 'external';
+        const isLive = isExternal ? Boolean(body.live) : Boolean(body.running);
         patchAgentFeed(agentId, {
-          running: Boolean(body.running),
+          running: isLive,
+          source: body.source,
           feedTopic: body.feedTopic ?? null,
           error: body.lastError ?? null,
+          lastSeen: body.lastSeen ?? null,
           ...(body.lastSignal !== undefined && body.lastSignal !== null
             ? { latest: body.lastSignal }
             : {}),

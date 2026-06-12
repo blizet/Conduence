@@ -3,6 +3,8 @@ import type { LlmProvider } from '@/lib/llm-providers';
 
 export type NodeCategory = 'tool' | 'mindagent' | 'subagent';
 
+export type ToolAccessMode = 'public' | 'private';
+
 export type ClobMode = 'read' | 'execute';
 export type ClobTokenSource = 'upstream' | 'manual';
 export type ClobExecuteSide = 'BUY' | 'SELL' | 'BOTH';
@@ -13,6 +15,8 @@ export type WorkflowNodeData = {
   category: NodeCategory;
   accent: string;
   apiKey?: string;
+  toolAccessMode?: ToolAccessMode;
+  toolEndpoint?: string;
   llmApiKey?: string;
   llmProvider?: LlmProvider;
   apiSecret?: string;
@@ -24,6 +28,7 @@ export type WorkflowNodeData = {
   maxTokens?: string;
   newsPollLimit?: string;
   newsFilterCategories?: string[];
+  contextGraph?: 'correlation' | 'decision' | 'whale_context';
   graphId?: string;
   userNodeId?: string;
   backendUrl?: string;
@@ -48,9 +53,11 @@ export type WorkflowNodeData = {
   workflowStatus?: 'idle' | 'running' | 'success' | 'error';
   workflowResult?: string;
   workflowError?: string;
+  workflowDurationMs?: number;
   outputStatus?: string;
   outputPayload?: string;
   outputSource?: string;
+  outputDurationMs?: number;
   cmcSymbols?: string;
   cmcConvert?: string;
   defillamaMode?:
@@ -64,6 +71,7 @@ export type WorkflowNodeData = {
   defillamaProtocol?: string;
   defillamaChain?: string;
   defillamaSymbol?: string;
+  defillamaTimestamp?: string;
   cryptonewsTickers?: string;
   cryptonewsItems?: string;
   cryptonewsSentiment?: string;
@@ -75,7 +83,13 @@ export type WorkflowNodeData = {
   tavilyQuery?: string;
   tavilySearchDepth?: 'basic' | 'advanced';
   tavilyMaxResults?: string;
+  tavilyUrls?: string;
   coingeckoIds?: string;
+  coingeckoQuery?: string;
+  coingeckoCoinId?: string;
+  coingeckoNetwork?: string;
+  coingeckoPoolAddress?: string;
+  coingeckoDays?: string;
   gammaKeywords?: string;
   gammaLimit?: string;
   gammaMinVolume?: string;

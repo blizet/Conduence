@@ -12,6 +12,13 @@ from app.orchestrator.graph import get_compiled_graph
 from app.orchestrator.state import ScannerState
 from app.subagents.scanner_subagent import stream_market_ticks
 
+try:
+    from cot_wrapper import emit_heartbeat, emit_signal, wrapper_enabled
+except ImportError:
+    wrapper_enabled = lambda: False  # type: ignore[assignment,misc]
+    emit_signal = lambda _payload: False  # type: ignore[assignment,misc]
+    emit_heartbeat = lambda: False  # type: ignore[assignment,misc]
+
 TERMINAL_EVENTS = {"ENTER", "STOP_OUT", "SETTLE_WIN", "SETTLE_LOSS"}
 
 
@@ -30,6 +37,11 @@ async def run_scanner(
     watchlist: set[str] = set()
     trade_count = 0
     started = time.time()
+    last_heartbeat = 0.0
+
+    if wrapper_enabled():
+        print("[runner] CoT wrapper enabled — emitting to platform feed", file=sys.stderr)
+        emit_heartbeat()
 
     print(f"[runner] mode: {'SIMULATE' if simulate else 'LIVE'}  "
           f"entry band [{cfg.get('entry_ask_min_cents')},{cfg.get('entry_ask_max_cents')}]c  "
@@ -39,6 +51,13 @@ async def run_scanner(
         if duration_s and time.time() - started > duration_s:
             break
         print(f"[runner] tick: {tick.get('summary', '')[:110]}", file=sys.stderr)
+
+        if wrapper_enabled():
+            emit_signal(dict(tick))
+            now = time.time()
+            if now - last_heartbeat >= 30:
+                emit_heartbeat()
+                last_heartbeat = now
 
         initial: ScannerState = {
             "signal": tick,

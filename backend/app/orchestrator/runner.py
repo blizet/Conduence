@@ -50,6 +50,12 @@ async def run_orchestrator(
         "evidence": final_state.get("evidence") or [],
         "errors": final_state.get("errors") or [],
         "fast_suggestion": final_state.get("fast_suggestion"),
+        "context_graph": final_state.get("context_graph"),
+        "graph_registry": final_state.get("graph_registry"),
+        "skills": final_state.get("skills") or [],
+        "skills_registry": final_state.get("skills_registry"),
+        "tool_registry": final_state.get("tool_registry"),
+        "rag_context": final_state.get("rag_context"),
         "memory": {
             "recent_signals": final_state.get("recent_signals") or [],
             "diverging_nodes": final_state.get("diverging_nodes") or {},

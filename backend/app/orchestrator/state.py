@@ -30,3 +30,10 @@ class OrchestratorState(TypedDict, total=False):
     published: bool
     fast_suggestion: dict[str, Any] | None
     steps: list[str]
+    # Compile-time registries (populated at ingest_signal)
+    tool_registry: dict[str, Any]
+    graph_registry: dict[str, Any]
+    skills_registry: dict[str, Any]
+    skills: list[str]
+    rag_context: dict[str, Any]
+    context_graph: str

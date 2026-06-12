@@ -2,27 +2,35 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
 export type MarketplaceAgent = {
   id: string;
   nodeType: string;
   name: string;
   description: string;
   autonomous: boolean;
+  hosted?: boolean;
+  source?: 'hosted' | 'external';
+  publisher?: string;
   accent: string;
   core?: boolean;
   feedTopic?: string;
+  eventType?: string;
 };
 
 const STORAGE_KEY = 'cot-installed-mind-agents';
 const DEFAULT_INSTALLED = ['llm'];
 
-export const MARKETPLACE_CATALOG: MarketplaceAgent[] = [
+export const FALLBACK_CATALOG: MarketplaceAgent[] = [
   {
     id: 'llm',
     nodeType: 'llm',
     name: 'LLM Analyzer',
     description: 'Main inference — synthesizes feeds into trade decisions',
     autonomous: false,
+    hosted: true,
+    source: 'hosted',
     accent: '#f472b6',
     core: true,
   },
@@ -32,6 +40,8 @@ export const MARKETPLACE_CATALOG: MarketplaceAgent[] = [
     name: 'News Agent',
     description: 'Autonomous CoinDesk feed → Redpanda topic agent.feeds.newsAgent.public',
     autonomous: true,
+    hosted: true,
+    source: 'hosted',
     accent: '#fb923c',
     feedTopic: 'agent.feeds.newsAgent.public',
   },
@@ -42,8 +52,23 @@ export const MARKETPLACE_CATALOG: MarketplaceAgent[] = [
     description:
       'Polymarket × Kalshi cross-platform arb scanner — fee-aware net edge, same-event matching',
     autonomous: true,
+    hosted: true,
+    source: 'hosted',
     accent: '#c084fc',
     feedTopic: 'agent.feeds.arbitrageAgent.public',
+  },
+  {
+    id: 'sportsScanner.user_demo',
+    nodeType: 'sportsScanner',
+    name: 'Kalshi Sports Scanner',
+    description: 'Late-game Kalshi soccer paper trades — external publisher via HTTP wrapper',
+    autonomous: true,
+    hosted: false,
+    source: 'external',
+    publisher: 'user_demo',
+    accent: '#4ade80',
+    feedTopic: 'agent.feeds.sportsScanner.user_demo.public',
+    eventType: 'market_tick.signal',
   },
 ];
 
@@ -69,11 +94,29 @@ function loadInstalled(): string[] {
   }
 }
 
+export function isExternalAgent(agent: MarketplaceAgent): boolean {
+  return agent.source === 'external' || agent.hosted === false;
+}
+
 export function InstalledAgentsProvider({ children }: { children: React.ReactNode }) {
   const [installedIds, setInstalledIds] = useState<string[]>(DEFAULT_INSTALLED);
+  const [catalog, setCatalog] = useState<MarketplaceAgent[]>(FALLBACK_CATALOG);
 
   useEffect(() => {
     setInstalledIds(loadInstalled());
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/marketplace/agents`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const body = (await res.json()) as { agents?: MarketplaceAgent[] };
+        if (body.agents?.length) setCatalog(body.agents);
+      } catch {
+        /* use fallback catalog */
+      }
+    })();
   }, []);
 
   const persist = useCallback((ids: string[]) => {
@@ -91,24 +134,24 @@ export function InstalledAgentsProvider({ children }: { children: React.ReactNod
 
   const uninstall = useCallback(
     (id: string) => {
-      const agent = MARKETPLACE_CATALOG.find((a) => a.id === id);
+      const agent = catalog.find((a) => a.id === id);
       if (agent?.core) return;
       persist(installedIds.filter((x) => x !== id));
     },
-    [installedIds, persist],
+    [installedIds, persist, catalog],
   );
 
   const installed = useMemo(() => new Set(installedIds), [installedIds]);
 
   const value = useMemo(
     () => ({
-      catalog: MARKETPLACE_CATALOG,
+      catalog,
       installed,
       install,
       uninstall,
       isInstalled: (id: string) => installed.has(id),
     }),
-    [installed, install, uninstall],
+    [catalog, installed, install, uninstall],
   );
 
   return (

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { useAgentFeed } from '@/lib/agent-feed';
+import { clearFetchState, executeToolNode, toolResultPatch } from '@/lib/workflow-tools';
+import { FetchResultPanel } from '../shared/FetchResultPanel';
 import {
   DEFAULT_WHALE_WALLET_SYSTEM_PROMPT,
   DEFAULT_WHALE_WALLET_USER_PROMPT,
@@ -84,30 +86,26 @@ export function WhaleWalletNode({ id, data, selected }: NodeProps<WorkflowNode>)
     }
 
     setBusy(true);
-    updateData({ whaleStatus: 'Tracking…' });
+    updateData({ ...clearFetchState(), whaleStatus: 'Tracking…' });
 
     try {
-      const backendUrl = (data.backendUrl ?? API).replace(/\/$/, '');
-      const res = await fetch(`${backendUrl}/api/tools/whale/track`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          walletAddresses: addresses,
-          conditionId: data.conditionId?.trim() || undefined,
-          apiKey: data.apiKey?.trim() || undefined,
-        }),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        updateData({ whaleStatus: String(body.error ?? `Track failed (${res.status})`) });
-        return;
-      }
+      const result = await executeToolNode('whaleWallet', data);
+      const entries =
+        result.ok && result.data && typeof result.data === 'object' && 'entries' in result.data
+          ? (result.data as { entries?: unknown[] }).entries?.length ?? 0
+          : 0;
       updateData({
-        whaleOutput: JSON.stringify(body, null, 2),
-        whaleStatus: `${body.entries?.length ?? 0} entries`,
+        ...toolResultPatch(result),
+        whaleOutput: result.ok ? JSON.stringify(result.data ?? result, null, 2) : '',
+        whaleStatus: result.ok ? `${entries} entries` : (result.error ?? 'Track failed'),
       });
     } catch (err) {
-      updateData({ whaleStatus: err instanceof Error ? err.message : 'Request failed' });
+      const message = err instanceof Error ? err.message : 'Request failed';
+      updateData({
+        workflowStatus: 'error',
+        workflowError: message,
+        whaleStatus: message,
+      });
     } finally {
       setBusy(false);
     }
@@ -229,11 +227,12 @@ export function WhaleWalletNode({ id, data, selected }: NodeProps<WorkflowNode>)
         >
           {busy ? 'Tracking…' : 'Track whale wallets'}
         </button>
-        {data.whaleStatus && (
-          <div className="node-field__hint" style={{ marginTop: 4 }}>
-            {data.whaleStatus}
-          </div>
-        )}
+        <FetchResultPanel
+          status={data.workflowStatus}
+          error={data.workflowError}
+          result={data.workflowResult}
+          durationMs={data.workflowDurationMs}
+        />
       </div>
     </GlassNode>
   );

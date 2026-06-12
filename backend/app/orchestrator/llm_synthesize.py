@@ -65,6 +65,10 @@ async def synthesize_decision(
     suggestions: list[dict[str, Any]],
     tool_results: dict[str, Any],
     evidence: list[str],
+    *,
+    rag_context: dict[str, Any] | None = None,
+    skills: list[str] | None = None,
+    graph_registry: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     import json
 
@@ -84,6 +88,13 @@ async def synthesize_decision(
         "signal": signal,
         "suggestions": suggestions,
         "evidence": evidence,
+        "skills": skills or [],
+        "context_graph": (graph_registry or {}).get("active_id"),
+        "graph_registry": {
+            "active_id": (graph_registry or {}).get("active_id"),
+            "available": (graph_registry or {}).get("available"),
+        },
+        "rag_context": rag_context or {},
         "tool_summaries": {
             key: {
                 "ok": val.get("ok"),

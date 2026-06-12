@@ -3,9 +3,13 @@ from typing import Any
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from app.mind_agents.loader import get_coindesk_module
+from app.external_agents.registry import get_external_agent
+from app.lib.publisher_auth import extract_bearer_token, verify_publisher_key
 from app.signal_registry import (
     MARKETPLACE_CATALOG,
+    get_marketplace_agent,
     get_signal_producer,
+    is_external_agent,
     list_signal_producer_feed_topics,
 )
 
@@ -25,7 +29,14 @@ from app.tools.polymarket_gamma import fetch_gamma_markets
 from app.tools.polymarket_wallet import fetch_polymarket_wallet
 from app.tools.tavily import fetch_tavily
 from app.tools.whale_wallet import track_whale_wallets
+from app.orchestrator.graph_registry import GRAPH_CATALOG
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
+from app.services.workflow_marketplace import (
+    delete_workflow,
+    get_workflow,
+    list_workflows,
+    publish_workflow,
+)
 
 router = APIRouter(prefix="/api")
 orchestrator_router = APIRouter(prefix="/api/orchestrator")
@@ -238,6 +249,7 @@ async def coindesk_search(body: dict[str, Any]) -> dict[str, Any]:
 
 
 marketplace_router = APIRouter(prefix="/api/marketplace")
+feeds_router = APIRouter(prefix="/api/feeds")
 
 
 @marketplace_router.get("/agents")
@@ -245,15 +257,40 @@ async def catalog() -> dict[str, Any]:
     return {"agents": MARKETPLACE_CATALOG}
 
 
+@marketplace_router.get("/agents/{agent_id}/schema")
+async def agent_schema(agent_id: str) -> dict[str, Any]:
+    defn = get_external_agent(agent_id)
+    if not defn:
+        raise HTTPException(status_code=404, detail=f"No schema for agent: {agent_id}")
+    return {
+        "agentId": agent_id,
+        "eventType": defn["eventType"],
+        "feedTopic": defn["feedTopic"],
+        "signalSchema": defn.get("signalSchema"),
+        "ingest": {
+            "signal": f"POST /api/feeds/{agent_id}/signal",
+            "heartbeat": f"POST /api/feeds/{agent_id}/heartbeat",
+            "auth": "Authorization: Bearer <publisher_api_key>",
+        },
+    }
+
+
 @marketplace_router.get("/agents/{agent_id}/status")
 async def agent_status(agent_id: str, request: Request) -> dict[str, Any]:
-    if not get_signal_producer(agent_id):
-        raise HTTPException(status_code=404, detail=f"Unknown signal producer: {agent_id}")
+    if not get_marketplace_agent(agent_id):
+        raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id}")
+    if is_external_agent(agent_id):
+        return request.app.state.external_feeds.status(agent_id)
     return request.app.state.autonomous_streams.status(agent_id)
 
 
 @marketplace_router.post("/agents/{agent_id}/start")
 async def start_agent(agent_id: str, request: Request, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    if is_external_agent(agent_id):
+        raise HTTPException(
+            status_code=400,
+            detail="External agents are started by the publisher on their own infrastructure — use the HTTP wrapper",
+        )
     if not get_signal_producer(agent_id):
         raise HTTPException(status_code=404, detail=f"Unknown signal producer: {agent_id}")
     return await request.app.state.autonomous_streams.start(agent_id, body or {})
@@ -261,16 +298,119 @@ async def start_agent(agent_id: str, request: Request, body: dict[str, Any] | No
 
 @marketplace_router.post("/agents/{agent_id}/stop")
 async def stop_agent(agent_id: str, request: Request) -> dict[str, Any]:
+    if is_external_agent(agent_id):
+        raise HTTPException(
+            status_code=400,
+            detail="External agents are stopped by the publisher — not controllable from the marketplace",
+        )
     if not get_signal_producer(agent_id):
         raise HTTPException(status_code=404, detail=f"Unknown signal producer: {agent_id}")
     return request.app.state.autonomous_streams.stop(agent_id)
+
+
+@marketplace_router.get("/workflows")
+async def marketplace_workflows() -> dict[str, Any]:
+    return {"workflows": list_workflows()}
+
+
+@marketplace_router.get("/workflows/{workflow_id}")
+async def marketplace_workflow_detail(workflow_id: str) -> dict[str, Any]:
+    entry = get_workflow(workflow_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"Workflow not found: {workflow_id}")
+    return entry
+
+
+@marketplace_router.post("/workflows")
+async def marketplace_publish_workflow(body: dict[str, Any]) -> dict[str, Any]:
+    result = publish_workflow(body)
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Publish failed"))
+    return result
+
+
+@marketplace_router.delete("/workflows/{workflow_id}")
+async def marketplace_delete_workflow(workflow_id: str) -> dict[str, Any]:
+    result = delete_workflow(workflow_id)
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Delete failed"))
+    return result
+
+
+@feeds_router.post("/{agent_id}/signal")
+async def ingest_external_signal(
+    agent_id: str,
+    request: Request,
+    body: dict[str, Any],
+    authorization: str | None = Header(default=None, alias="authorization"),
+) -> dict[str, Any]:
+    verify_publisher_key(agent_id, extract_bearer_token(authorization))
+    payload = body.get("payload")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="body.payload must be a JSON object")
+    result = await request.app.state.external_feeds.ingest_signal(agent_id, payload)
+    if not result.get("ok"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Ingest failed"))
+    return result
+
+
+@feeds_router.post("/{agent_id}/heartbeat")
+async def external_agent_heartbeat(
+    agent_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None, alias="authorization"),
+) -> dict[str, Any]:
+    verify_publisher_key(agent_id, extract_bearer_token(authorization))
+    result = await request.app.state.external_feeds.heartbeat(agent_id)
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Heartbeat failed"))
+    return result
+
+
+@orchestrator_router.get("/context-graphs")
+async def orchestrator_context_graphs() -> dict[str, Any]:
+    return {"graphs": [{"id": k, **v} for k, v in GRAPH_CATALOG.items()]}
+
+
+def _graph_id_from_canvas(canvas: dict[str, Any]) -> str | None:
+    for node in canvas.get("nodes") or []:
+        if node.get("type") != "llm":
+            continue
+        data = node.get("data") or {}
+        gid = (data.get("graphId") or "").strip()
+        if gid:
+            return gid
+    for node in canvas.get("nodes") or []:
+        if node.get("type") == "cotBuilder":
+            data = node.get("data") or {}
+            gid = (data.get("graphId") or "").strip()
+            if gid:
+                return gid
+    return None
+
+
+async def _enrich_orchestrator_config(request: Request, config: dict[str, Any], canvas: dict[str, Any]) -> dict[str, Any]:
+    enriched = dict(config)
+    graph_id = enriched.get("graphId") or _graph_id_from_canvas(canvas)
+    if not graph_id:
+        return enriched
+    enriched["graphId"] = graph_id
+    infra = getattr(request.app.state, "infra_ready", {})
+    if not infra.get("falkordb"):
+        return enriched
+    try:
+        snapshot = await request.app.state.falkordb.get_graph_snapshot(graph_id)
+        enriched["decision_graph_snapshot"] = snapshot
+    except Exception:
+        pass
+    return enriched
 
 
 @orchestrator_router.post("/run")
 async def orchestrator_run(request: Request, body: dict[str, Any]) -> dict[str, Any]:
     signal = normalize_inbound_signal(body.get("signal") or body)
     canvas = body.get("canvas") or {"nodes": [], "edges": []}
-    config = body.get("config") or {}
+    config = await _enrich_orchestrator_config(request, body.get("config") or {}, canvas)
     memory = body.get("memory")
     stream = request.app.state.orchestrator_stream
     if memory is None and stream:

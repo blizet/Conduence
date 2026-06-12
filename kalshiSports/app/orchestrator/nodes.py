@@ -11,6 +11,13 @@ from app.orchestrator.decision_engine import evaluate_entry as gate_entry
 from app.orchestrator.decision_engine import manage_position as run_position
 from app.orchestrator.state import ScannerState
 
+try:
+    from cot_wrapper import emit_signal, trade_event_to_signal, wrapper_enabled
+except ImportError:
+    wrapper_enabled = lambda: False  # type: ignore[assignment,misc]
+    emit_signal = lambda _payload: False  # type: ignore[assignment,misc]
+    trade_event_to_signal = lambda event: event  # type: ignore[assignment,misc]
+
 OUT_FILE = Path(__file__).resolve().parents[2] / "out" / "trades.jsonl"
 
 
@@ -141,6 +148,9 @@ async def context_only(state: ScannerState) -> dict[str, Any]:
 async def publish_outputs(state: ScannerState) -> dict[str, Any]:
     trade_event = state.get("trade_event")
     if trade_event:
+        if wrapper_enabled():
+            emit_signal(trade_event_to_signal(trade_event))
+
         OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
         with OUT_FILE.open("a") as f:
             f.write(json.dumps(trade_event) + "\n")

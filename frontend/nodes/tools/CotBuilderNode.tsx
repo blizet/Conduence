@@ -8,6 +8,7 @@ import {
   DEFAULT_COT_GRAPH_ID,
   DEFAULT_COT_USER_NODE_ID,
 } from '../constants';
+import { FetchResultPanel } from '../shared/FetchResultPanel';
 import { GlassNode } from '../shared/GlassNode';
 import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
 import { PromptField } from '../shared/PromptField';
@@ -33,7 +34,8 @@ export function CotBuilderNode({ id, data, selected }: NodeProps<WorkflowNode>) 
 
   const buildAndEmit = useCallback(async () => {
     setBusy(true);
-    updateData({ cotStatus: 'Building…' });
+    const started = performance.now();
+    updateData({ cotStatus: 'Building…', workflowStatus: 'running', workflowResult: '', workflowDurationMs: undefined });
 
     try {
       const backendUrl = (data.backendUrl ?? API).replace(/\/$/, '');
@@ -85,8 +87,16 @@ export function CotBuilderNode({ id, data, selected }: NodeProps<WorkflowNode>) 
         return;
       }
 
+      const durationMs = Math.round(performance.now() - started);
       const cotJson = JSON.stringify(buildBody.cot, null, 2);
-      updateData({ cotOutput: cotJson, cotStatus: 'CoT graph built' });
+      updateData({
+        cotOutput: cotJson,
+        cotStatus: 'CoT graph built',
+        workflowStatus: 'success',
+        workflowError: '',
+        workflowResult: cotJson,
+        workflowDurationMs: durationMs,
+      });
 
       if (data.autoEmit) {
         const emitRes = await fetch(`${backendUrl}/api/signals/cot`, {
@@ -185,14 +195,18 @@ export function CotBuilderNode({ id, data, selected }: NodeProps<WorkflowNode>) 
         >
           {busy ? 'Building…' : data.autoEmit ? 'Build & emit CoT' : 'Build CoT output'}
         </button>
-        {data.cotStatus && (
+        {data.cotStatus && !data.workflowResult ? (
           <div className="node-field__hint" style={{ marginTop: 4 }}>
             {data.cotStatus}
           </div>
-        )}
-        {data.cotOutput && (
-          <PromptField label="CoT output (DecisionEvent)" value={data.cotOutput} rows={5} onChange={() => {}} />
-        )}
+        ) : null}
+        <FetchResultPanel
+          status={data.workflowStatus}
+          error={data.workflowError ?? data.cotStatus}
+          result={data.workflowResult ?? data.cotOutput}
+          durationMs={data.workflowDurationMs}
+          label="CoT output (DecisionEvent)"
+        />
         <div className="node-field__hint">decision + correlated in · CoT graph out · U→P→M→T chain</div>
       </div>
     </GlassNode>

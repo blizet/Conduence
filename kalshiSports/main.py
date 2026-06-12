@@ -15,7 +15,11 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+from dotenv import load_dotenv
+
+_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(_ROOT))
+load_dotenv(_ROOT / ".env", override=False)
 
 from app.orchestrator.runner import run_scanner
 
