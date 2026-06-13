@@ -30,7 +30,6 @@ async def run_orchestrator(
         "canvas": canvas or {"nodes": [], "edges": []},
         "config": config or {},
         "recent_signals": memory.get("recent_signals") or [],
-        "diverging_nodes": memory.get("diverging_nodes") or {},
         "steps": [],
     }
 
@@ -58,6 +57,5 @@ async def run_orchestrator(
         "rag_context": final_state.get("rag_context"),
         "memory": {
             "recent_signals": final_state.get("recent_signals") or [],
-            "diverging_nodes": final_state.get("diverging_nodes") or {},
         },
     }

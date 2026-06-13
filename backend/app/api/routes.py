@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-from app.mind_agents.loader import get_coindesk_module
+from app.subagents import news_coindesk as coindesk
 from app.external_agents.registry import get_external_agent
 from app.lib.publisher_auth import extract_bearer_token, verify_publisher_key
 from app.signal_registry import (
@@ -13,12 +13,12 @@ from app.signal_registry import (
     list_signal_producer_feed_topics,
 )
 
-coindesk = get_coindesk_module()
 from app.lib.event_sourced_config import MARKET_SIGNALS_TOPIC
 from app.lib.normalize import normalize_decision
 from app.lib.pipeline_config import PUBLISHER_AGENT_ID
 from app.schemas.decision import DecisionEvent
 from app.tools.clob import execute_clob_trade, get_clob_quote
+from app.tools.kalshi import execute_kalshi_trade, get_kalshi_quote
 from app.tools.coingecko import fetch_coingecko
 from app.tools.coinmarketcap import fetch_coinmarketcap
 from app.tools.cot_builder import build_cot_decision
@@ -28,7 +28,6 @@ from app.tools.defillama import fetch_defillama
 from app.tools.polymarket_gamma import fetch_gamma_markets
 from app.tools.polymarket_wallet import fetch_polymarket_wallet
 from app.tools.tavily import fetch_tavily
-from app.tools.whale_wallet import track_whale_wallets
 from app.orchestrator.graph_registry import GRAPH_CATALOG
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
 from app.services.workflow_marketplace import (
@@ -129,6 +128,22 @@ async def clob_execute(body: dict[str, Any]) -> dict[str, Any]:
     return await execute_clob_trade(body)
 
 
+@tools_router.post("/kalshi/quote")
+async def kalshi_quote(body: dict[str, Any]) -> dict[str, Any]:
+    ticker = (body.get("ticker") or "").strip()
+    if not ticker:
+        return {"ok": False, "source": "kalshi", "error": "ticker is required"}
+    return await get_kalshi_quote(ticker)
+
+
+@tools_router.post("/kalshi/execute")
+async def kalshi_execute(body: dict[str, Any]) -> dict[str, Any]:
+    ticker = (body.get("ticker") or "").strip()
+    if not ticker:
+        return {"error": "ticker is required"}
+    return await execute_kalshi_trade(body)
+
+
 @tools_router.post("/cot/build")
 async def cot_build(body: dict[str, Any]) -> dict[str, Any]:
     decision = body.get("decision") or {}
@@ -146,11 +161,6 @@ async def cot_build(body: dict[str, Any]) -> dict[str, Any]:
     event = DecisionEvent.model_validate(draft)
     cot = normalize_decision(event)
     return {"cot": cot.model_dump()}
-
-
-@tools_router.post("/whale/track")
-async def whale_track(body: dict[str, Any]) -> dict[str, Any]:
-    return await track_whale_wallets(body)
 
 
 @tools_router.post("/coinmarketcap/fetch")

@@ -2,8 +2,14 @@
 
 import type { NodeProps } from '@xyflow/react';
 import { useAgentFeed } from '@/lib/agent-feed';
+import {
+  defaultModelForProvider,
+  normalizeProvider,
+  type LlmProvider,
+} from '@/lib/llm-providers';
 import { GlassNode } from '../shared/GlassNode';
 import { ApiKeyField } from '../shared/ApiKeyField';
+import { LlmProviderFields } from '../shared/LlmProviderFields';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import type { WorkflowNode } from '../types';
 
@@ -30,13 +36,24 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
   } = useAgentFeed();
   const updateData = useNodeData(id);
 
-  const apiKey = data.apiKey ?? getStoredApiKey();
+  const coindeskKey = data.apiKey ?? getStoredApiKey();
+  const llmProvider = normalizeProvider(data.llmProvider);
+  const llmApiKey = data.llmApiKey ?? '';
+  const llmModel = data.model ?? defaultModelForProvider(llmProvider);
+
+  const llmReady = Boolean(llmProvider && llmApiKey.trim() && llmModel.trim());
+  const canStart = llmReady && (data.simulate || coindeskKey);
 
   const toggleStream = () => {
     if (newsStreamRunning) {
       stopNewsStream();
-    } else {
-      void startNewsStream(apiKey);
+    } else if (canStart) {
+      void startNewsStream(coindeskKey, {
+        simulate: Boolean(data.simulate),
+        llmProvider,
+        llmApiKey,
+        model: llmModel,
+      });
     }
   };
 
@@ -44,20 +61,26 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
     <GlassNode
       label={data.label}
       description={data.description}
-      category="mindagent"
+      category="subagent"
       accent={data.accent}
       icon={<NewsIcon />}
       selected={selected}
       wide
       handles={[
-        { type: 'target', position: 'left' },
+        { type: 'target', position: 'left', id: 'in-tools' },
         { type: 'source', position: 'right', id: 'out-news' },
       ]}
     >
       <div onKeyDown={stopNodeKeyPropagation}>
+        <div className="node-field">
+          <div className="node-field__label">Required tools (optional snap)</div>
+          <div className="node-field__hint">
+            CoinDesk Data (this node) · CryptoNews API + Tavily (left handle) for enrichment
+          </div>
+        </div>
         <ApiKeyField
           label="CoinDesk Data API key"
-          value={apiKey}
+          value={coindeskKey}
           placeholder="Data feed key (not OpenAI/Gemini/Claude)…"
           onChange={(v) => {
             saveApiKey(v);
@@ -65,7 +88,24 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
           }}
         />
         <div className="node-field">
-          <div className="node-field__label">Autonomous feed</div>
+          <div className="node-field__label">LLM for decision inference</div>
+          <div className="node-field__hint">
+            Required — used to infer sentiment, categories, keywords, thesis, direction, strength
+          </div>
+        </div>
+        <LlmProviderFields
+          provider={llmProvider}
+          model={llmModel}
+          apiKey={llmApiKey}
+          apiKeyLabel="LLM API key"
+          onProviderChange={(p: LlmProvider) =>
+            updateData({ llmProvider: p, model: defaultModelForProvider(p) })
+          }
+          onModelChange={(m) => updateData({ model: m })}
+          onApiKeyChange={(k) => updateData({ llmApiKey: k })}
+        />
+        <div className="node-field">
+          <div className="node-field__label">Sub-agent feed</div>
           <div className="node-status-row">
             <span
               className={`node-live-dot${newsStreamRunning ? ' node-live-dot--on' : ''}`}
@@ -74,16 +114,34 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
             <span className="node-field__hint">
               {newsStreamRunning
                 ? `Live · ${feedTopic ?? 'agent.feeds.newsAgent.public'}`
-                : 'Start from here or Marketplace (requires backend + Redpanda)'}
+                : llmReady
+                  ? 'Start from here or Marketplace (requires backend + Redpanda)'
+                  : 'Set LLM provider, API key, and model to enable'}
             </span>
           </div>
+          <label className="node-checkbox-row nodrag">
+            <input
+              type="checkbox"
+              checked={Boolean(data.simulate)}
+              disabled={newsStreamRunning}
+              onChange={(e) => updateData({ simulate: e.target.checked })}
+            />
+            Simulate mode — uses canned headlines, still calls LLM
+          </label>
           <button
             type="button"
             className="node-add-btn"
             style={{ marginTop: 4, borderColor: `${data.accent}55`, color: data.accent }}
             onClick={toggleStream}
+            disabled={!newsStreamRunning && !canStart}
           >
-            {newsStreamRunning ? 'Stop autonomous feed' : 'Start autonomous feed'}
+            {newsStreamRunning
+              ? 'Stop sub-agent'
+              : llmReady
+                ? data.simulate
+                  ? 'Start sub-agent (simulated)'
+                  : 'Start sub-agent'
+                : 'Configure LLM first'}
           </button>
           {newsStreamError && (
             <div className="node-field__hint" style={{ color: '#f87171', marginTop: 4 }}>
@@ -101,9 +159,6 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
             </div>
           </div>
         )}
-        <div className="node-field__hint">
-          Topic agent.feeds.newsAgent.public · subscribers consume this topic only
-        </div>
       </div>
     </GlassNode>
   );

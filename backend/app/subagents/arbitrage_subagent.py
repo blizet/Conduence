@@ -1,26 +1,22 @@
-"""Arbitrage mind agent — Polymarket x Kalshi cross-platform scanner.
+"""Arbitrage sub-agent — Polymarket x Kalshi cross-platform scanner.
 
-Standalone: python agent.py [--simulate] [--interval 15]
-Canvas/registry: imported by backend via app.mind_agents.loader
-All qualification gates are preserved:
+Standalone template: requires its own LLM (provider + API key + model) to
+semantically verify that a Polymarket leg and a Kalshi leg resolve on the same
+event, and to write each opportunity's thesis.
 
-1. OPEN ONLY — Polymarket active/not-closed/accepting orders with future end;
-   Kalshi status=open with future close.
-2. SAME EVENT — normalized title match (synonyms, jul==july, btc==bitcoin),
-   numeric thresholds must match EXACTLY, close dates within MAX_CLOSE_GAP_DAYS,
-   match confidence >= MIN_MATCH_CONFIDENCE.
-3. EXECUTABLE PRICES — both legs priced at the ask, never mid/last.
-4. REAL FEES — Kalshi taker 0.07*P*(1-P); Polymarket crypto taker 0.072*P*(1-P).
-5. NET EDGE >= MIN_NET_EDGE after fees; both directions checked.
-6. SIZE — capped by the thinner leg; legs under MIN_LIQUIDITY_USD skipped.
+Mechanical gates remain deterministic — fees, net edge, liquidity, ask-priced
+legs, open status, date proximity, exact numeric thresholds. The LLM only
+replaces the token-jaccard semantic check.
 
-Supports simulate mode (config {"simulate": true}) with offline fixtures.
+Standalone CLI: python -m app.subagents.arbitrage_subagent [--simulate] [--interval 15]
+Canvas/registry: wired via app.subagents.registry
 
 Event contract:
 {
   "type": "arbitrage", "agent": "arbitrageAgent", "summary": str,
   "direction": "neutral", "strength": float, "keywords": [str],
-  "opportunity": {...}, "legs": {...}, "caveats": [str], "ts": iso8601
+  "thesis": str, "opportunity": {...}, "legs": {...}, "caveats": [str],
+  "ts": iso8601
 }
 """
 
@@ -35,6 +31,8 @@ from typing import Any, AsyncIterator
 
 import httpx
 
+from app.llm.client import complete_json
+
 GAMMA_URL = "https://gamma-api.polymarket.com/markets"
 KALSHI_URL = "https://external-api.kalshi.com/trade-api/v2/markets"
 
@@ -47,7 +45,12 @@ MIN_NET_EDGE = 0.015         # $ per contract after fees
 MIN_MATCH_CONFIDENCE = 0.60
 MAX_CLOSE_GAP_DAYS = 4.0     # legs resolving further apart are different bets
 MIN_LIQUIDITY_USD = 2_000.0  # per leg
-MIN_TOKEN_JACCARD = 0.34
+MIN_PREFILTER_JACCARD = 0.15 # loose — just ensure some token overlap before paying for LLM
+
+MONTHS = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+}
 
 STOPWORDS = {
     "will", "the", "a", "an", "be", "by", "on", "in", "at", "of", "to", "or",
@@ -61,10 +64,6 @@ SYNONYMS = {
     "sol": "solana", "doge": "dogecoin", "zec": "zcash", "xmr": "monero",
     "$": "usd", "k": "000",
 }
-MONTHS = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
-}
 
 _NUM_RE = re.compile(r"\$?(\d[\d,]*\.?\d*)\s*([km])?", re.IGNORECASE)
 
@@ -73,9 +72,6 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-# ----------------------------------------------------------------------
-# title normalization + matching
-# ----------------------------------------------------------------------
 def extract_numbers(title: str) -> set[float]:
     nums: set[float] = set()
     for raw, suffix in _NUM_RE.findall(title):
@@ -98,7 +94,7 @@ def tokenize(title: str) -> set[str]:
     for w in words:
         w = SYNONYMS.get(w, w)
         if w[:3] in MONTHS:
-            w = w[:3]  # july == jul
+            w = w[:3]
         if w not in STOPWORDS and len(w) > 1:
             out.add(w)
     return out
@@ -121,33 +117,80 @@ def parse_date_guess(title: str, fallback_iso: str | None) -> datetime | None:
     return None
 
 
-def match_confidence(poly: dict[str, Any], kalshi: dict[str, Any]) -> float:
-    """0..1 score that two markets resolve on the same fact."""
+# ----------------------------------------------------------------------
+# cheap pre-filter — eliminates obviously-different pairs without LLM
+# ----------------------------------------------------------------------
+def pre_filter_pair(poly: dict[str, Any], kalshi: dict[str, Any]) -> bool:
+    n1, n2 = extract_numbers(poly["title"]), extract_numbers(kalshi["title"])
+    if (n1 or n2) and n1 != n2:
+        return False  # different thresholds => different bets
+
     t1, t2 = tokenize(poly["title"]), tokenize(kalshi["title"])
     if not t1 or not t2:
-        return 0.0
+        return False
     jaccard = len(t1 & t2) / len(t1 | t2)
-    if jaccard < MIN_TOKEN_JACCARD:
-        return 0.0
-
-    n1, n2 = extract_numbers(poly["title"]), extract_numbers(kalshi["title"])
-    if n1 or n2:
-        if n1 != n2:
-            return 0.0          # different thresholds => different bets, hard reject
-        number_bonus = 0.25
-    else:
-        number_bonus = 0.0
+    if jaccard < MIN_PREFILTER_JACCARD:
+        return False
 
     d1, d2 = poly.get("close_dt"), kalshi.get("close_dt")
     if d1 and d2:
-        gap = abs((d1 - d2).total_seconds()) / 86_400
-        if gap > MAX_CLOSE_GAP_DAYS:
-            return 0.0          # resolving days apart => different bets
-        date_bonus = 0.20 * (1 - gap / MAX_CLOSE_GAP_DAYS)
-    else:
-        date_bonus = 0.0        # unknown dates: no bonus, rely on text+numbers
+        gap_days = abs((d1 - d2).total_seconds()) / 86_400
+        if gap_days > MAX_CLOSE_GAP_DAYS:
+            return False
 
-    return min(1.0, 0.65 * jaccard + number_bonus + date_bonus + 0.15)
+    return True
+
+
+# ----------------------------------------------------------------------
+# LLM verification — replaces the token-jaccard "same event" decision
+# ----------------------------------------------------------------------
+SYSTEM_PROMPT = (
+    "You compare two prediction-market questions from different venues (Polymarket and Kalshi) "
+    "and decide if they resolve on the SAME underlying event. Two questions resolve on the same "
+    "event only when YES on one is logically equivalent to YES on the other — same asset, same "
+    "threshold, same date/window, same resolution criterion.\n\n"
+    "Return ONLY a JSON object with these exact keys:\n"
+    "  same_event: boolean — true only if YES outcomes are logically equivalent\n"
+    "  confidence: float in [0.0, 1.0]\n"
+    "  reasoning: one short sentence explaining your verdict\n"
+    "  thesis: one short sentence stating the arbitrage thesis if same_event is true (else empty string)\n"
+    "  keywords: 2-6 lowercase tokens common to both questions (e.g. ['bitcoin','120k','july'])\n"
+    "No markdown, no extra commentary."
+)
+
+
+async def _verify_same_event_with_llm(
+    poly: dict[str, Any], kalshi: dict[str, Any], llm_config: dict[str, Any]
+) -> dict[str, Any]:
+    poly_close = poly["close_dt"].isoformat() if poly.get("close_dt") else "unknown"
+    kalshi_close = kalshi["close_dt"].isoformat() if kalshi.get("close_dt") else "unknown"
+    user_prompt = (
+        f"Polymarket question: {poly['title']}\n"
+        f"Polymarket close: {poly_close}\n\n"
+        f"Kalshi question: {kalshi['title']}\n"
+        f"Kalshi close: {kalshi_close}"
+    )
+    parsed = await complete_json(llm_config, SYSTEM_PROMPT, user_prompt)
+    if not parsed:
+        return {"same_event": False, "confidence": 0.0, "reasoning": "LLM returned no parseable response", "thesis": "", "keywords": []}
+
+    same = bool(parsed.get("same_event"))
+    try:
+        confidence = float(parsed.get("confidence") or 0.0)
+    except (TypeError, ValueError):
+        confidence = 0.0
+    confidence = max(0.0, min(1.0, confidence))
+    reasoning = str(parsed.get("reasoning") or "").strip()
+    thesis = str(parsed.get("thesis") or "").strip()
+    raw_kw = parsed.get("keywords") or []
+    keywords = [str(k).strip().lower() for k in raw_kw if str(k).strip()][:6]
+    return {
+        "same_event": same,
+        "confidence": confidence,
+        "reasoning": reasoning,
+        "thesis": thesis,
+        "keywords": keywords,
+    }
 
 
 # ----------------------------------------------------------------------
@@ -192,7 +235,7 @@ def evaluate_pair(poly: dict[str, Any], kalshi: dict[str, Any], confidence: floa
 
 
 # ----------------------------------------------------------------------
-# fetchers (open markets only)
+# fetchers (open markets only) — unchanged
 # ----------------------------------------------------------------------
 async def _get_json(
     client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None
@@ -223,7 +266,7 @@ async def fetch_polymarket(client: httpx.AsyncClient, limit: int = 300) -> list[
             continue
         close_dt = parse_date_guess(title, m.get("endDate"))
         if close_dt and close_dt < now_utc():
-            continue  # already past resolution time => effectively closed
+            continue
         out.append({
             "platform": "polymarket",
             "title": title,
@@ -264,7 +307,7 @@ async def fetch_kalshi(
                 "title": title,
                 "ticker": m.get("ticker", ""),
                 "url": f"https://kalshi.com/markets/{m.get('ticker', '')}",
-                "yes_ask": float(yes_ask) / 100.0,   # cents -> dollars
+                "yes_ask": float(yes_ask) / 100.0,
                 "no_ask": float(no_ask) / 100.0,
                 "liquidity": float(m.get("liquidity") or 0) / 100.0,
                 "volume_24h": float(m.get("volume_24h") or m.get("volume") or 0),
@@ -301,22 +344,60 @@ def _sim_markets() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
 
 
 # ----------------------------------------------------------------------
-# scan + stream
+# LLM config validation
 # ----------------------------------------------------------------------
-def _build_events(
-    poly_markets: list[dict[str, Any]], kalshi_markets: list[dict[str, Any]]
+def _validate_llm_config(config: dict[str, Any]) -> dict[str, Any]:
+    provider = (config.get("llmProvider") or config.get("provider") or "").strip().lower()
+    api_key = (config.get("llmApiKey") or "").strip()
+    model = (config.get("model") or "").strip()
+
+    missing = []
+    if provider not in {"openai", "claude", "gemini"}:
+        missing.append("llmProvider (openai|claude|gemini)")
+    if not api_key:
+        missing.append("llmApiKey")
+    if not model:
+        missing.append("model")
+    if missing:
+        raise ValueError(
+            f"Arbitrage sub-agent requires LLM config. Missing: {', '.join(missing)}. "
+            "Set llmProvider, llmApiKey, and model on the Arbitrage Agent node."
+        )
+
+    return {
+        "llmProvider": provider,
+        "llmApiKey": api_key,
+        "model": model,
+        "temperature": float(config.get("temperature") or 0.1),
+        "maxTokens": int(config.get("maxTokens") or 384),
+    }
+
+
+# ----------------------------------------------------------------------
+# scan + build events
+# ----------------------------------------------------------------------
+async def _build_events(
+    poly_markets: list[dict[str, Any]],
+    kalshi_markets: list[dict[str, Any]],
+    llm_config: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    events = []
+    events: list[dict[str, Any]] = []
     for poly in poly_markets:
         if poly["liquidity"] < MIN_LIQUIDITY_USD:
             continue
         for kalshi in kalshi_markets:
             if kalshi["liquidity"] < MIN_LIQUIDITY_USD:
                 continue
-            confidence = match_confidence(poly, kalshi)
-            if confidence < MIN_MATCH_CONFIDENCE:
+            if not pre_filter_pair(poly, kalshi):
                 continue
-            for opp in evaluate_pair(poly, kalshi, confidence):
+            try:
+                verdict = await _verify_same_event_with_llm(poly, kalshi, llm_config)
+            except Exception as exc:
+                print(f"[arbitrageAgent] LLM verification failed: {exc}", file=sys.stderr)
+                continue
+            if not verdict["same_event"] or verdict["confidence"] < MIN_MATCH_CONFIDENCE:
+                continue
+            for opp in evaluate_pair(poly, kalshi, verdict["confidence"]):
                 events.append({
                     "type": "arbitrage",
                     "agent": "arbitrageAgent",
@@ -324,9 +405,14 @@ def _build_events(
                         f"{opp['direction']}: net +{opp['net_edge'] * 100:.1f}c/contract "
                         f"({opp['net_edge_pct']}%) after fees on \"{poly['title'][:80]}\""
                     ),
-                    "direction": "neutral",     # market-neutral by construction
+                    "direction": "neutral",
                     "strength": min(1.0, opp["net_edge"] / 0.05),
-                    "keywords": sorted(tokenize(poly["title"]) & tokenize(kalshi["title"])),
+                    "keywords": verdict["keywords"] or sorted(tokenize(poly["title"]) & tokenize(kalshi["title"])),
+                    "thesis": verdict["thesis"] or (
+                        "Same event priced differently across venues — buy YES on one leg and NO on the other "
+                        "to lock in the spread after fees."
+                    ),
+                    "llm_reasoning": verdict["reasoning"],
                     "opportunity": opp,
                     "legs": {
                         "polymarket": {"title": poly["title"], "url": poly["url"],
@@ -346,7 +432,7 @@ def _build_events(
     return events
 
 
-async def scan(simulate: bool) -> list[dict[str, Any]]:
+async def scan(simulate: bool, llm_config: dict[str, Any]) -> list[dict[str, Any]]:
     if simulate:
         poly_markets, kalshi_markets = _sim_markets()
     else:
@@ -356,7 +442,7 @@ async def scan(simulate: bool) -> list[dict[str, Any]]:
             poly_markets, kalshi_markets = await asyncio.gather(
                 fetch_polymarket(client), fetch_kalshi(client)
             )
-    return _build_events(poly_markets, kalshi_markets)
+    return await _build_events(poly_markets, kalshi_markets, llm_config)
 
 
 def _event_key(event: dict[str, Any]) -> str:
@@ -372,11 +458,13 @@ class ArbitrageAgent:
         self.poll_ms = poll_ms
         self._seen_keys: set[str] = set()
 
-    async def stream_arbitrage_signals(self, simulate: bool = False) -> AsyncIterator[dict[str, Any]]:
+    async def stream_arbitrage_signals(
+        self, llm_config: dict[str, Any], simulate: bool = False
+    ) -> AsyncIterator[dict[str, Any]]:
         interval_ms = ARB_SIMULATE_INTERVAL_MS if simulate else self.poll_ms
         while True:
             try:
-                for event in await scan(simulate):
+                for event in await scan(simulate, llm_config):
                     key = _event_key(event)
                     if not simulate and key in self._seen_keys:
                         continue
@@ -390,14 +478,34 @@ class ArbitrageAgent:
 arbitrage_agent = ArbitrageAgent()
 
 
+async def stream_arbitrage_signals(config: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    """Registry entry — streams arb signals from node config."""
+    llm_config = _validate_llm_config(config)
+    simulate = bool(config.get("simulate"))
+    async for event in arbitrage_agent.stream_arbitrage_signals(llm_config, simulate=simulate):
+        yield event
+
+
+async def validate_arbitrage_config(config: dict[str, Any]) -> None:
+    """Refuse to run unless LLM config is complete."""
+    _validate_llm_config(config)
+
+
 async def _run_cli(simulate: bool, interval_s: float) -> None:
+    config = {
+        "llmProvider": os.getenv("ARB_LLM_PROVIDER", "gemini"),
+        "llmApiKey": os.getenv("ARB_LLM_API_KEY", ""),
+        "model": os.getenv("ARB_LLM_MODEL", "gemini-2.0-flash"),
+        "simulate": simulate,
+    }
+    llm_config = _validate_llm_config(config)
     agent = ArbitrageAgent(poll_ms=int(interval_s * 1000))
-    async for event in agent.stream_arbitrage_signals(simulate=simulate):
+    async for event in agent.stream_arbitrage_signals(llm_config, simulate=simulate):
         print(json.dumps(event), flush=True)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Arbitrage mind agent (arbitrageAgent)")
+    parser = argparse.ArgumentParser(description="Arbitrage sub-agent (arbitrageAgent)")
     parser.add_argument("--simulate", action="store_true")
     parser.add_argument("--interval", type=float, default=ARB_POLL_INTERVAL_MS / 1000)
     args = parser.parse_args()

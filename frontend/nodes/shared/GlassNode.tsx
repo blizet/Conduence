@@ -14,6 +14,7 @@ const CATEGORY_LABEL: Record<NodeCategory, string> = {
   tool: 'tool',
   mindagent: 'mind',
   subagent: 'sub',
+  orchestrator: 'main',
 };
 
 /**
@@ -54,7 +55,7 @@ export function GlassNode({
   children,
 }: GlassNodeProps) {
   const resolvedShape: NodeShape =
-    shape ?? (category === 'mindagent' ? 'agent' : 'card');
+    shape ?? (category === 'mindagent' || category === 'orchestrator' ? 'agent' : 'card');
 
   return (
     <div

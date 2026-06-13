@@ -31,7 +31,6 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
         ),
         "when_to_use": [
             "A signal mentions specific coins and you need current price / 24h momentum.",
-            "You need baseChange/otherChange inputs for the divergence tool.",
             "Default first choice for any price question.",
         ],
         "when_not_to_use": [

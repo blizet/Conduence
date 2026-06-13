@@ -106,22 +106,6 @@ def plan_tool_calls(
             }
         )
 
-    # Whale intel comes from sub-agent feed when whaleWallet is a connected sub-agent.
-    if registry.is_connected("whaleWallet") and "whaleWallet" not in connected_subagents:
-        cfg = tool_configs.get("whaleWallet", {})
-        wallets = cfg.get("walletAddresses") or []
-        if wallets:
-            calls.append(
-                {
-                    "tool_id": "whaleWallet",
-                    "params": {
-                        "walletAddresses": wallets,
-                        "conditionId": cfg.get("conditionId"),
-                        "apiKey": cfg.get("apiKey"),
-                    },
-                }
-            )
-
     if registry.is_connected("defillama") and _has_theme(graph, signal, DEFI_THEMES):
         cfg = tool_configs.get("defillama", {})
         calls.append(
@@ -174,23 +158,6 @@ def plan_tool_calls(
                     "searchDepth": cfg.get("tavilySearchDepth") or "basic",
                     "maxResults": int(cfg.get("tavilyMaxResults") or 5),
                     "apiKey": cfg.get("apiKey"),
-                },
-            }
-        )
-
-    if registry.is_connected("divergence") and coingecko_ids:
-        cfg = tool_configs.get("divergence", {})
-        base_id = cfg.get("divBaseId") or coingecko_ids[0]
-        other_id = cfg.get("divOtherId") or (coingecko_ids[1] if len(coingecko_ids) > 1 else "ethereum")
-        calls.append(
-            {
-                "tool_id": "divergence",
-                "params": {
-                    "baseId": base_id,
-                    "otherId": other_id,
-                    "baseChange": float(cfg.get("divBaseChange") or 0),
-                    "otherChange": float(cfg.get("divOtherChange") or 0),
-                    "expectedCorr": float(cfg.get("divExpectedCorr") or 0.5),
                 },
             }
         )

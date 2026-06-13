@@ -1,11 +1,9 @@
 import type { NodeTypes } from '@xyflow/react';
-import type { PaletteItem } from './types';
-import { ArbitrageAgentNode } from './mindagents/ArbitrageAgentNode';
+import type { PaletteItem, PaletteToolGroup } from './types';
 import { LlmNode } from './mindagents/LlmNode';
-import { NewsAgentNode } from './mindagents/NewsAgentNode';
 import { SportsScannerNode } from './mindagents/SportsScannerNode';
-import { DivergenceAgentNode } from './subagents/DivergenceAgentNode';
-import { WhaleWalletNode } from './subagents/WhaleWalletNode';
+import { ArbitrageAgentNode } from './subagents/ArbitrageAgentNode';
+import { NewsAgentNode } from './subagents/NewsAgentNode';
 import { ClobToolNode } from './tools/ClobToolNode';
 import { CoinGeckoNode } from './tools/CoinGeckoNode';
 import { CoinMarketCapNode } from './tools/CoinMarketCapNode';
@@ -14,8 +12,8 @@ import { CotBuilderNode } from './tools/CotBuilderNode';
 import { CryptoNewsNode } from './tools/CryptoNewsNode';
 import { CryptoQuantNode } from './tools/CryptoQuantNode';
 import { DefiLlamaNode } from './tools/DefiLlamaNode';
-import { DivergenceNode } from './tools/DivergenceNode';
 import { EndNode } from './tools/EndNode';
+import { KalshiToolNode } from './tools/KalshiToolNode';
 import { OutputNode } from './tools/OutputNode';
 import { PolymarketGammaNode } from './tools/PolymarketGammaNode';
 import { PolymarketWalletNode } from './tools/PolymarketWalletNode';
@@ -31,6 +29,7 @@ export const nodeTypes: NodeTypes = {
   workflowOutput: OutputNode,
   output: OutputNode,
   clob: ClobToolNode,
+  kalshi: KalshiToolNode,
   cotBuilder: CotBuilderNode,
   coinmarketcap: CoinMarketCapNode,
   defillama: DefiLlamaNode,
@@ -40,106 +39,50 @@ export const nodeTypes: NodeTypes = {
   coingecko: CoinGeckoNode,
   polymarketGamma: PolymarketGammaNode,
   polymarketWallet: PolymarketWalletNode,
-  divergence: DivergenceNode,
   llm: LlmNode,
   newsAgent: NewsAgentNode,
   arbitrageAgent: ArbitrageAgentNode,
   sportsScanner: SportsScannerNode,
-  whaleWallet: WhaleWalletNode,
-  divergenceAgent: DivergenceAgentNode,
 };
+
+const FLOW_TOOL_TYPES = new Set(['start', 'end', 'condition', 'transform', 'workflowOutput']);
+
+export const PALETTE_TOOL_GROUPS: { id: PaletteToolGroup; title: string }[] = [
+  { id: 'venues', title: 'Prediction Markets' },
+  { id: 'market-data', title: 'Market Data' },
+  { id: 'helpers', title: 'Agent Helpers' },
+  { id: 'workflow', title: 'Workflow' },
+];
 
 export const PALETTE_ITEMS: PaletteItem[] = [
   {
-    type: 'start',
-    label: 'Start',
-    description: 'Workflow entry point',
-    category: 'tool',
+    type: 'llm',
+    label: 'Orchestrator',
+    description: 'Main agent — prompts + multi I/O',
+    category: 'orchestrator',
+    accent: '#f472b6',
+  },
+  {
+    type: 'newsAgent',
+    label: 'News Agent',
+    description: 'CoinDesk news feed — snap CryptoNews + Tavily tools',
+    category: 'subagent',
+    accent: '#fb923c',
+  },
+  {
+    type: 'arbitrageAgent',
+    label: 'Arbitrage Agent',
+    description: 'Polymarket × Kalshi arb scanner — snap venue tools',
+    category: 'subagent',
+    accent: '#c084fc',
+  },
+  {
+    type: 'sportsScanner',
+    label: 'Kalshi Sports Scanner',
+    description: 'External late-game soccer feed — publisher runs kalshiSports + HTTP wrapper',
+    category: 'subagent',
     accent: '#4ade80',
-  },
-  {
-    type: 'end',
-    label: 'End',
-    description: 'Workflow termination',
-    category: 'tool',
-    accent: '#f87171',
-  },
-  {
-    type: 'condition',
-    label: 'Condition',
-    description: 'Branch on true / false',
-    category: 'tool',
-    accent: '#fbbf24',
-  },
-  {
-    type: 'transform',
-    label: 'Transform',
-    description: 'Map or reshape data',
-    category: 'tool',
-    accent: '#22d3ee',
-  },
-  {
-    type: 'workflowOutput',
-    label: 'Output',
-    description: 'Emit workflow result',
-    category: 'tool',
-    accent: '#60a5fa',
-  },
-  {
-    type: 'clob',
-    label: 'CLOB',
-    description: 'Polymarket orderbook quotes & trade execution',
-    category: 'tool',
-    accent: '#a78bfa',
-  },
-  {
-    type: 'cotBuilder',
-    label: 'CoT Builder',
-    description: 'Format LLM decision + markets into graph JSON',
-    category: 'tool',
-    accent: '#34d399',
-  },
-  {
-    type: 'coinmarketcap',
-    label: 'CoinMarketCap',
-    description: 'Fetch crypto quotes from CoinMarketCap',
-    category: 'tool',
-    accent: '#facc15',
-  },
-  {
-    type: 'defillama',
-    label: 'DefiLlama',
-    description: 'Free TVL endpoints (no key); optional Pro API key for paid endpoints',
-    category: 'tool',
-    accent: '#22c55e',
-  },
-  {
-    type: 'cryptonews',
-    label: 'CryptoNews API',
-    description: 'Fetch filtered crypto headlines and sentiment',
-    category: 'tool',
-    accent: '#60a5fa',
-  },
-  {
-    type: 'cryptoquant',
-    label: 'CryptoQuant',
-    description: 'Fetch on-chain and exchange metrics',
-    category: 'tool',
-    accent: '#a855f7',
-  },
-  {
-    type: 'tavily',
-    label: 'Tavily',
-    description: 'Web search and extraction for agent context',
-    category: 'tool',
-    accent: '#fb7185',
-  },
-  {
-    type: 'coingecko',
-    label: 'CoinGecko',
-    description: 'Spot price + 24h change — free API, no key',
-    category: 'tool',
-    accent: '#84cc16',
+    requiresInstall: true,
   },
   {
     type: 'polymarketGamma',
@@ -147,6 +90,63 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Keyword search of open markets, ranked by quality score',
     category: 'tool',
     accent: '#818cf8',
+    toolGroup: 'helpers',
+  },
+  {
+    type: 'clob',
+    label: 'Polymarket',
+    description: 'Polymarket orderbook quotes & trade execution',
+    category: 'tool',
+    accent: '#a78bfa',
+    toolGroup: 'venues',
+  },
+  {
+    type: 'kalshi',
+    label: 'Kalshi',
+    description: 'Kalshi orderbook quotes & trade execution',
+    category: 'tool',
+    accent: '#2dd4bf',
+    toolGroup: 'venues',
+  },
+  {
+    type: 'coinmarketcap',
+    label: 'CoinMarketCap',
+    description: 'Fetch crypto quotes from CoinMarketCap',
+    category: 'tool',
+    accent: '#facc15',
+    toolGroup: 'market-data',
+  },
+  {
+    type: 'defillama',
+    label: 'DefiLlama',
+    description: 'Free TVL endpoints (no key); optional Pro API key for paid endpoints',
+    category: 'tool',
+    accent: '#22c55e',
+    toolGroup: 'market-data',
+  },
+  {
+    type: 'coingecko',
+    label: 'CoinGecko',
+    description: 'Spot price + 24h change — free API, no key',
+    category: 'tool',
+    accent: '#84cc16',
+    toolGroup: 'market-data',
+  },
+  {
+    type: 'cryptonews',
+    label: 'CryptoNews API',
+    description: 'Fetch filtered crypto headlines and sentiment',
+    category: 'tool',
+    accent: '#60a5fa',
+    toolGroup: 'market-data',
+  },
+  {
+    type: 'cryptoquant',
+    label: 'CryptoQuant',
+    description: 'Fetch on-chain and exchange metrics',
+    category: 'tool',
+    accent: '#a855f7',
+    toolGroup: 'market-data',
   },
   {
     type: 'polymarketWallet',
@@ -154,58 +154,81 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Recent trades / open positions of a wallet',
     category: 'tool',
     accent: '#2dd4bf',
+    toolGroup: 'helpers',
   },
   {
-    type: 'divergence',
-    label: 'Divergence',
-    description: 'Flag assets moving against their expected correlation',
+    type: 'cotBuilder',
+    label: 'CoT Builder',
+    description: 'Format LLM decision + markets into graph JSON',
     category: 'tool',
-    accent: '#e879f9',
+    accent: '#34d399',
+    toolGroup: 'helpers',
   },
   {
-    type: 'whaleWallet',
-    label: 'Whale Wallet',
-    description: 'Polls proxy wallets — emits whale signals (snap Polymarket Wallet tool)',
-    category: 'subagent',
-    accent: '#38bdf8',
+    type: 'tavily',
+    label: 'Tavily',
+    description: 'Web search and extraction for agent context',
+    category: 'tool',
+    accent: '#fb7185',
+    toolGroup: 'helpers',
   },
   {
-    type: 'divergenceAgent',
-    label: 'Divergence Agent',
-    description: 'Watches graph pairs for correlation decoupling (snap CoinGecko + Divergence)',
-    category: 'subagent',
-    accent: '#e879f9',
-  },
-  {
-    type: 'newsAgent',
-    label: 'News Agent',
-    description: 'CoinDesk news — autonomous mind agent',
-    category: 'mindagent',
-    accent: '#fb923c',
-  },
-  {
-    type: 'arbitrageAgent',
-    label: 'Arbitrage Agent',
-    description: 'Polymarket × Kalshi arb scanner — autonomous mind agent',
-    category: 'mindagent',
-    accent: '#c084fc',
-  },
-  {
-    type: 'llm',
-    label: 'LLM Analyzer',
-    description: 'Main analyzer — prompts + multi I/O',
-    category: 'mindagent',
-    accent: '#f472b6',
-  },
-  {
-    type: 'sportsScanner',
-    label: 'Kalshi Sports Scanner',
-    description: 'External late-game soccer feed — publisher runs kalshiSports + HTTP wrapper',
-    category: 'mindagent',
+    type: 'start',
+    label: 'Start',
+    description: 'Workflow entry point',
+    category: 'tool',
     accent: '#4ade80',
+    toolGroup: 'workflow',
+  },
+  {
+    type: 'end',
+    label: 'End',
+    description: 'Workflow termination',
+    category: 'tool',
+    accent: '#f87171',
+    toolGroup: 'workflow',
+  },
+  {
+    type: 'condition',
+    label: 'Condition',
+    description: 'Branch on true / false',
+    category: 'tool',
+    accent: '#fbbf24',
+    toolGroup: 'workflow',
+  },
+  {
+    type: 'transform',
+    label: 'Transform',
+    description: 'Map or reshape data',
+    category: 'tool',
+    accent: '#22d3ee',
+    toolGroup: 'workflow',
+  },
+  {
+    type: 'workflowOutput',
+    label: 'Output',
+    description: 'Emit workflow result',
+    category: 'tool',
+    accent: '#60a5fa',
+    toolGroup: 'workflow',
   },
 ];
 
 export function getPaletteItem(type: string): PaletteItem | undefined {
   return PALETTE_ITEMS.find((item) => item.type === type);
+}
+
+export function isFlowToolType(type: string): boolean {
+  return FLOW_TOOL_TYPES.has(type);
+}
+
+export function getToolGroupItems(
+  items: PaletteItem[],
+  groupId: PaletteToolGroup,
+): PaletteItem[] {
+  return items.filter((item) => item.toolGroup === groupId);
+}
+
+export function getUngroupedToolItems(items: PaletteItem[]): PaletteItem[] {
+  return items.filter((item) => item.category === 'tool' && !item.toolGroup);
 }

@@ -49,7 +49,7 @@ export function SportsScannerNode({ id, data, selected }: NodeProps<WorkflowNode
     <GlassNode
       label={data.label}
       description={data.description ?? 'External · Kalshi soccer feed via HTTP wrapper'}
-      category="mindagent"
+      category="subagent"
       accent={data.accent ?? '#4ade80'}
       icon={<SportsIcon />}
       selected={selected}

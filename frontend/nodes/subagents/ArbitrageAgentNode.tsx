@@ -3,7 +3,13 @@
 import { useEffect } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { useAgentFeed } from '@/lib/agent-feed';
+import {
+  defaultModelForProvider,
+  normalizeProvider,
+  type LlmProvider,
+} from '@/lib/llm-providers';
 import { GlassNode } from '../shared/GlassNode';
+import { LlmProviderFields } from '../shared/LlmProviderFields';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import type { WorkflowNode } from '../types';
 
@@ -11,6 +17,7 @@ const AGENT_ID = 'arbitrageAgent';
 
 type ArbitrageEvent = {
   summary?: string;
+  thesis?: string;
   opportunity?: {
     net_edge?: number;
     net_edge_pct?: number;
@@ -43,6 +50,11 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
   const latest = isArbitrageEvent(feed?.latest) ? feed.latest : null;
   const simulate = data.simulate ?? false;
 
+  const llmProvider = normalizeProvider(data.llmProvider);
+  const llmApiKey = data.llmApiKey ?? '';
+  const llmModel = data.model ?? defaultModelForProvider(llmProvider);
+  const llmReady = Boolean(llmProvider && llmApiKey.trim() && llmModel.trim());
+
   useEffect(() => {
     void refreshAgentStatus(AGENT_ID);
   }, [refreshAgentStatus]);
@@ -50,8 +62,13 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
   const toggleStream = () => {
     if (running) {
       stopAgent(AGENT_ID);
-    } else {
-      void startAgent(AGENT_ID, { simulate });
+    } else if (llmReady) {
+      void startAgent(AGENT_ID, {
+        simulate,
+        llmProvider,
+        llmApiKey,
+        model: llmModel,
+      });
     }
   };
 
@@ -59,20 +76,42 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
     <GlassNode
       label={data.label}
       description={data.description}
-      category="mindagent"
+      category="subagent"
       accent={data.accent}
       icon={<ArbIcon />}
       selected={selected}
       wide
       handles={[
-        { type: 'target', position: 'left' },
+        { type: 'target', position: 'left', id: 'in-tools' },
         { type: 'source', position: 'right', id: 'out-arb' },
       ]}
     >
       <div onKeyDown={stopNodeKeyPropagation}>
         <div className="node-field">
+          <div className="node-field__label">Required tools (optional snap)</div>
+          <div className="node-field__hint">
+            Polymarket Gamma + Kalshi (public APIs, no keys) · Polymarket / Kalshi execution tools for trades
+          </div>
+        </div>
+        <div className="node-field">
+          <div className="node-field__label">LLM for same-event verification</div>
+          <div className="node-field__hint">
+            Required — used to verify that two markets resolve on the same fact and to write the thesis
+          </div>
+        </div>
+        <LlmProviderFields
+          provider={llmProvider}
+          model={llmModel}
+          apiKey={llmApiKey}
+          apiKeyLabel="LLM API key"
+          onProviderChange={(p: LlmProvider) =>
+            updateData({ llmProvider: p, model: defaultModelForProvider(p) })
+          }
+          onModelChange={(m) => updateData({ model: m })}
+          onApiKeyChange={(k) => updateData({ llmApiKey: k })}
+        />
+        <div className="node-field">
           <div className="node-field__label">Polymarket × Kalshi scanner</div>
-          <div className="node-field__hint">Public venue APIs — no LLM provider or API key</div>
           <div className="node-status-row">
             <span
               className={`node-live-dot${running ? ' node-live-dot--on' : ''}`}
@@ -81,7 +120,9 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
             <span className="node-field__hint">
               {running
                 ? `Live · ${feed?.feedTopic ?? 'agent.feeds.arbitrageAgent.public'}`
-                : 'Scans both venues in parallel (requires backend + Redpanda)'}
+                : llmReady
+                  ? 'Scans both venues in parallel (requires backend + Redpanda)'
+                  : 'Set LLM provider, API key, and model to enable'}
             </span>
           </div>
           <label className="node-checkbox-row nodrag">
@@ -91,15 +132,22 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
               disabled={running}
               onChange={(e) => updateData({ simulate: e.target.checked })}
             />
-            Simulate mode — offline fixtures, no network
+            Simulate mode — offline fixtures, still calls LLM
           </label>
           <button
             type="button"
             className="node-add-btn"
             style={{ marginTop: 4, borderColor: `${data.accent}55`, color: data.accent }}
             onClick={toggleStream}
+            disabled={!running && !llmReady}
           >
-            {running ? 'Stop scanner' : simulate ? 'Start scanner (simulated)' : 'Start scanner'}
+            {running
+              ? 'Stop sub-agent'
+              : llmReady
+                ? simulate
+                  ? 'Start sub-agent (simulated)'
+                  : 'Start sub-agent'
+                : 'Configure LLM first'}
           </button>
           {feed?.error && (
             <div className="node-field__hint" style={{ color: '#f87171', marginTop: 4 }}>
@@ -120,11 +168,14 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
                 </span>
               )}
               <div className="node-feed-preview__headline">{latest.summary}</div>
+              {latest.thesis && (
+                <div className="node-field__hint" style={{ marginTop: 4 }}>{latest.thesis}</div>
+              )}
             </div>
           </div>
         )}
         <div className="node-field__hint">
-          Gates: same event · exact thresholds · ask-priced legs · fees · net edge ≥ 1.5c
+          Gates: same event (LLM) · exact thresholds · ask-priced legs · fees · net edge ≥ 1.5c
         </div>
       </div>
     </GlassNode>

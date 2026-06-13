@@ -16,7 +16,6 @@ export type ToolExecutionResult = {
 export type RunnableToolType =
   | 'clob'
   | 'cotBuilder'
-  | 'whaleWallet'
   | 'coinmarketcap'
   | 'defillama'
   | 'cryptonews'
@@ -25,12 +24,11 @@ export type RunnableToolType =
   | 'coingecko'
   | 'polymarketGamma'
   | 'polymarketWallet'
-  | 'divergence';
+  | 'kalshi';
 
 export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType>([
   'clob',
   'cotBuilder',
-  'whaleWallet',
   'coinmarketcap',
   'defillama',
   'cryptonews',
@@ -39,7 +37,7 @@ export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType
   'coingecko',
   'polymarketGamma',
   'polymarketWallet',
-  'divergence',
+  'kalshi',
 ]);
 
 /** Minimal preview payloads when running workflow phase A — LLM fills params at orchestrate time. */
@@ -52,7 +50,7 @@ const PREVIEW_DEFAULTS: Record<string, Record<string, unknown>> = {
   tavily: { query: 'bitcoin market news', maxResults: 5 },
   polymarketGamma: { keywords: 'bitcoin', limit: 8 },
   polymarketWallet: { wallet: '', action: 'trades', limit: 10 },
-  divergence: { baseId: 'bitcoin', otherId: 'ethereum', baseChange: 0, otherChange: 0, expectedCorr: 0.5 },
+  kalshi: { ticker: 'KXBTC-25DEC31' },
 };
 
 async function postJson(path: string, body: Record<string, unknown>, backendUrl?: string) {
@@ -238,53 +236,6 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     );
     return normalizeResult('polymarketWallet', payload, request, response.ok, durationMs);
   }
-  if (type === 'divergence') {
-    const started = performance.now();
-    const DIVERGENCE_THRESHOLD = 3.0;
-    const defaults = PREVIEW_DEFAULTS.divergence;
-    const baseChange = Number(defaults.baseChange);
-    const otherChange = Number(defaults.otherChange);
-    const expectedCorr = Number(defaults.expectedCorr);
-    const baseId = String(defaults.baseId);
-    const otherId = String(defaults.otherId);
-    const request = { baseId, otherId, baseChange, otherChange, expectedCorr };
-
-    const durationMs = () => Math.round(performance.now() - started);
-
-    const expectedOther = baseChange * expectedCorr;
-    const gap = otherChange - expectedOther;
-    const diverging = Math.abs(gap) >= DIVERGENCE_THRESHOLD;
-    const direction = gap > 0 ? 'above' : 'below';
-    const note =
-      `${otherId} moved ${otherChange >= 0 ? '+' : ''}${otherChange.toFixed(1)}% vs expected ` +
-      `${expectedOther >= 0 ? '+' : ''}${expectedOther.toFixed(1)}% (corr ${expectedCorr >= 0 ? '+' : ''}${expectedCorr.toFixed(2)} ` +
-      `with ${baseId} which moved ${baseChange >= 0 ? '+' : ''}${baseChange.toFixed(1)}%) — ` +
-      `${Math.abs(gap).toFixed(1)}pp ${direction} expectation`;
-
-    return {
-      ok: true,
-      source: 'divergence',
-      request,
-      data: {
-        diverging,
-        gap_pp: Math.round(gap * 100) / 100,
-        expected_change: Math.round(expectedOther * 100) / 100,
-        actual_change: Math.round(otherChange * 100) / 100,
-        note,
-      },
-      error: null,
-      durationMs: durationMs(),
-    };
-  }
-  if (type === 'whaleWallet') {
-    const request = {
-      walletAddresses: (data.walletAddresses ?? []).map((w) => w.trim()).filter(Boolean),
-      conditionId: (data.conditionId ?? '').trim() || undefined,
-      apiKey: (data.apiKey ?? '').trim() || undefined,
-    };
-    const { response, payload, durationMs } = await postJson('/api/tools/whale/track', request, data.backendUrl);
-    return normalizeResult('whaleWallet', payload, request, response.ok, durationMs);
-  }
   if (type === 'cotBuilder') {
     const decision = JSON.parse(data.decisionJson ?? '{}');
     const correlated = JSON.parse(data.correlatedJson ?? '{}');
@@ -303,6 +254,13 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     };
     const { response, payload, durationMs } = await postJson('/api/tools/clob/quote', request, data.backendUrl);
     return normalizeResult('clob', payload, request, response.ok, durationMs);
+  }
+  if (type === 'kalshi') {
+    const request = {
+      ticker: (data.kalshiTicker ?? '').trim(),
+    };
+    const { response, payload, durationMs } = await postJson('/api/tools/kalshi/quote', request, data.backendUrl);
+    return normalizeResult('kalshi', payload, request, response.ok, durationMs);
   }
   return {
     ok: false,

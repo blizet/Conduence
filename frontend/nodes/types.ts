@@ -1,13 +1,20 @@
 import type { Node } from '@xyflow/react';
 import type { LlmProvider } from '@/lib/llm-providers';
 
-export type NodeCategory = 'tool' | 'mindagent' | 'subagent';
+export type NodeCategory = 'tool' | 'subagent' | 'orchestrator' | 'mindagent';
 
 export type ToolAccessMode = 'public' | 'private';
 
 export type ClobMode = 'read' | 'execute';
 export type ClobTokenSource = 'upstream' | 'manual';
 export type ClobExecuteSide = 'BUY' | 'SELL' | 'BOTH';
+
+export type KalshiMode = 'read' | 'execute';
+export type KalshiTradeSource = 'upstream' | 'manual';
+export type KalshiSide = 'yes' | 'no';
+export type KalshiAction = 'buy' | 'sell';
+
+export type PaletteToolGroup = 'venues' | 'market-data' | 'helpers' | 'workflow';
 
 export type WorkflowNodeData = {
   label: string;
@@ -28,7 +35,7 @@ export type WorkflowNodeData = {
   maxTokens?: string;
   newsPollLimit?: string;
   newsFilterCategories?: string[];
-  contextGraph?: 'correlation' | 'decision' | 'whale_context';
+  contextGraph?: 'correlation' | 'decision';
   graphId?: string;
   userNodeId?: string;
   backendUrl?: string;
@@ -46,10 +53,17 @@ export type WorkflowNodeData = {
   executeSide?: ClobExecuteSide;
   clobStatus?: string;
   clobQuoteJson?: string;
+  kalshiMode?: KalshiMode;
+  kalshiTradeSource?: KalshiTradeSource;
+  kalshiTicker?: string;
+  kalshiSide?: KalshiSide;
+  kalshiAction?: KalshiAction;
+  kalshiCount?: string;
+  kalshiPrice?: string;
+  kalshiStatus?: string;
+  kalshiQuoteJson?: string;
   walletAddresses?: string[];
   conditionId?: string;
-  whaleStatus?: string;
-  whaleOutput?: string;
   workflowStatus?: 'idle' | 'running' | 'success' | 'error';
   workflowResult?: string;
   workflowError?: string;
@@ -98,11 +112,6 @@ export type WorkflowNodeData = {
   pmWallet?: string;
   pmWalletAction?: 'trades' | 'positions';
   pmWalletLimit?: string;
-  divBaseId?: string;
-  divOtherId?: string;
-  divBaseChange?: string;
-  divOtherChange?: string;
-  divExpectedCorr?: string;
   simulate?: boolean;
 };
 
@@ -114,6 +123,8 @@ export type PaletteItem = {
   description: string;
   category: NodeCategory;
   accent: string;
+  requiresInstall?: boolean;
+  toolGroup?: PaletteToolGroup;
 };
 
 export type HandleConfig = {

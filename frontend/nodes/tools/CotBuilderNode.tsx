@@ -175,7 +175,7 @@ export function CotBuilderNode({ id, data, selected }: NodeProps<WorkflowNode>) 
           <span>Auto-emit to Redpanda after build</span>
         </label>
         <PromptField
-          label="Decision JSON (from LLM Analyzer)"
+          label="Decision JSON (from Orchestrator)"
           value={data.decisionJson ?? DEFAULT_COT_DECISION_JSON}
           rows={4}
           onChange={(v) => updateData({ decisionJson: v })}

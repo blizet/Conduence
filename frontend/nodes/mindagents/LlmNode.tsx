@@ -42,7 +42,6 @@ function buildMultiHandles(
 const CONTEXT_GRAPHS: { id: WorkflowNodeData['contextGraph']; label: string; hint: string }[] = [
   { id: 'correlation', label: 'Correlation', hint: 'cry market co-movement graph' },
   { id: 'decision', label: 'Decision', hint: 'Your FalkorDB CoT decisions' },
-  { id: 'whale_context', label: 'Whale context', hint: 'Shared whale-wallet graph' },
 ];
 
 export function LlmNode({ id, data, selected }: NodeProps<WorkflowNode>) {
@@ -64,7 +63,7 @@ export function LlmNode({ id, data, selected }: NodeProps<WorkflowNode>) {
     <GlassNode
       label={data.label}
       description={data.description}
-      category="mindagent"
+      category="orchestrator"
       accent={data.accent}
       icon={<LlmIcon />}
       selected={selected}

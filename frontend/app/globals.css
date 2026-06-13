@@ -1257,20 +1257,28 @@ select.node-input {
   opacity: 0.35;
 }
 
+.palette-section-title--main {
+  color: #f472b6;
+}
+
+.palette-section-title--main .palette-section-title__text {
+  color: #f472b6;
+}
+
 .palette-section-title--tools {
-  color: #9a9a9a;
+  color: #4ade80;
 }
 
 .palette-section-title--tools .palette-section-title__text {
-  color: #9a9a9a;
+  color: #4ade80;
 }
 
 .palette-section-title--subagents {
-  color: #8a8a8a;
+  color: #38bdf8;
 }
 
 .palette-section-title--subagents .palette-section-title__text {
-  color: #8a8a8a;
+  color: #38bdf8;
 }
 
 .palette-section-title--mindagents {
@@ -1279,6 +1287,59 @@ select.node-input {
 
 .palette-section-title--mindagents .palette-section-title__text {
   color: #7a7a7a;
+}
+
+.palette-tool-group {
+  margin-top: 2px;
+}
+
+.palette-tool-group__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 4px 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: rgba(74, 222, 128, 0.75);
+  text-align: left;
+}
+
+.palette-tool-group__header:hover {
+  color: #4ade80;
+}
+
+.palette-tool-group__chevron {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.palette-tool-group--collapsed .palette-tool-group__chevron {
+  transform: rotate(0deg);
+}
+
+.palette-tool-group:not(.palette-tool-group--collapsed) .palette-tool-group__chevron {
+  transform: rotate(90deg);
+}
+
+.palette-tool-group__title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+.palette-tool-group__count {
+  font-size: 9px;
+  font-weight: 600;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.palette-tool-group .palette-item {
+  margin-left: 6px;
 }
 
 /* CoT graph visualization (graphify-style) */

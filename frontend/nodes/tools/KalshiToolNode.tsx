@@ -8,111 +8,114 @@ import { GlassNode } from '../shared/GlassNode';
 import { ApiKeyField } from '../shared/ApiKeyField';
 import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
-import type { ClobExecuteSide, ClobMode, ClobTokenSource, WorkflowNode } from '../types';
+import type { KalshiAction, KalshiMode, KalshiSide, KalshiTradeSource, WorkflowNode } from '../types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
-const MODES: { id: ClobMode; label: string }[] = [
+const MODES: { id: KalshiMode; label: string }[] = [
   { id: 'read', label: 'Read' },
   { id: 'execute', label: 'Execute' },
 ];
 
-const TOKEN_SOURCES: { id: ClobTokenSource; label: string }[] = [
-  { id: 'upstream', label: 'From LLM' },
+const TRADE_SOURCES: { id: KalshiTradeSource; label: string }[] = [
+  { id: 'upstream', label: 'From Orchestrator' },
   { id: 'manual', label: 'Manual' },
 ];
 
-const EXECUTE_SIDES: { id: ClobExecuteSide; label: string }[] = [
-  { id: 'BUY', label: 'Buy' },
-  { id: 'SELL', label: 'Sell' },
-  { id: 'BOTH', label: 'Both' },
+const SIDES: { id: KalshiSide; label: string }[] = [
+  { id: 'yes', label: 'Yes' },
+  { id: 'no', label: 'No' },
 ];
 
-function ClobIcon() {
+const ACTIONS: { id: KalshiAction; label: string }[] = [
+  { id: 'buy', label: 'Buy' },
+  { id: 'sell', label: 'Sell' },
+];
+
+function KalshiIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M2 12V4h12v8H2z" />
-      <path d="M5 8h6M8 5v6" />
+      <path d="M3 4h10v8H3z" />
+      <path d="M6 7h4M6 9.5h2.5" />
+      <path d="M11 2.5v2M5 2.5v2" />
     </svg>
   );
 }
 
-export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
+export function KalshiToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
   const updateData = useNodeData(id);
   const [busy, setBusy] = useState(false);
-  const mode = data.clobMode ?? 'read';
-  const tokenSource = data.clobTokenSource ?? 'manual';
-  const executeSide = data.executeSide ?? data.tradeSide ?? 'BOTH';
+  const mode = data.kalshiMode ?? 'read';
+  const tradeSource = data.kalshiTradeSource ?? 'manual';
   const isExecute = mode === 'execute';
-  const useUpstream = tokenSource === 'upstream';
+  const useUpstream = tradeSource === 'upstream';
 
-  const runClob = useCallback(async () => {
-    const tokenId = data.tokenId?.trim();
-    if (!tokenId) {
-      updateData({ clobStatus: 'Token ID required (manual mode)' });
+  const runKalshi = useCallback(async () => {
+    const ticker = data.kalshiTicker?.trim();
+    if (!ticker) {
+      updateData({ kalshiStatus: 'Market ticker required' });
       return;
     }
 
     setBusy(true);
     updateData({
       ...clearFetchState(),
-      clobStatus: isExecute ? 'Submitting…' : 'Fetching quote…',
+      kalshiStatus: isExecute ? 'Submitting…' : 'Fetching quote…',
     });
 
     try {
       if (!isExecute) {
-        const result = await executeToolNode('clob', data);
+        const result = await executeToolNode('kalshi', data);
         updateData({
           ...toolResultPatch(result),
-          clobQuoteJson: result.ok ? JSON.stringify(result.data ?? result, null, 2) : '',
-          clobStatus: result.ok ? 'Quote fetched' : (result.error ?? 'Quote failed'),
+          kalshiQuoteJson: result.ok ? JSON.stringify(result.data ?? result, null, 2) : '',
+          kalshiStatus: result.ok ? 'Quote fetched' : (result.error ?? 'Quote failed'),
         });
         return;
       }
 
       const backendUrl = (data.backendUrl ?? API).replace(/\/$/, '');
-      const size = Number(data.tradeSize ?? 0);
-      const price = Number(data.tradePrice ?? 0);
-      const side = executeSide === 'BOTH' ? (data.tradeSide ?? 'BUY') : executeSide;
+      const count = Number(data.kalshiCount ?? data.tradeSize ?? 0);
+      const price = Number(data.kalshiPrice ?? data.tradePrice ?? 0);
       const started = performance.now();
-      const res = await fetch(`${backendUrl}/api/tools/clob/execute`, {
+      const res = await fetch(`${backendUrl}/api/tools/kalshi/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tokenId,
-          side,
-          size,
+          ticker,
+          action: data.kalshiAction ?? 'buy',
+          side: data.kalshiSide ?? 'yes',
+          count,
           price,
           apiKey: data.apiKey,
           apiSecret: data.apiSecret,
-          apiPassphrase: data.apiPassphrase,
         }),
       });
       const durationMs = Math.round(performance.now() - started);
       const body = (await res.json()) as Record<string, unknown>;
-      const ok = res.ok && !body.error;
+      const ok = res.ok && body.status !== 'error' && !body.error;
       updateData({
         ...toolResultPatch({
           ok,
-          source: 'clob',
-          request: { tokenId, side, size, price },
+          source: 'kalshi',
+          request: { ticker, count, price },
           data: body,
-          error: ok ? null : String(body.error ?? body.message ?? res.status),
+          error: ok ? null : String(body.message ?? body.error ?? res.status),
           durationMs,
         }),
-        clobStatus: String(body.message ?? body.error ?? body.status ?? (ok ? 'Done' : 'Failed')),
+        kalshiStatus: String(body.message ?? body.error ?? body.status ?? (ok ? 'Done' : 'Failed')),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Request failed';
       updateData({
         workflowStatus: 'error',
         workflowError: message,
-        clobStatus: message,
+        kalshiStatus: message,
       });
     } finally {
       setBusy(false);
     }
-  }, [data, executeSide, isExecute, updateData]);
+  }, [data, isExecute, updateData]);
 
   return (
     <GlassNode
@@ -120,7 +123,7 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
       description={data.description}
       category="tool"
       accent={data.accent}
-      icon={<ClobIcon />}
+      icon={<KalshiIcon />}
       selected={selected}
       wide
       handles={[
@@ -148,7 +151,7 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
                         }
                       : undefined
                   }
-                  onClick={() => updateData({ clobMode: modeId })}
+                  onClick={() => updateData({ kalshiMode: modeId })}
                 >
                   {label}
                 </button>
@@ -157,48 +160,50 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
           </div>
         </div>
 
-        <div className="node-field">
-          <div className="node-field__label">Market / token source</div>
-          <div className="node-chips">
-            {TOKEN_SOURCES.map(({ id: sourceId, label }) => {
-              const active = tokenSource === sourceId;
-              return (
-                <button
-                  key={sourceId}
-                  type="button"
-                  className={`node-chip${active ? ' node-chip--active' : ''}`}
-                  style={
-                    active
-                      ? {
-                          borderColor: data.accent,
-                          background: `${data.accent}22`,
-                          color: data.accent,
-                        }
-                      : undefined
-                  }
-                  onClick={() => updateData({ clobTokenSource: sourceId })}
-                >
-                  {label}
-                </button>
-              );
-            })}
+        {isExecute ? (
+          <div className="node-field">
+            <div className="node-field__label">Trade source</div>
+            <div className="node-chips">
+              {TRADE_SOURCES.map(({ id: sourceId, label }) => {
+                const active = tradeSource === sourceId;
+                return (
+                  <button
+                    key={sourceId}
+                    type="button"
+                    className={`node-chip${active ? ' node-chip--active' : ''}`}
+                    style={
+                      active
+                        ? {
+                            borderColor: data.accent,
+                            background: `${data.accent}22`,
+                            color: data.accent,
+                          }
+                        : undefined
+                    }
+                    onClick={() => updateData({ kalshiTradeSource: sourceId })}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        {useUpstream ? (
+        {useUpstream && isExecute ? (
           <div className="node-field__hint">
-            Connect Orchestrator → reads market_id, condition_id, action. Manual token ID used as fallback.
+            Connect Orchestrator → reads ticker, side, action, count, price from trade details.
           </div>
         ) : null}
 
         <div className="node-field">
-          <div className="node-field__label">Token ID</div>
+          <div className="node-field__label">Market ticker</div>
           <input
             className="node-input nodrag"
             type="text"
-            placeholder="Polymarket token_id"
-            value={data.tokenId ?? ''}
-            onChange={(e) => updateData({ tokenId: e.target.value })}
+            placeholder="e.g. KXBTC-25DEC31"
+            value={data.kalshiTicker ?? ''}
+            onChange={(e) => updateData({ kalshiTicker: e.target.value })}
             onKeyDown={stopNodeKeyPropagation}
           />
         </div>
@@ -206,10 +211,10 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
         {isExecute ? (
           <>
             <div className="node-field">
-              <div className="node-field__label">Execute side</div>
+              <div className="node-field__label">Side</div>
               <div className="node-chips">
-                {EXECUTE_SIDES.map(({ id: sideId, label }) => {
-                  const active = executeSide === sideId;
+                {SIDES.map(({ id: sideId, label }) => {
+                  const active = (data.kalshiSide ?? 'yes') === sideId;
                   return (
                     <button
                       key={sideId}
@@ -224,12 +229,34 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
                             }
                           : undefined
                       }
-                      onClick={() =>
-                        updateData({
-                          executeSide: sideId,
-                          ...(sideId !== 'BOTH' ? { tradeSide: sideId } : {}),
-                        })
+                      onClick={() => updateData({ kalshiSide: sideId })}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="node-field">
+              <div className="node-field__label">Action</div>
+              <div className="node-chips">
+                {ACTIONS.map(({ id: actionId, label }) => {
+                  const active = (data.kalshiAction ?? 'buy') === actionId;
+                  return (
+                    <button
+                      key={actionId}
+                      type="button"
+                      className={`node-chip${active ? ' node-chip--active' : ''}`}
+                      style={
+                        active
+                          ? {
+                              borderColor: data.accent,
+                              background: `${data.accent}22`,
+                              color: data.accent,
+                            }
+                          : undefined
                       }
+                      onClick={() => updateData({ kalshiAction: actionId })}
                     >
                       {label}
                     </button>
@@ -239,36 +266,30 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
             </div>
             <LabeledInputRow>
               <LabeledInput
-                label="Order size"
+                label="Contracts"
                 inline
-                placeholder="100"
-                value={data.tradeSize ?? ''}
-                onChange={(v) => updateData({ tradeSize: v })}
+                placeholder="10"
+                value={data.kalshiCount ?? ''}
+                onChange={(v) => updateData({ kalshiCount: v })}
               />
               <LabeledInput
-                label="Limit price"
+                label="Limit (¢)"
                 inline
-                placeholder="0.50"
-                value={data.tradePrice ?? ''}
-                onChange={(v) => updateData({ tradePrice: v })}
+                placeholder="50"
+                value={data.kalshiPrice ?? ''}
+                onChange={(v) => updateData({ kalshiPrice: v })}
               />
             </LabeledInputRow>
             <ApiKeyField
-              label="Polymarket API key"
+              label="Kalshi API key ID"
               value={data.apiKey ?? ''}
               onChange={(v) => updateData({ apiKey: v })}
             />
             <ApiKeyField
-              label="Polymarket secret"
+              label="Kalshi private key (PEM)"
               value={data.apiSecret ?? ''}
-              placeholder="API secret…"
+              placeholder="-----BEGIN RSA PRIVATE KEY-----…"
               onChange={(v) => updateData({ apiSecret: v })}
-            />
-            <ApiKeyField
-              label="Passphrase"
-              value={data.apiPassphrase ?? ''}
-              placeholder="API passphrase…"
-              onChange={(v) => updateData({ apiPassphrase: v })}
             />
           </>
         ) : null}
@@ -278,7 +299,7 @@ export function ClobToolNode({ id, data, selected }: NodeProps<WorkflowNode>) {
           className="node-add-btn"
           style={{ marginTop: 4, borderColor: `${data.accent}55`, color: data.accent }}
           disabled={busy}
-          onClick={() => void runClob()}
+          onClick={() => void runKalshi()}
         >
           {busy ? 'Working…' : isExecute ? 'Execute trade' : 'Fetch quote'}
         </button>

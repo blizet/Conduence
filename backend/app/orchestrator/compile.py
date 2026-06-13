@@ -8,7 +8,7 @@ from app.orchestrator.graph_registry import ContextGraphId, build_graph_registry
 from app.orchestrator.skills_registry import build_skills_registry
 from app.orchestrator.tools_registry import build_tool_registry_payload
 
-ContextGraphChoice = Literal["correlation", "decision", "whale_context"]
+ContextGraphChoice = Literal["correlation", "decision"]
 
 PURE_TOOL_NODE_TYPES = frozenset(
     {
@@ -20,19 +20,19 @@ PURE_TOOL_NODE_TYPES = frozenset(
         "tavily",
         "polymarketGamma",
         "polymarketWallet",
-        "divergence",
         "clob",
+        "kalshi",
         "cotBuilder",
     }
 )
-SUB_AGENT_NODE_TYPES = frozenset({"whaleWallet", "divergenceAgent"})
-MIND_AGENT_NODE_TYPES = frozenset({"newsAgent", "arbitrageAgent", "sportsScanner"})
+SUB_AGENT_NODE_TYPES = frozenset({"newsAgent", "arbitrageAgent"})
+MIND_AGENT_NODE_TYPES = frozenset({"sportsScanner"})
 FEED_NODE_TYPES = MIND_AGENT_NODE_TYPES | SUB_AGENT_NODE_TYPES
 ORCHESTRATOR_NODE_TYPE = "llm"
 
 SUB_AGENT_REQUIRED_TOOLS: dict[str, list[str]] = {
-    "whaleWallet": ["polymarketWallet"],
-    "divergenceAgent": ["coingecko", "divergence"],
+    "newsAgent": ["cryptonews", "tavily"],
+    "arbitrageAgent": ["polymarketGamma", "clob", "kalshi"],
 }
 
 
@@ -89,7 +89,7 @@ def compile_canvas(
             "connected_subagents": [],
             "subagent_configs": {},
             "subagent_tools": {},
-            "feed_sources": list(MIND_AGENT_NODE_TYPES),
+            "feed_sources": list(SUB_AGENT_NODE_TYPES),
             "output_nodes": [],
         }
 
@@ -119,7 +119,7 @@ def compile_canvas(
             feed_sources.append(node_type)
         elif node_type in MIND_AGENT_NODE_TYPES:
             feed_sources.append(node_type)
-        elif node_type in PURE_TOOL_NODE_TYPES and node_type not in ("cotBuilder", "clob"):
+        elif node_type in PURE_TOOL_NODE_TYPES and node_type not in ("cotBuilder", "clob", "kalshi"):
             if node_type not in connected_tools:
                 connected_tools.append(node_type)
             key = (data.get("apiKey") or "").strip()
@@ -143,24 +143,14 @@ def compile_canvas(
         "connected_subagents": connected_subagents,
         "subagent_configs": subagent_configs,
         "subagent_tools": subagent_tools,
-        "feed_sources": feed_sources or list(MIND_AGENT_NODE_TYPES),
+        "feed_sources": feed_sources or list(SUB_AGENT_NODE_TYPES),
         "output_nodes": output_nodes,
     }
 
 
-def _collect_whale_wallets(compiled: dict[str, Any]) -> list[str]:
-    wallets: list[str] = []
-    whale_cfg = (compiled.get("subagent_configs") or {}).get("whaleWallet") or {}
-    for w in whale_cfg.get("walletAddresses") or []:
-        w = str(w).strip()
-        if w:
-            wallets.append(w)
-    return wallets
-
-
 def _parse_context_graph(llm_config: dict[str, Any]) -> ContextGraphId:
     raw = (llm_config.get("contextGraph") or llm_config.get("context_graph") or "correlation").strip()
-    if raw in ("correlation", "decision", "whale_context"):
+    if raw in ("correlation", "decision"):
         return raw  # type: ignore[return-value]
     return "correlation"
 
@@ -183,7 +173,6 @@ def compile_orchestrator(
         or None
     )
     active_graph = _parse_context_graph(llm_config)
-    whale_wallets = _collect_whale_wallets(compiled)
     decision_snapshot = config.get("decision_graph_snapshot") or {}
 
     if decision_snapshot and decision_graph_id:
@@ -198,7 +187,6 @@ def compile_orchestrator(
         active_id=active_graph,
         decision_graph_id=decision_graph_id,
         decision_snapshot=decision_snapshot if isinstance(decision_snapshot, dict) else {},
-        canvas_whale_wallets=whale_wallets,
     )
 
     return {

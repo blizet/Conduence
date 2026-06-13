@@ -26,8 +26,8 @@ export const FALLBACK_CATALOG: MarketplaceAgent[] = [
   {
     id: 'llm',
     nodeType: 'llm',
-    name: 'LLM Analyzer',
-    description: 'Main inference — synthesizes feeds into trade decisions',
+    name: 'Orchestrator',
+    description: 'Main agent — synthesizes feeds into trade decisions',
     autonomous: false,
     hosted: true,
     source: 'hosted',

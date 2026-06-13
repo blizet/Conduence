@@ -18,7 +18,6 @@ SIZE_PCT_MAX = 0.05
 MAX_LIQUIDITY_FRACTION = 0.05
 HEDGE_MIN_CORR = 0.7
 HEDGE_RATIO = 0.5
-DIVERGENCE_WINDOW_S = 30 * 60
 
 
 @dataclass
@@ -98,20 +97,6 @@ class DecisionEngine:
         updated = [{**signal, "_at": now}, *recent]
         return [s for s in updated if now - s.get("_at", now) < CORROBORATION_WINDOW_S]
 
-    def update_divergence(self, diverging: dict[str, float], signal: dict[str, Any]) -> dict[str, float]:
-        if signal.get("type") != "divergence":
-            return diverging
-        now = time.time()
-        updated = dict(diverging)
-        for node_id in signal.get("keywords", []):
-            if node_id in self.graph.nodes:
-                updated[node_id] = now
-        return updated
-
-    def _is_diverging(self, diverging: dict[str, float], node_id: str) -> bool:
-        at = diverging.get(node_id)
-        return at is not None and time.time() - at < DIVERGENCE_WINDOW_S
-
     def _corroboration(
         self,
         signal: dict[str, Any],
@@ -162,12 +147,8 @@ class DecisionEngine:
         self,
         signal: dict[str, Any],
         recent_signals: list[dict[str, Any]],
-        diverging_nodes: dict[str, float],
         tool_results: dict[str, Any],
     ) -> list[dict[str, Any]]:
-        if signal.get("type") == "divergence":
-            return []
-
         sign = _signal_sign(signal)
         if sign == 0.0:
             return []
@@ -194,7 +175,6 @@ class DecisionEngine:
                     impact,
                     strength,
                     recent_signals,
-                    diverging_nodes,
                     tool_results,
                 )
                 if suggestion:
@@ -253,7 +233,6 @@ class DecisionEngine:
         impact: Impact,
         strength: float,
         recent_signals: list[dict[str, Any]],
-        diverging_nodes: dict[str, float],
         tool_results: dict[str, Any],
     ) -> TradeSuggestion | None:
         node = impact.node
@@ -276,19 +255,11 @@ class DecisionEngine:
         if price_score > 0:
             confirmations += 1
 
-        caution = 0.0
-        if self._is_diverging(diverging_nodes, node.id):
-            caution = 1.0
-            evidence.append(
-                f"caution: {node.label} currently diverging from graph correlations — confidence reduced"
-            )
-
         confidence = (
             0.40 * abs(impact.score)
             + 0.20 * strength
             + 0.25 * max(0.0, corr_score)
             + 0.15 * max(0.0, price_score)
-            - 0.30 * caution
             + min(0.0, corr_score) * 0.25
             + min(0.0, price_score) * 0.15
         )

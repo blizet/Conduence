@@ -17,7 +17,6 @@ class OrchestratorState(TypedDict, total=False):
     output_nodes: list[str]
     route: str
     recent_signals: list[dict[str, Any]]
-    diverging_nodes: dict[str, float]
     graph_impacts: list[dict[str, Any]]
     planned_calls: list[dict[str, Any]]
     tool_results: dict[str, Any]

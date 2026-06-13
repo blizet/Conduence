@@ -70,7 +70,6 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
             "userNodeId": config.get("userNodeId") or cot_data.get("userNodeId"),
         },
         "recent_signals": state.get("recent_signals") or [],
-        "diverging_nodes": state.get("diverging_nodes") or {},
         "tool_results": {},
         "rag_context": {},
         "errors": [],
@@ -83,9 +82,7 @@ def route_signal(state: OrchestratorState) -> str:
     signal = state.get("signal") or {}
     if signal.get("type") == "arbitrage":
         return "fast_path"
-    if signal.get("type") == "divergence":
-        return "context_only"
-    if _signal_sign(signal) == 0.0 and signal.get("type") not in ("whale", "news"):
+    if _signal_sign(signal) == 0.0 and signal.get("type") != "news":
         return "context_only"
     return "deliberate"
 
@@ -133,10 +130,8 @@ async def remember_signal(state: OrchestratorState) -> dict[str, Any]:
     graph = resolve_correlation_graph(state.get("graph_registry"))
     engine = DecisionEngine(graph)
     recent = engine.remember(state.get("recent_signals") or [], signal)
-    diverging = engine.update_divergence(state.get("diverging_nodes") or {}, signal)
     return {
         "recent_signals": recent,
-        "diverging_nodes": diverging,
         "steps": _append_step(state, "remember_signal"),
     }
 
@@ -202,7 +197,6 @@ async def evaluate(state: OrchestratorState) -> dict[str, Any]:
     suggestions = engine.decide(
         state.get("signal") or {},
         state.get("recent_signals") or [],
-        state.get("diverging_nodes") or {},
         state.get("tool_results") or {},
     )
     evidence: list[str] = []
@@ -266,7 +260,7 @@ async def context_only(state: OrchestratorState) -> dict[str, Any]:
             "conviction_level": 1,
             "thesis": "Context update only — no trade trigger",
             "tags": [],
-            "reasoning": "Divergence or neutral signal recorded for corroboration window.",
+            "reasoning": "Neutral signal recorded for corroboration window.",
         },
         "published": False,
         "steps": _append_step(state, "context_only"),

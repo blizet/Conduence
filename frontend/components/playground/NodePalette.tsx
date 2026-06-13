@@ -3,8 +3,13 @@
 import { useMemo, useState } from 'react';
 import { DND_TYPE } from '@/lib/dnd';
 import { useInstalledNodeTypes } from '@/lib/marketplace';
-import { PALETTE_ITEMS } from '@/nodes';
-import type { NodeCategory, PaletteItem } from '@/nodes/types';
+import {
+  getToolGroupItems,
+  getUngroupedToolItems,
+  PALETTE_ITEMS,
+  PALETTE_TOOL_GROUPS,
+} from '@/nodes';
+import type { PaletteItem, PaletteToolGroup } from '@/nodes/types';
 import { GlassPanel } from './GlassPanel';
 
 function onDragStart(event: React.DragEvent, item: PaletteItem) {
@@ -51,35 +56,97 @@ function RailEntry({ item }: { item: PaletteItem }) {
   );
 }
 
-const SECTIONS: { category: NodeCategory; title: string; className: string }[] = [
-  { category: 'tool', title: 'Tools', className: 'palette-section-title--tools' },
-  { category: 'subagent', title: 'Subagents', className: 'palette-section-title--subagents' },
-  { category: 'mindagent', title: 'Mind Agents', className: 'palette-section-title--mindagents' },
-];
+function PaletteToolGroup({
+  title,
+  items,
+  collapsed,
+  onToggle,
+}: {
+  title: string;
+  items: PaletteItem[];
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className={`palette-tool-group${collapsed ? ' palette-tool-group--collapsed' : ''}`}>
+      <button
+        type="button"
+        className="palette-tool-group__header"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+      >
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="palette-tool-group__chevron"
+          aria-hidden
+        >
+          <path d="M6 4l4 4-4 4" />
+        </svg>
+        <span className="palette-tool-group__title">{title}</span>
+        <span className="palette-tool-group__count">{items.length}</span>
+      </button>
+      {!collapsed &&
+        items.map((item) => (
+          <PaletteEntry key={item.type} item={item} />
+        ))}
+    </div>
+  );
+}
+
+function isSubagentVisible(item: PaletteItem, installed: Set<string>) {
+  if (item.category !== 'subagent') return false;
+  if (item.requiresInstall) return installed.has(item.type);
+  return true;
+}
 
 export function NodePalette() {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const installedNodeTypes = useInstalledNodeTypes();
-
-  const available = useMemo(
-    () =>
-      PALETTE_ITEMS.filter(
-        (item) => item.category !== 'mindagent' || installedNodeTypes.has(item.type),
-      ),
-    [installedNodeTypes],
-  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return available;
-    return available.filter(
+    const base = q
+      ? PALETTE_ITEMS.filter(
+          (item) =>
+            item.label.toLowerCase().includes(q) ||
+            item.description.toLowerCase().includes(q) ||
+            item.category.includes(q) ||
+            (item.toolGroup?.includes(q) ?? false),
+        )
+      : PALETTE_ITEMS;
+    return base.filter(
       (item) =>
-        item.label.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        item.category.includes(q),
+        item.category !== 'subagent' || isSubagentVisible(item, installedNodeTypes),
     );
-  }, [query, available]);
+  }, [query, installedNodeTypes]);
+
+  const mainAgentItems = useMemo(
+    () => filtered.filter((item) => item.category === 'orchestrator'),
+    [filtered],
+  );
+  const subagentItems = useMemo(
+    () => filtered.filter((item) => item.category === 'subagent'),
+    [filtered],
+  );
+  const toolItems = useMemo(
+    () => filtered.filter((item) => item.category === 'tool'),
+    [filtered],
+  );
+  const ungroupedToolItems = useMemo(() => getUngroupedToolItems(toolItems), [toolItems]);
+
+  const toggleGroup = (groupId: PaletteToolGroup) => {
+    setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  };
+
+  const isSearching = query.trim().length > 0;
 
   return (
     <GlassPanel
@@ -124,21 +191,50 @@ export function NodePalette() {
           </div>
 
           <div className="palette-scroll dark-scroll">
-            {SECTIONS.map(({ category, title, className }) => {
-              const items = filtered.filter((item) => item.category === category);
-              if (items.length === 0) return null;
-              return (
-                <div key={category} className="palette-section">
-                  <div className={`palette-section-title ${className}`}>
-                    <span className="palette-section-title__text">{title}</span>
-                    <span className="palette-section-title__rule" aria-hidden />
-                  </div>
-                  {items.map((item) => (
-                    <PaletteEntry key={item.type} item={item} />
-                  ))}
+            {mainAgentItems.length > 0 && (
+              <div className="palette-section">
+                <div className="palette-section-title palette-section-title--main">
+                  <span className="palette-section-title__text">Main Agent</span>
+                  <span className="palette-section-title__rule" aria-hidden />
                 </div>
-              );
-            })}
+                {mainAgentItems.map((item) => (
+                  <PaletteEntry key={item.type} item={item} />
+                ))}
+              </div>
+            )}
+
+            {subagentItems.length > 0 && (
+              <div className="palette-section">
+                <div className="palette-section-title palette-section-title--subagents">
+                  <span className="palette-section-title__text">Subagents</span>
+                  <span className="palette-section-title__rule" aria-hidden />
+                </div>
+                {subagentItems.map((item) => (
+                  <PaletteEntry key={item.type} item={item} />
+                ))}
+              </div>
+            )}
+
+            {toolItems.length > 0 && (
+              <div className="palette-section">
+                <div className="palette-section-title palette-section-title--tools">
+                  <span className="palette-section-title__text">Tools</span>
+                  <span className="palette-section-title__rule" aria-hidden />
+                </div>
+                {ungroupedToolItems.map((item) => (
+                  <PaletteEntry key={item.type} item={item} />
+                ))}
+                {PALETTE_TOOL_GROUPS.map(({ id, title }) => (
+                  <PaletteToolGroup
+                    key={id}
+                    title={title}
+                    items={getToolGroupItems(toolItems, id)}
+                    collapsed={!isSearching && Boolean(collapsedGroups[id])}
+                    onToggle={() => toggleGroup(id)}
+                  />
+                ))}
+              </div>
+            )}
 
             {filtered.length === 0 && (
               <div className="palette-empty">No nodes match your search</div>
@@ -151,17 +247,27 @@ export function NodePalette() {
 
       {collapsed && (
         <div className="palette-rail dark-scroll">
-          {SECTIONS.map(({ category }) => {
-            const items = available.filter((item) => item.category === category);
-            if (items.length === 0) return null;
-            return (
-              <div key={category} className="palette-rail-group">
-                {items.map((item) => (
-                  <RailEntry key={item.type} item={item} />
-                ))}
-              </div>
-            );
-          })}
+          {mainAgentItems.length > 0 && (
+            <div className="palette-rail-group">
+              {mainAgentItems.map((item) => (
+                <RailEntry key={item.type} item={item} />
+              ))}
+            </div>
+          )}
+          {subagentItems.length > 0 && (
+            <div className="palette-rail-group">
+              {subagentItems.map((item) => (
+                <RailEntry key={item.type} item={item} />
+              ))}
+            </div>
+          )}
+          {toolItems.length > 0 && (
+            <div className="palette-rail-group">
+              {toolItems.map((item) => (
+                <RailEntry key={item.type} item={item} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </GlassPanel>

@@ -1,18 +1,13 @@
-"""Context graph registry — correlation, user decision, and whale-shared graphs."""
+"""Context graph registry — correlation graph + user decision graph."""
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Literal
 
 from app.orchestrator.correlation_graph import CorrelationGraph, DEFAULT_GRAPH_PATH
 
-ContextGraphId = Literal["correlation", "decision", "whale_context"]
-
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-WHALE_WALLETS_PATH = _REPO_ROOT / "config" / "whale-wallets.json"
+ContextGraphId = Literal["correlation", "decision"]
 
 GRAPH_CATALOG: dict[str, dict[str, str]] = {
     "correlation": {
@@ -24,11 +19,6 @@ GRAPH_CATALOG: dict[str, dict[str, str]] = {
         "label": "Decision graph",
         "description": "User CoT graph in FalkorDB — all committed trade decisions",
         "source": "falkordb",
-    },
-    "whale_context": {
-        "label": "Whale context graph",
-        "description": "Shared whale-wallet context — tracked proxies and wallet-linked markets",
-        "source": "config/whale-wallets.json",
     },
 }
 
@@ -42,7 +32,6 @@ class GraphSpec:
     graph_id: str | None = None
     node_count: int = 0
     edge_count: int = 0
-    wallets: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -53,26 +42,7 @@ class GraphSpec:
             "graph_id": self.graph_id,
             "node_count": self.node_count,
             "edge_count": self.edge_count,
-            "wallets": self.wallets,
         }
-
-
-def _load_whale_wallets(extra: list[str] | None = None) -> list[str]:
-    wallets: list[str] = []
-    if WHALE_WALLETS_PATH.is_file():
-        try:
-            raw = json.loads(WHALE_WALLETS_PATH.read_text())
-            for entry in raw if isinstance(raw, list) else []:
-                w = (entry.get("proxyWallet") or entry.get("wallet") or "").strip()
-                if w:
-                    wallets.append(w)
-        except (json.JSONDecodeError, OSError):
-            pass
-    for w in extra or []:
-        w = w.strip()
-        if w and w not in wallets:
-            wallets.append(w)
-    return wallets
 
 
 def build_graph_registry(
@@ -80,11 +50,9 @@ def build_graph_registry(
     active_id: ContextGraphId = "correlation",
     decision_graph_id: str | None = None,
     decision_snapshot: dict[str, Any] | None = None,
-    canvas_whale_wallets: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build serializable graph registry for OrchestratorState."""
     correlation = CorrelationGraph(DEFAULT_GRAPH_PATH)
-    wallets = _load_whale_wallets(canvas_whale_wallets)
     snapshot = decision_snapshot or {}
     snap_nodes = snapshot.get("nodes") or []
     snap_edges = snapshot.get("edges") or []
@@ -107,14 +75,6 @@ def build_graph_registry(
             node_count=len(snap_nodes),
             edge_count=len(snap_edges),
         ),
-        "whale_context": GraphSpec(
-            id="whale_context",
-            label=GRAPH_CATALOG["whale_context"]["label"],
-            description=GRAPH_CATALOG["whale_context"]["description"],
-            source=GRAPH_CATALOG["whale_context"]["source"],
-            wallets=wallets,
-            node_count=len(wallets),
-        ),
     }
 
     if active_id not in specs:
@@ -122,10 +82,9 @@ def build_graph_registry(
 
     return {
         "active_id": active_id,
-        "available": [specs[k].to_dict() for k in ("correlation", "decision", "whale_context")],
+        "available": [specs[k].to_dict() for k in ("correlation", "decision")],
         "decision_graph_id": decision_graph_id,
         "decision_snapshot": snapshot if active_id == "decision" or snap_nodes else {},
-        "whale_wallets": wallets,
         "correlation_path": str(DEFAULT_GRAPH_PATH),
     }
 
@@ -147,9 +106,6 @@ def match_active_graph(
 
     if active_id == "decision":
         return _match_decision_graph(registry.get("decision_snapshot") or {}, tokens, signal)
-
-    if active_id == "whale_context":
-        return _match_whale_context(registry, signal, recent_signals or [])
 
     return _match_correlation_graph(tokens, signal)
 
@@ -223,36 +179,3 @@ def _match_decision_graph(
         "signal_type": signal.get("type"),
     }
     return matched, rag
-
-
-def _match_whale_context(
-    registry: dict[str, Any],
-    signal: dict[str, Any],
-    recent_signals: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    wallets = registry.get("whale_wallets") or []
-    impacts: list[dict[str, Any]] = []
-    for i, wallet in enumerate(wallets):
-        impacts.append(
-            {
-                "graph": "whale_context",
-                "node_id": wallet,
-                "node_type": "wallet",
-                "label": wallet[:10] + "…" + wallet[-4:] if len(wallet) > 16 else wallet,
-                "score": 1.0 - i * 0.05,
-                "path": [wallet],
-                "rationale": "Tracked whale proxy wallet",
-            }
-        )
-
-    whale_feed = [s for s in recent_signals if s.get("type") == "whale" or s.get("agent") == "whaleWallet"]
-    if signal.get("type") == "whale":
-        whale_feed = [signal, *whale_feed]
-
-    rag = {
-        "graph": "whale_context",
-        "wallets": wallets,
-        "recent_whale_signals": whale_feed[:8],
-        "wallet_count": len(wallets),
-    }
-    return impacts, rag

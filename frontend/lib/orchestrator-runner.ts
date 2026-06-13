@@ -58,14 +58,6 @@ function pickSignal(feeds: Record<string, { latest?: unknown }> | undefined): Re
   if (arb && typeof arb === 'object') {
     return { type: 'arbitrage', agent: 'arbitrageAgent', ...(arb as Record<string, unknown>) };
   }
-  const whale = feeds?.whaleWallet?.latest;
-  if (whale && typeof whale === 'object') {
-    return { type: 'whale', agent: 'whaleWallet', ...(whale as Record<string, unknown>) };
-  }
-  const div = feeds?.divergenceAgent?.latest;
-  if (div && typeof div === 'object') {
-    return { type: 'divergence', agent: 'divergenceAgent', ...(div as Record<string, unknown>) };
-  }
   const sports = feeds?.['sportsScanner.user_demo']?.latest;
   if (sports && typeof sports === 'object') {
     const payload = sports as Record<string, unknown>;

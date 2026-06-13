@@ -12,17 +12,15 @@ SKILL_ALIASES: dict[str, str] = {
     "coinmarketcap": "price_feed",
     "polymarketGamma": "market_search",
     "polymarketWallet": "wallet_intel",
-    "whaleWallet": "whale_track",
     "cryptonews": "news_research",
     "tavily": "web_research",
     "cryptoquant": "onchain_metrics",
     "defillama": "defi_tvl",
-    "divergence": "correlation_check",
     "clob": "orderbook_execute",
+    "kalshi": "kalshi_execute",
     "cotBuilder": "cot_emit",
     "newsAgent": "news_feed",
     "arbitrageAgent": "arb_scan",
-    "divergenceAgent": "divergence_watch",
 }
 
 

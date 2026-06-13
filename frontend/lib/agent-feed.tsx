@@ -43,7 +43,12 @@ type AgentFeedContextValue = {
   filterByCategories: (categories: string[]) => NewsSignalPayload | null;
   startNewsStream: (
     apiKey?: string,
-    options?: { simulate?: boolean },
+    options?: {
+      simulate?: boolean;
+      llmProvider?: string;
+      llmApiKey?: string;
+      model?: string;
+    },
   ) => Promise<{ ok: boolean; error?: string }>;
   stopNewsStream: () => void;
   saveApiKey: (key: string) => void;
@@ -268,7 +273,15 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
   );
 
   const startNewsStream = useCallback(
-    async (apiKey?: string, options?: { simulate?: boolean }) => {
+    async (
+      apiKey?: string,
+      options?: {
+        simulate?: boolean;
+        llmProvider?: string;
+        llmApiKey?: string;
+        model?: string;
+      },
+    ) => {
       const simulate = Boolean(options?.simulate);
       const key = (apiKey ?? loadStoredApiKey()).trim();
       if (!key && !simulate) {
@@ -284,7 +297,14 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch(`${API_URL}/api/marketplace/agents/${NEWS_AGENT_ID}/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey: key, limit: 20, simulate }),
+          body: JSON.stringify({
+            apiKey: key,
+            limit: 20,
+            simulate,
+            llmProvider: options?.llmProvider,
+            llmApiKey: options?.llmApiKey,
+            model: options?.model,
+          }),
         });
         const body = (await res.json()) as {
           ok?: boolean;

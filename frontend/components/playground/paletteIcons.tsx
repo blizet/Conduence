@@ -53,6 +53,12 @@ const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
       <path d="M5 9l2.5-2.5L10 9l3-3.5" />
     </Svg>
   ),
+  kalshi: (p) => (
+    <Svg {...p}>
+      <path d="M3 4h10v8H3z" />
+      <path d="M6 7h4M6 9.5h2.5" />
+    </Svg>
+  ),
   cotBuilder: (p) => (
     <Svg {...p}>
       <circle cx="4" cy="4" r="1.8" />
@@ -110,19 +116,6 @@ const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
       <path d="M2 6.5h12" />
     </Svg>
   ),
-  divergence: (p) => (
-    <Svg {...p}>
-      <path d="M2 8c2 0 3-3 5-3M2 8c2 0 3 3 5 3" />
-      <path d="M9 5l5-2.5M9 11l5 2.5" />
-    </Svg>
-  ),
-  whaleWallet: (p) => (
-    <Svg {...p}>
-      <rect x="2" y="4.5" width="12" height="8" rx="2" />
-      <path d="M10.5 8.5h2" />
-      <path d="M2 6.5c4-3 8-3 12 0" />
-    </Svg>
-  ),
   newsAgent: (p) => (
     <Svg {...p}>
       <rect x="2.5" y="4" width="9" height="9" rx="1.5" />
@@ -161,7 +154,7 @@ export function getChipShapeClass(item: PaletteItem): string {
   if (item.type === 'start') return 'palette-chip--trigger';
   if (item.type === 'end') return 'palette-chip--terminal';
   if (item.type === 'condition') return 'palette-chip--route';
-  if (item.category === 'mindagent') return 'palette-chip--agent';
+  if (item.category === 'orchestrator' || item.category === 'mindagent') return 'palette-chip--agent';
   if (item.category === 'subagent') return 'palette-chip--subagent';
   return 'palette-chip--tool';
 }

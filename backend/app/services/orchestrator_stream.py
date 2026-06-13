@@ -18,7 +18,7 @@ class OrchestratorStreamService:
         self._running = False
         self._canvas: dict[str, Any] = {"nodes": [], "edges": []}
         self._config: dict[str, Any] = {}
-        self._memory: dict[str, Any] = {"recent_signals": [], "diverging_nodes": {}}
+        self._memory: dict[str, Any] = {"recent_signals": []}
         self._last_result: dict[str, Any] | None = None
         self._processed = 0
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
