@@ -1,12 +1,10 @@
 'use client';
 
 import type { NodeProps } from '@xyflow/react';
-import { FetchResultPanel } from '../shared/FetchResultPanel';
-import { GlassNode } from '../shared/GlassNode';
-import { useToolFetch } from '../shared/useToolFetch';
-import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
-import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
+import { CatalogToolNode } from '../shared/CatalogToolNode';
 import type { WorkflowNode } from '../types';
+
+const TOOL_ID = 'divergence';
 
 function DivergenceIcon() {
   return (
@@ -18,82 +16,6 @@ function DivergenceIcon() {
   );
 }
 
-export function DivergenceNode({ id, data, selected }: NodeProps<WorkflowNode>) {
-  const updateData = useNodeData(id);
-  const { busy, runFetch: runCompute } = useToolFetch('divergence', data, updateData);
-
-  return (
-    <GlassNode
-      label={data.label}
-      description={data.description}
-      category="tool"
-      accent={data.accent}
-      icon={<DivergenceIcon />}
-      selected={selected}
-      wide
-      handles={[
-        { type: 'target', position: 'left' },
-        { type: 'source', position: 'right' },
-      ]}
-    >
-      <div onKeyDown={stopNodeKeyPropagation}>
-        <LabeledInputRow>
-          <LabeledInput
-            label="Base asset"
-            inline
-            placeholder="bitcoin"
-            value={data.divBaseId ?? ''}
-            onChange={(v) => updateData({ divBaseId: v })}
-          />
-          <LabeledInput
-            label="Other asset"
-            inline
-            placeholder="zcash"
-            value={data.divOtherId ?? ''}
-            onChange={(v) => updateData({ divOtherId: v })}
-          />
-        </LabeledInputRow>
-        <LabeledInputRow>
-          <LabeledInput
-            label="Base 24h %"
-            inline
-            placeholder="0.5"
-            value={data.divBaseChange ?? ''}
-            onChange={(v) => updateData({ divBaseChange: v })}
-          />
-          <LabeledInput
-            label="Other 24h %"
-            inline
-            placeholder="18.0"
-            value={data.divOtherChange ?? ''}
-            onChange={(v) => updateData({ divOtherChange: v })}
-          />
-        </LabeledInputRow>
-        <LabeledInput
-          label="Expected correlation [-1, 1]"
-          placeholder="0.35"
-          value={data.divExpectedCorr ?? ''}
-          onChange={(v) => updateData({ divExpectedCorr: v })}
-        />
-        <div className="node-field__hint" style={{ marginTop: 4 }}>
-          Local computation — flags assets ≥3pp off their graph-expected co-movement
-        </div>
-        <button
-          type="button"
-          className="node-add-btn"
-          style={{ borderColor: `${data.accent}55`, color: data.accent, marginTop: 6 }}
-          disabled={busy}
-          onClick={() => void runCompute()}
-        >
-          {busy ? 'Computing…' : 'Check divergence'}
-        </button>
-        <FetchResultPanel
-          status={data.workflowStatus}
-          error={data.workflowError}
-          result={data.workflowResult}
-          durationMs={data.workflowDurationMs}
-        />
-      </div>
-    </GlassNode>
-  );
+export function DivergenceNode(props: NodeProps<WorkflowNode>) {
+  return <CatalogToolNode {...props} toolId={TOOL_ID} icon={<DivergenceIcon />} />;
 }

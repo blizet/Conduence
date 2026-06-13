@@ -73,12 +73,10 @@ def plan_tool_calls(
 
     if registry.is_connected("coingecko") and coingecko_ids:
         cfg = tool_configs.get("coingecko", {})
-        calls.append(
-            {
-                "tool_id": "coingecko",
-                "params": {"ids": cfg.get("coingeckoIds") or ",".join(coingecko_ids)},
-            }
-        )
+        params: dict[str, Any] = {"ids": ",".join(coingecko_ids)}
+        if cfg.get("apiKey"):
+            params["apiKey"] = cfg["apiKey"]
+        calls.append({"tool_id": "coingecko", "params": params})
     elif registry.is_connected("coinmarketcap"):
         cfg = tool_configs.get("coinmarketcap", {})
         symbols = cfg.get("cmcSymbols") or ",".join(keywords[:5])

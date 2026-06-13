@@ -122,7 +122,8 @@ def compile_canvas(
         elif node_type in PURE_TOOL_NODE_TYPES and node_type not in ("cotBuilder", "clob"):
             if node_type not in connected_tools:
                 connected_tools.append(node_type)
-            tool_configs[node_type] = data
+            key = (data.get("apiKey") or "").strip()
+            tool_configs[node_type] = {"apiKey": key} if key else {}
 
     if not connected_tools:
         connected_tools = ["coingecko", "polymarketGamma"]

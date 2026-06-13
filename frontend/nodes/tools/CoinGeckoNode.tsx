@@ -1,10 +1,10 @@
 'use client';
 
 import type { NodeProps } from '@xyflow/react';
-import { GlassNode } from '../shared/GlassNode';
-import { LabeledInput } from '../shared/LabeledField';
-import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
+import { CatalogToolNode } from '../shared/CatalogToolNode';
 import type { WorkflowNode } from '../types';
+
+const TOOL_ID = 'coingecko';
 
 function CoinGeckoIcon() {
   return (
@@ -16,38 +16,6 @@ function CoinGeckoIcon() {
   );
 }
 
-export function CoinGeckoNode({ id, data, selected }: NodeProps<WorkflowNode>) {
-  const updateData = useNodeData(id);
-
-  return (
-    <GlassNode
-      label={data.label}
-      description={data.description}
-      category="tool"
-      accent={data.accent}
-      icon={<CoinGeckoIcon />}
-      selected={selected}
-      wide
-      handles={[
-        { type: 'target', position: 'left' },
-        { type: 'source', position: 'right' },
-      ]}
-    >
-      <div onKeyDown={stopNodeKeyPropagation}>
-        <LabeledInput
-          label="CoinGecko IDs"
-          placeholder="bitcoin, ethereum, solana"
-          value={data.coingeckoIds ?? ''}
-          onChange={(v) =>
-            updateData({
-              coingeckoIds: v,
-              toolAccessMode: 'public',
-              toolEndpoint: 'simple_price',
-            })
-          }
-        />
-        <div className="node-field__hint">Lowercase slugs — not ticker symbols (BTC → bitcoin)</div>
-      </div>
-    </GlassNode>
-  );
+export function CoinGeckoNode(props: NodeProps<WorkflowNode>) {
+  return <CatalogToolNode {...props} toolId={TOOL_ID} icon={<CoinGeckoIcon />} />;
 }

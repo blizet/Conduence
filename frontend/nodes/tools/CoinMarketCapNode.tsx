@@ -1,11 +1,10 @@
 'use client';
 
 import type { NodeProps } from '@xyflow/react';
-import { GlassNode } from '../shared/GlassNode';
-import { ApiKeyField } from '../shared/ApiKeyField';
-import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
-import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
+import { CatalogToolNode } from '../shared/CatalogToolNode';
 import type { WorkflowNode } from '../types';
+
+const TOOL_ID = 'coinmarketcap';
 
 function CoinMarketCapIcon() {
   return (
@@ -16,46 +15,6 @@ function CoinMarketCapIcon() {
   );
 }
 
-export function CoinMarketCapNode({ id, data, selected }: NodeProps<WorkflowNode>) {
-  const updateData = useNodeData(id);
-
-  return (
-    <GlassNode
-      label={data.label}
-      description={data.description}
-      category="tool"
-      accent={data.accent}
-      icon={<CoinMarketCapIcon />}
-      selected={selected}
-      wide
-      handles={[
-        { type: 'target', position: 'left' },
-        { type: 'source', position: 'right' },
-      ]}
-    >
-      <div onKeyDown={stopNodeKeyPropagation}>
-        <ApiKeyField
-          label="CoinMarketCap API key"
-          value={data.apiKey ?? ''}
-          onChange={(apiKey) => updateData({ apiKey, toolAccessMode: 'private', toolEndpoint: 'quotes_latest' })}
-        />
-        <LabeledInputRow>
-          <LabeledInput
-            label="Symbols"
-            inline
-            placeholder="BTC,ETH"
-            value={data.cmcSymbols ?? ''}
-            onChange={(v) => updateData({ cmcSymbols: v })}
-          />
-          <LabeledInput
-            label="Quote currency"
-            inline
-            placeholder="USD"
-            value={data.cmcConvert ?? ''}
-            onChange={(v) => updateData({ cmcConvert: v })}
-          />
-        </LabeledInputRow>
-      </div>
-    </GlassNode>
-  );
+export function CoinMarketCapNode(props: NodeProps<WorkflowNode>) {
+  return <CatalogToolNode {...props} toolId={TOOL_ID} icon={<CoinMarketCapIcon />} />;
 }

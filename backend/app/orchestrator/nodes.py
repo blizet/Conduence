@@ -173,7 +173,16 @@ async def plan_tools(state: OrchestratorState) -> dict[str, Any]:
 async def invoke_tools(state: OrchestratorState) -> dict[str, Any]:
     connected = (state.get("tool_registry") or {}).get("connected") or state.get("connected_tools")
     registry = ToolRegistry(connected)
-    results = await registry.invoke_parallel(state.get("planned_calls") or [])
+    tool_configs = state.get("tool_configs") or {}
+    enriched_calls: list[dict[str, Any]] = []
+    for call in state.get("planned_calls") or []:
+        tool_id = call.get("tool_id") or ""
+        params = dict(call.get("params") or {})
+        api_key = (tool_configs.get(tool_id) or {}).get("apiKey") or ""
+        if api_key:
+            params["apiKey"] = api_key
+        enriched_calls.append({**call, "params": params})
+    results = await registry.invoke_parallel(enriched_calls)
     errors = [f"{k}: {v.get('error')}" for k, v in results.items() if not v.get("ok")]
     return {
         "tool_results": results,

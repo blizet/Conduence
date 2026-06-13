@@ -36,6 +36,7 @@ type GlassNodeProps = {
   selected?: boolean;
   wide?: boolean;
   shape?: NodeShape;
+  invalid?: boolean;
   children?: React.ReactNode;
 };
 
@@ -49,6 +50,7 @@ export function GlassNode({
   selected,
   wide,
   shape,
+  invalid,
   children,
 }: GlassNodeProps) {
   const resolvedShape: NodeShape =
@@ -60,6 +62,7 @@ export function GlassNode({
         'glass-node',
         `glass-node--${resolvedShape}`,
         selected ? 'selected' : '',
+        invalid ? 'glass-node--missing-key' : '',
         wide ? 'glass-node--wide' : '',
       ]
         .filter(Boolean)

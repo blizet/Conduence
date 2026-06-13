@@ -1,11 +1,10 @@
 'use client';
 
 import type { NodeProps } from '@xyflow/react';
-import { GlassNode } from '../shared/GlassNode';
-import { ApiKeyField } from '../shared/ApiKeyField';
-import { LabeledInput, LabeledInputRow } from '../shared/LabeledField';
-import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
+import { CatalogToolNode } from '../shared/CatalogToolNode';
 import type { WorkflowNode } from '../types';
+
+const TOOL_ID = 'cryptonews';
 
 function CryptoNewsIcon() {
   return (
@@ -16,48 +15,6 @@ function CryptoNewsIcon() {
   );
 }
 
-export function CryptoNewsNode({ id, data, selected }: NodeProps<WorkflowNode>) {
-  const updateData = useNodeData(id);
-
-  return (
-    <GlassNode
-      label={data.label}
-      description={data.description}
-      category="tool"
-      accent={data.accent}
-      icon={<CryptoNewsIcon />}
-      selected={selected}
-      wide
-      handles={[
-        { type: 'target', position: 'left' },
-        { type: 'source', position: 'right' },
-      ]}
-    >
-      <div onKeyDown={stopNodeKeyPropagation}>
-        <ApiKeyField
-          label="CryptoNews API key"
-          value={data.apiKey ?? ''}
-          onChange={(apiKey) =>
-            updateData({ apiKey, toolAccessMode: 'private', toolEndpoint: 'ticker_news' })
-          }
-        />
-        <LabeledInputRow>
-          <LabeledInput
-            label="Tickers"
-            inline
-            placeholder="BTC,ETH"
-            value={data.cryptonewsTickers ?? ''}
-            onChange={(v) => updateData({ cryptonewsTickers: v })}
-          />
-          <LabeledInput
-            label="Article count"
-            inline
-            placeholder="10"
-            value={data.cryptonewsItems ?? ''}
-            onChange={(v) => updateData({ cryptonewsItems: v })}
-          />
-        </LabeledInputRow>
-      </div>
-    </GlassNode>
-  );
+export function CryptoNewsNode(props: NodeProps<WorkflowNode>) {
+  return <CatalogToolNode {...props} toolId={TOOL_ID} icon={<CryptoNewsIcon />} />;
 }

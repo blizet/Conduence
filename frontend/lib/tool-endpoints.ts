@@ -1,4 +1,3 @@
-export type ToolAccessMode = 'public' | 'private';
 export type EndpointTier = 'public' | 'private';
 
 export type ToolEndpointSpec = {
@@ -10,7 +9,7 @@ export type ToolEndpointSpec = {
 
 export type ToolEndpointCatalog = {
   defaultEndpoint: string;
-  /** When false, only private mode is meaningful (all endpoints need a key). */
+  /** When false, every endpoint needs an API key. */
   hasPublicEndpoints: boolean;
   endpoints: ToolEndpointSpec[];
 };
@@ -122,57 +121,38 @@ export function endpointRequiresKey(toolId: string, endpointId: string): boolean
   return getEndpointSpec(toolId, endpointId)?.tier === 'private';
 }
 
-/** Endpoints visible in the UI for the current access mode and key state. */
-export function getAvailableEndpoints(
-  toolId: string,
-  accessMode: ToolAccessMode,
-  apiKey: string,
-): ToolEndpointSpec[] {
+/** True when every endpoint for this tool requires an API key. */
+export function toolRequiresApiKey(toolId: string): boolean {
+  const catalog = getToolCatalog(toolId);
+  return catalog ? !catalog.hasPublicEndpoints : false;
+}
+
+/** Endpoints available: all if API key set, otherwise public tier only. */
+export function getAvailableEndpoints(toolId: string, apiKey: string): ToolEndpointSpec[] {
   const catalog = getToolCatalog(toolId);
   if (!catalog) return [];
   if (apiKey.trim()) return catalog.endpoints;
-  if (accessMode === 'public') {
-    return catalog.endpoints.filter((e) => e.tier === 'public');
-  }
-  return catalog.endpoints;
+  return catalog.endpoints.filter((e) => e.tier === 'public');
 }
 
-export function shouldShowApiKeyField(
-  toolId: string,
-  accessMode: ToolAccessMode,
-  endpointId: string,
-  apiKey: string,
-): boolean {
-  if (apiKey.trim()) return true;
-  if (accessMode === 'private') return true;
-  return endpointRequiresKey(toolId, endpointId);
-}
-
-export function accessModeHint(
-  toolId: string,
-  accessMode: ToolAccessMode,
-  apiKey: string,
-): string {
+export function accessHint(toolId: string, apiKey: string): string {
   const catalog = getToolCatalog(toolId);
   if (!catalog) return '';
   if (apiKey.trim()) {
-    return 'API key set — all endpoints available';
+    return 'API key set — public and private endpoints available';
   }
-  if (accessMode === 'public') {
-    return catalog.hasPublicEndpoints
-      ? 'Public mode — free endpoints, no API key'
-      : 'No public endpoints — switch to Private and add an API key';
+  if (toolRequiresApiKey(toolId)) {
+    return 'API key required — no public endpoints for this tool';
   }
-  return 'Private mode — API key required for premium endpoints';
+  return 'No API key — public endpoints only. Add a key to unlock premium endpoints.';
 }
 
 export function resolveDefaultEndpoint(
   toolId: string,
-  accessMode: ToolAccessMode,
   apiKey: string,
   current?: string,
 ): string {
-  const available = getAvailableEndpoints(toolId, accessMode, apiKey);
+  const available = getAvailableEndpoints(toolId, apiKey);
   if (current && available.some((e) => e.id === current)) return current;
   const catalog = getToolCatalog(toolId);
   if (catalog && available.some((e) => e.id === catalog.defaultEndpoint)) {

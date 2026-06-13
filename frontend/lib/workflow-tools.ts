@@ -42,6 +42,19 @@ export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType
   'divergence',
 ]);
 
+/** Minimal preview payloads when running workflow phase A — LLM fills params at orchestrate time. */
+const PREVIEW_DEFAULTS: Record<string, Record<string, unknown>> = {
+  coingecko: { ids: 'bitcoin,ethereum' },
+  coinmarketcap: { symbols: 'BTC,ETH', convert: 'USD' },
+  defillama: { mode: 'protocols' },
+  cryptonews: { tickers: 'BTC', items: 5 },
+  cryptoquant: { metric: 'btc/exchange-flows/netflow', window: 'day' },
+  tavily: { query: 'bitcoin market news', maxResults: 5 },
+  polymarketGamma: { keywords: 'bitcoin', limit: 8 },
+  polymarketWallet: { wallet: '', action: 'trades', limit: 10 },
+  divergence: { baseId: 'bitcoin', otherId: 'ethereum', baseChange: 0, otherChange: 0, expectedCorr: 0.5 },
+};
+
 async function postJson(path: string, body: Record<string, unknown>, backendUrl?: string) {
   const base = (backendUrl ?? API_BASE).replace(/\/$/, '');
   const started = performance.now();
@@ -150,21 +163,15 @@ function normalizeResult(
   };
 }
 
-function toolAccessPayload(data: WorkflowNodeData): Record<string, unknown> {
-  return {
-    accessMode: data.toolAccessMode ?? 'public',
-    endpoint: data.toolEndpoint ?? undefined,
-    apiKey: (data.apiKey ?? '').trim(),
-  };
+function toolRequest(type: string, data: WorkflowNodeData): Record<string, unknown> {
+  const apiKey = (data.apiKey ?? '').trim();
+  const base = PREVIEW_DEFAULTS[type] ?? {};
+  return apiKey ? { ...base, apiKey } : { ...base };
 }
 
 export async function executeToolNode(type: string, data: WorkflowNodeData): Promise<ToolExecutionResult> {
   if (type === 'coinmarketcap') {
-    const request = {
-      ...toolAccessPayload(data),
-      symbols: (data.cmcSymbols ?? 'BTC').trim() || 'BTC',
-      convert: (data.cmcConvert ?? 'USD').trim() || 'USD',
-    };
+    const request = toolRequest(type, data);
     const { response, payload, durationMs } = await postJson(
       '/api/tools/coinmarketcap/fetch',
       request,
@@ -173,16 +180,7 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     return normalizeResult('coinmarketcap', payload, request, response.ok, durationMs);
   }
   if (type === 'defillama') {
-    const endpoint = data.toolEndpoint ?? data.defillamaMode ?? 'protocols';
-    const request = {
-      ...toolAccessPayload(data),
-      endpoint,
-      mode: endpoint,
-      protocol: (data.defillamaProtocol ?? '').trim(),
-      chain: (data.defillamaChain ?? '').trim(),
-      symbol: (data.defillamaSymbol ?? '').trim(),
-      timestamp: (data.defillamaTimestamp ?? '').trim() || undefined,
-    };
+    const request = toolRequest(type, data);
     const { response, payload, durationMs } = await postJson(
       '/api/tools/defillama/fetch',
       request,
@@ -191,13 +189,7 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     return normalizeResult('defillama', payload, request, response.ok, durationMs);
   }
   if (type === 'cryptonews') {
-    const request = {
-      ...toolAccessPayload(data),
-      tickers: (data.cryptonewsTickers ?? 'BTC').trim() || 'BTC',
-      items: Number(data.cryptonewsItems ?? '10') || 10,
-      sentiment: (data.cryptonewsSentiment ?? '').trim() || undefined,
-      keywords: (data.cryptonewsKeywords ?? '').trim() || undefined,
-    };
+    const request = toolRequest(type, data);
     const { response, payload, durationMs } = await postJson(
       '/api/tools/cryptonews/fetch',
       request,
@@ -206,13 +198,7 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     return normalizeResult('cryptonews', payload, request, response.ok, durationMs);
   }
   if (type === 'cryptoquant') {
-    const request = {
-      ...toolAccessPayload(data),
-      metric: (data.cryptoquantMetric ?? '').trim(),
-      symbol: (data.cryptoquantSymbol ?? 'btc').trim() || 'btc',
-      window: (data.cryptoquantWindow ?? 'day').trim() || 'day',
-      exchange: (data.cryptoquantExchange ?? '').trim() || undefined,
-    };
+    const request = toolRequest(type, data);
     const { response, payload, durationMs } = await postJson(
       '/api/tools/cryptoquant/fetch',
       request,
@@ -221,26 +207,12 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     return normalizeResult('cryptoquant', payload, request, response.ok, durationMs);
   }
   if (type === 'tavily') {
-    const request = {
-      ...toolAccessPayload(data),
-      query: (data.tavilyQuery ?? '').trim(),
-      urls: (data.tavilyUrls ?? '').trim() || undefined,
-      searchDepth: data.tavilySearchDepth ?? 'basic',
-      maxResults: Number(data.tavilyMaxResults ?? '5') || 5,
-    };
+    const request = toolRequest(type, data);
     const { response, payload, durationMs } = await postJson('/api/tools/tavily/fetch', request, data.backendUrl);
     return normalizeResult('tavily', payload, request, response.ok, durationMs);
   }
   if (type === 'coingecko') {
-    const request = {
-      ...toolAccessPayload(data),
-      ids: (data.coingeckoIds ?? 'bitcoin').trim() || 'bitcoin',
-      query: (data.coingeckoQuery ?? '').trim() || undefined,
-      coinId: (data.coingeckoCoinId ?? '').trim() || undefined,
-      network: (data.coingeckoNetwork ?? '').trim() || undefined,
-      poolAddress: (data.coingeckoPoolAddress ?? '').trim() || undefined,
-      days: (data.coingeckoDays ?? '30').trim() || '30',
-    };
+    const request = toolRequest(type, data);
     const { response, payload, durationMs } = await postJson(
       '/api/tools/coingecko/fetch',
       request,
@@ -249,14 +221,7 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     return normalizeResult('coingecko', payload, request, response.ok, durationMs);
   }
   if (type === 'polymarketGamma') {
-    const request = {
-      ...toolAccessPayload(data),
-      keywords: (data.gammaKeywords ?? '').trim(),
-      limit: Number(data.gammaLimit ?? '8') || 8,
-      minVolume24h: Number(data.gammaMinVolume ?? '10000') || 10000,
-      minLiquidity: Number(data.gammaMinLiquidity ?? '10000') || 10000,
-      maxSpread: Number(data.gammaMaxSpread ?? '0.05') || 0.05,
-    };
+    const request = toolRequest(type, data);
     const { response, payload, durationMs } = await postJson(
       '/api/tools/gamma/markets',
       request,
@@ -265,12 +230,7 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     return normalizeResult('polymarketGamma', payload, request, response.ok, durationMs);
   }
   if (type === 'polymarketWallet') {
-    const request = {
-      ...toolAccessPayload(data),
-      wallet: (data.pmWallet ?? '').trim(),
-      action: data.pmWalletAction ?? 'trades',
-      limit: Number(data.pmWalletLimit ?? '20') || 20,
-    };
+    const request = toolRequest(type, data);
     const { response, payload, durationMs } = await postJson(
       '/api/tools/polymarket/wallet',
       request,
@@ -280,35 +240,16 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
   }
   if (type === 'divergence') {
     const started = performance.now();
-    // Local computation — ported from cry/tools/divergence.py
-    const DIVERGENCE_THRESHOLD = 3.0; // percentage points of unexplained move
-    const baseChange = Number(data.divBaseChange ?? '');
-    const otherChange = Number(data.divOtherChange ?? '');
-    const expectedCorr = Number(data.divExpectedCorr ?? '');
-    const baseId = (data.divBaseId ?? 'base').trim() || 'base';
-    const otherId = (data.divOtherId ?? 'other').trim() || 'other';
+    const DIVERGENCE_THRESHOLD = 3.0;
+    const defaults = PREVIEW_DEFAULTS.divergence;
+    const baseChange = Number(defaults.baseChange);
+    const otherChange = Number(defaults.otherChange);
+    const expectedCorr = Number(defaults.expectedCorr);
+    const baseId = String(defaults.baseId);
+    const otherId = String(defaults.otherId);
     const request = { baseId, otherId, baseChange, otherChange, expectedCorr };
 
     const durationMs = () => Math.round(performance.now() - started);
-
-    if ([baseChange, otherChange, expectedCorr].some((v) => Number.isNaN(v))) {
-      return {
-        ok: false,
-        source: 'divergence',
-        request,
-        error: 'baseChange, otherChange and expectedCorr must be numbers',
-        durationMs: durationMs(),
-      };
-    }
-    if (expectedCorr < -1 || expectedCorr > 1) {
-      return {
-        ok: false,
-        source: 'divergence',
-        request,
-        error: 'expectedCorr must be in [-1, 1]',
-        durationMs: durationMs(),
-      };
-    }
 
     const expectedOther = baseChange * expectedCorr;
     const gap = otherChange - expectedOther;

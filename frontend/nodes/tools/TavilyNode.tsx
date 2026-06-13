@@ -1,11 +1,10 @@
 'use client';
 
 import type { NodeProps } from '@xyflow/react';
-import { GlassNode } from '../shared/GlassNode';
-import { ApiKeyField } from '../shared/ApiKeyField';
-import { LabeledInput, LabeledInputRow, LabeledSelect, LabeledTextarea } from '../shared/LabeledField';
-import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
+import { CatalogToolNode } from '../shared/CatalogToolNode';
 import type { WorkflowNode } from '../types';
+
+const TOOL_ID = 'tavily';
 
 function TavilyIcon() {
   return (
@@ -16,57 +15,6 @@ function TavilyIcon() {
   );
 }
 
-export function TavilyNode({ id, data, selected }: NodeProps<WorkflowNode>) {
-  const updateData = useNodeData(id);
-
-  return (
-    <GlassNode
-      label={data.label}
-      description={data.description}
-      category="tool"
-      accent={data.accent}
-      icon={<TavilyIcon />}
-      selected={selected}
-      wide
-      handles={[
-        { type: 'target', position: 'left' },
-        { type: 'source', position: 'right' },
-      ]}
-    >
-      <div onKeyDown={stopNodeKeyPropagation}>
-        <ApiKeyField
-          label="Tavily API key"
-          value={data.apiKey ?? ''}
-          onChange={(apiKey) =>
-            updateData({ apiKey, toolAccessMode: 'private', toolEndpoint: 'search' })
-          }
-        />
-        <LabeledTextarea
-          label="Search query"
-          placeholder="e.g. latest Bitcoin ETF regulatory news"
-          value={data.tavilyQuery ?? ''}
-          onChange={(v) => updateData({ tavilyQuery: v })}
-        />
-        <LabeledInputRow>
-          <LabeledSelect
-            label="Depth"
-            inline
-            value={data.tavilySearchDepth ?? 'basic'}
-            options={[
-              { value: 'basic', label: 'Basic' },
-              { value: 'advanced', label: 'Advanced' },
-            ]}
-            onChange={(v) => updateData({ tavilySearchDepth: v as 'basic' | 'advanced' })}
-          />
-          <LabeledInput
-            label="Max results"
-            inline
-            placeholder="5"
-            value={data.tavilyMaxResults ?? ''}
-            onChange={(v) => updateData({ tavilyMaxResults: v })}
-          />
-        </LabeledInputRow>
-      </div>
-    </GlassNode>
-  );
+export function TavilyNode(props: NodeProps<WorkflowNode>) {
+  return <CatalogToolNode {...props} toolId={TOOL_ID} icon={<TavilyIcon />} />;
 }

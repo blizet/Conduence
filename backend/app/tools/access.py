@@ -103,23 +103,19 @@ def resolve_access(
     *,
     default_endpoint: str,
 ) -> tuple[AccessMode, str, str | None]:
-    """Return (access_mode, endpoint, error_message)."""
-    access_mode: AccessMode = body.get("accessMode") or "public"
-    if access_mode not in ("public", "private"):
-        access_mode = "public"
-
+    """API key unlocks all endpoints; without key only public-tier endpoints work."""
     endpoint = (body.get("endpoint") or body.get("mode") or default_endpoint).strip() or default_endpoint
     tier = endpoint_tier(tool_id, endpoint)
     api_key = resolve_api_key(tool_id, body)
 
     if api_key:
-        return access_mode, endpoint, None
+        return "private", endpoint, None
 
-    if tier == "private" or access_mode == "private":
-        return (
-            access_mode,
-            endpoint,
-            f"API key is required for private endpoints — set it on the node or in backend/.env",
-        )
+    if tier == "public":
+        return "public", endpoint, None
 
-    return access_mode, endpoint, None
+    return (
+        "public",
+        endpoint,
+        "API key is required for this endpoint — set it on the tool node or in backend/.env",
+    )
