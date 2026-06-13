@@ -31,13 +31,12 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
   const updateData = useNodeData(id);
 
   const apiKey = data.apiKey ?? getStoredApiKey();
-  const simulate = data.simulate ?? false;
 
   const toggleStream = () => {
     if (newsStreamRunning) {
       stopNewsStream();
     } else {
-      void startNewsStream(apiKey, { simulate });
+      void startNewsStream(apiKey);
     }
   };
 
@@ -78,26 +77,13 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
                 : 'Start from here or Marketplace (requires backend + Redpanda)'}
             </span>
           </div>
-          <label className="node-checkbox-row nodrag">
-            <input
-              type="checkbox"
-              checked={simulate}
-              disabled={newsStreamRunning}
-              onChange={(e) => updateData({ simulate: e.target.checked })}
-            />
-            Simulate mode — replay sample headlines, no API key
-          </label>
           <button
             type="button"
             className="node-add-btn"
             style={{ marginTop: 4, borderColor: `${data.accent}55`, color: data.accent }}
             onClick={toggleStream}
           >
-            {newsStreamRunning
-              ? 'Stop autonomous feed'
-              : simulate
-                ? 'Start feed (simulated)'
-                : 'Start autonomous feed'}
+            {newsStreamRunning ? 'Stop autonomous feed' : 'Start autonomous feed'}
           </button>
           {newsStreamError && (
             <div className="node-field__hint" style={{ color: '#f87171', marginTop: 4 }}>

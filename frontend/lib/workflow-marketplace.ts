@@ -24,18 +24,26 @@ export type MarketplaceWorkflow = MarketplaceWorkflowListing & {
 };
 
 export async function fetchMarketplaceWorkflows(): Promise<MarketplaceWorkflowListing[]> {
-  const res = await fetch(`${API_URL}/api/marketplace/workflows`, { cache: 'no-store' });
-  if (!res.ok) return [];
-  const body = (await res.json()) as { workflows?: MarketplaceWorkflowListing[] };
-  return body.workflows ?? [];
+  try {
+    const res = await fetch(`${API_URL}/api/marketplace/workflows`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const body = (await res.json()) as { workflows?: MarketplaceWorkflowListing[] };
+    return body.workflows ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchMarketplaceWorkflow(id: string): Promise<MarketplaceWorkflow | null> {
-  const res = await fetch(`${API_URL}/api/marketplace/workflows/${encodeURIComponent(id)}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) return null;
-  return (await res.json()) as MarketplaceWorkflow;
+  try {
+    const res = await fetch(`${API_URL}/api/marketplace/workflows/${encodeURIComponent(id)}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as MarketplaceWorkflow;
+  } catch {
+    return null;
+  }
 }
 
 export async function publishWorkflowToMarketplace(payload: {

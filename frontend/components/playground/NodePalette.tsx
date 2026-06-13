@@ -6,40 +6,39 @@ import { useInstalledNodeTypes } from '@/lib/marketplace';
 import { PALETTE_ITEMS } from '@/nodes';
 import type { NodeCategory, PaletteItem } from '@/nodes/types';
 import { GlassPanel } from './GlassPanel';
-import { getChipShapeClass, getPaletteIcon } from './paletteIcons';
 
 function onDragStart(event: React.DragEvent, item: PaletteItem) {
   event.dataTransfer.setData(DND_TYPE, item.type);
   event.dataTransfer.effectAllowed = 'move';
 }
 
-function PaletteChip({ item, size }: { item: PaletteItem; size?: number }) {
-  return (
-    <span
-      className={`palette-chip ${getChipShapeClass(item)}`}
-      style={{ '--chip-accent': item.accent } as React.CSSProperties}
-    >
-      {getPaletteIcon(item.type, size)}
-    </span>
-  );
-}
-
 function PaletteEntry({ item }: { item: PaletteItem }) {
   return (
-    <div className="palette-item" draggable onDragStart={(e) => onDragStart(e, item)}>
-      <PaletteChip item={item} />
+    <div
+      className="palette-item"
+      draggable
+      onDragStart={(e) => onDragStart(e, item)}
+    >
       <div className="palette-item__text">
         <div className="palette-item__label">{item.label}</div>
         <div className="palette-item__desc">{item.description}</div>
       </div>
       <span className="palette-item__grip" aria-hidden>
-        ⋮⋮
+        <svg width="6" height="10" viewBox="0 0 6 10" fill="currentColor">
+          <circle cx="1.5" cy="1.5" r="1.2" />
+          <circle cx="4.5" cy="1.5" r="1.2" />
+          <circle cx="1.5" cy="5" r="1.2" />
+          <circle cx="4.5" cy="5" r="1.2" />
+          <circle cx="1.5" cy="8.5" r="1.2" />
+          <circle cx="4.5" cy="8.5" r="1.2" />
+        </svg>
       </span>
     </div>
   );
 }
 
 function RailEntry({ item }: { item: PaletteItem }) {
+  const abbr = item.label.slice(0, 2).toUpperCase();
   return (
     <div
       className="palette-rail-item"
@@ -47,7 +46,7 @@ function RailEntry({ item }: { item: PaletteItem }) {
       onDragStart={(e) => onDragStart(e, item)}
       title={`${item.label} — drag to canvas`}
     >
-      <PaletteChip item={item} size={14} />
+      <span className="palette-rail-item__abbr">{abbr}</span>
     </div>
   );
 }
@@ -83,7 +82,10 @@ export function NodePalette() {
   }, [query, available]);
 
   return (
-    <GlassPanel className={`palette-panel${collapsed ? ' palette-panel--collapsed' : ''}`}>
+    <GlassPanel
+      className={`palette-panel palette-panel--sharp${collapsed ? ' palette-panel--collapsed' : ''}`}
+    >
+      <div className="palette-accent-bar" aria-hidden />
       <button
         type="button"
         className="palette-collapse-btn"
@@ -108,7 +110,10 @@ export function NodePalette() {
       {!collapsed && (
         <>
           <div className="palette-header">
-            <div className="palette-header__title">Nodes</div>
+            <div className="palette-header__row">
+              <div className="palette-header__title">Nodes</div>
+              <span className="palette-header__count">{filtered.length}</span>
+            </div>
             <input
               className="palette-search"
               type="search"
@@ -124,7 +129,10 @@ export function NodePalette() {
               if (items.length === 0) return null;
               return (
                 <div key={category} className="palette-section">
-                  <div className={`palette-section-title ${className}`}>{title}</div>
+                  <div className={`palette-section-title ${className}`}>
+                    <span className="palette-section-title__text">{title}</span>
+                    <span className="palette-section-title__rule" aria-hidden />
+                  </div>
                   {items.map((item) => (
                     <PaletteEntry key={item.type} item={item} />
                   ))}
