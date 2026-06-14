@@ -7,25 +7,17 @@ import { NewsAgentNode } from './subagents/NewsAgentNode';
 import { ClobToolNode } from './tools/ClobToolNode';
 import { CoinGeckoNode } from './tools/CoinGeckoNode';
 import { CoinMarketCapNode } from './tools/CoinMarketCapNode';
-import { ConditionNode } from './tools/ConditionNode';
 import { CotBuilderNode } from './tools/CotBuilderNode';
 import { CryptoNewsNode } from './tools/CryptoNewsNode';
 import { CryptoQuantNode } from './tools/CryptoQuantNode';
 import { DefiLlamaNode } from './tools/DefiLlamaNode';
-import { EndNode } from './tools/EndNode';
 import { KalshiToolNode } from './tools/KalshiToolNode';
 import { OutputNode } from './tools/OutputNode';
 import { PolymarketGammaNode } from './tools/PolymarketGammaNode';
 import { PolymarketWalletNode } from './tools/PolymarketWalletNode';
-import { StartNode } from './tools/StartNode';
 import { TavilyNode } from './tools/TavilyNode';
-import { TransformNode } from './tools/TransformNode';
 
 export const nodeTypes: NodeTypes = {
-  start: StartNode,
-  end: EndNode,
-  condition: ConditionNode,
-  transform: TransformNode,
   workflowOutput: OutputNode,
   output: OutputNode,
   clob: ClobToolNode,
@@ -44,8 +36,6 @@ export const nodeTypes: NodeTypes = {
   arbitrageAgent: ArbitrageAgentNode,
   sportsScanner: SportsScannerNode,
 };
-
-const FLOW_TOOL_TYPES = new Set(['start', 'end', 'condition', 'transform', 'workflowOutput']);
 
 export const PALETTE_TOOL_GROUPS: { id: PaletteToolGroup; title: string }[] = [
   { id: 'venues', title: 'Prediction Markets' },
@@ -173,38 +163,6 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     toolGroup: 'helpers',
   },
   {
-    type: 'start',
-    label: 'Start',
-    description: 'Workflow entry point',
-    category: 'tool',
-    accent: '#4ade80',
-    toolGroup: 'workflow',
-  },
-  {
-    type: 'end',
-    label: 'End',
-    description: 'Workflow termination',
-    category: 'tool',
-    accent: '#f87171',
-    toolGroup: 'workflow',
-  },
-  {
-    type: 'condition',
-    label: 'Condition',
-    description: 'Branch on true / false',
-    category: 'tool',
-    accent: '#fbbf24',
-    toolGroup: 'workflow',
-  },
-  {
-    type: 'transform',
-    label: 'Transform',
-    description: 'Map or reshape data',
-    category: 'tool',
-    accent: '#22d3ee',
-    toolGroup: 'workflow',
-  },
-  {
     type: 'workflowOutput',
     label: 'Output',
     description: 'Emit workflow result',
@@ -216,10 +174,6 @@ export const PALETTE_ITEMS: PaletteItem[] = [
 
 export function getPaletteItem(type: string): PaletteItem | undefined {
   return PALETTE_ITEMS.find((item) => item.type === type);
-}
-
-export function isFlowToolType(type: string): boolean {
-  return FLOW_TOOL_TYPES.has(type);
 }
 
 export function getToolGroupItems(

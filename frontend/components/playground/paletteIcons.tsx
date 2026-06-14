@@ -21,26 +21,6 @@ function Svg({ size = 13, children }: IconProps & { children: React.ReactNode })
 }
 
 const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
-  start: (p) => (
-    <Svg {...p}>
-      <path d="M4.5 3.5v9l8-4.5z" fill="currentColor" stroke="none" />
-    </Svg>
-  ),
-  end: (p) => (
-    <Svg {...p}>
-      <rect x="4" y="4" width="8" height="8" rx="1.5" fill="currentColor" stroke="none" />
-    </Svg>
-  ),
-  condition: (p) => (
-    <Svg {...p}>
-      <path d="M8 2v4M8 10v4M8 6c-2 0-4 1-4 3M8 6c2 0 4 1 4 3" />
-    </Svg>
-  ),
-  transform: (p) => (
-    <Svg {...p}>
-      <path d="M2 5h9M11 5l-2.5-2.5M11 5l-2.5 2.5M14 11H5M5 11l2.5-2.5M5 11l2.5 2.5" />
-    </Svg>
-  ),
   workflowOutput: (p) => (
     <Svg {...p}>
       <rect x="2" y="3" width="12" height="8" rx="1.5" />
@@ -151,9 +131,6 @@ export function getPaletteIcon(type: string, size?: number): React.ReactNode {
 
 /** Mini silhouette matching the canvas shape language, so the palette teaches the grammar. */
 export function getChipShapeClass(item: PaletteItem): string {
-  if (item.type === 'start') return 'palette-chip--trigger';
-  if (item.type === 'end') return 'palette-chip--terminal';
-  if (item.type === 'condition') return 'palette-chip--route';
   if (item.category === 'orchestrator' || item.category === 'mindagent') return 'palette-chip--agent';
   if (item.category === 'subagent') return 'palette-chip--subagent';
   return 'palette-chip--tool';

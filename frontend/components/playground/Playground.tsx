@@ -1,31 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import {
-  ReactFlow,
-  Background,
-  BackgroundVariant,
-  Controls,
-  MiniMap,
-  ReactFlowProvider,
-  addEdge,
-  useNodesState,
-  useEdgesState,
-  useReactFlow,
-  type Connection,
-  type Edge,
-} from '@xyflow/react';
-import { createNodeData, DND_TYPE, getNodeId } from '@/lib/dnd';
-import { runWorkflow } from '@/lib/workflow-runner';
-import { getPaletteItem, nodeTypes as registeredNodeTypes } from '@/nodes';
+import Link from 'next/link';
+import { ReactFlowProvider } from '@xyflow/react';
+import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
 import { NodePalette } from './NodePalette';
 import { AgentMarketplace } from './AgentMarketplace';
 import { PublishWorkflowModal } from './PublishWorkflowModal';
+import { WorkflowCanvas } from './WorkflowCanvas';
 import { InstalledAgentsProvider } from '@/lib/marketplace';
-import { AgentFeedProvider, useAgentFeed } from '@/lib/agent-feed';
+import { AgentFeedProvider } from '@/lib/agent-feed';
 
 const CotGraphView = dynamic(
   () => import('./CotGraphView').then((mod) => mod.CotGraphView),
@@ -34,168 +21,6 @@ const CotGraphView = dynamic(
     loading: () => <div className="cot-graph-view cot-graph-view--loading">Loading graph…</div>,
   },
 );
-
-function minimapNodeColor(node: WorkflowNode): string {
-  return node.data?.accent ?? '#5b8def';
-}
-
-type FlowCanvasProps = {
-  onCountsChange: (nodes: number, edges: number) => void;
-  runSignal: number;
-  onRunStateChange: (running: boolean) => void;
-  onCanvasChange?: (nodes: WorkflowNode[], edges: Edge[]) => void;
-  loadCanvas?: { key: number; nodes: WorkflowNode[]; edges: Edge[] } | null;
-};
-
-function FlowCanvas({
-  onCountsChange,
-  runSignal,
-  onRunStateChange,
-  onCanvasChange,
-  loadCanvas,
-}: FlowCanvasProps) {
-  const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition } = useReactFlow();
-  const { agentFeeds } = useAgentFeed();
-  const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const nodesRef = useRef<WorkflowNode[]>([]);
-  const edgesRef = useRef<Edge[]>([]);
-  const runningRef = useRef(false);
-  const nodeTypes = useMemo(() => registeredNodeTypes, []);
-
-  useEffect(() => {
-    nodesRef.current = nodes;
-  }, [nodes]);
-
-  useEffect(() => {
-    edgesRef.current = edges;
-  }, [edges]);
-
-  useEffect(() => {
-    onCountsChange(nodes.length, edges.length);
-  }, [nodes, edges, onCountsChange]);
-
-  useEffect(() => {
-    onCanvasChange?.(nodes, edges);
-  }, [nodes, edges, onCanvasChange]);
-
-  useEffect(() => {
-    if (!loadCanvas) return;
-    setNodes(loadCanvas.nodes);
-    setEdges(loadCanvas.edges);
-  }, [loadCanvas?.key, loadCanvas, setNodes, setEdges]);
-
-  useEffect(() => {
-    if (!runSignal || runningRef.current) return;
-    runningRef.current = true;
-    onRunStateChange(true);
-
-    const patchNode = (nodeId: string, patch: Partial<WorkflowNode['data']>) => {
-      setNodes((current) =>
-        current.map((node) =>
-          node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node,
-        ),
-      );
-    };
-
-    void runWorkflow({
-      nodes: nodesRef.current,
-      edges: edgesRef.current,
-      patchNode,
-      feedSignals: agentFeeds,
-    }).finally(() => {
-      runningRef.current = false;
-      onRunStateChange(false);
-    });
-  }, [agentFeeds, onRunStateChange, runSignal, setNodes]);
-
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      setEdges((eds) => addEdge({ ...connection, animated: true }, eds));
-    },
-    [setEdges],
-  );
-
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-
-      const type = event.dataTransfer.getData(DND_TYPE);
-      if (!type) return;
-
-      const item = getPaletteItem(type);
-      if (!item) return;
-
-      const position = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      const newNode: WorkflowNode = {
-        id: getNodeId(),
-        type,
-        position,
-        data: createNodeData(item),
-      };
-
-      setNodes((nds) => nds.concat(newNode));
-    },
-    [screenToFlowPosition, setNodes],
-  );
-
-  return (
-    <div
-      ref={reactFlowWrapper}
-      className="playground-canvas"
-      onDrop={onDrop}
-      onDragOver={onDragOver}
-    >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        colorMode="dark"
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        deleteKeyCode={['Backspace', 'Delete']}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
-        snapToGrid
-        snapGrid={[16, 16]}
-        panOnScroll
-        defaultEdgeOptions={{
-          animated: true,
-          style: { stroke: 'rgba(91, 141, 239, 0.55)' },
-        }}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background
-          variant={BackgroundVariant.Dots}
-          bgColor="#000000"
-          color="#5c6578"
-          gap={24}
-          size={1.5}
-        />
-        <Controls position="bottom-left" showInteractive />
-        <MiniMap
-          position="bottom-right"
-          className="playground-minimap"
-          nodeColor={minimapNodeColor}
-          maskColor="rgba(0, 0, 0, 0.82)"
-          pannable
-          zoomable
-          style={{ margin: 0 }}
-        />
-      </ReactFlow>
-    </div>
-  );
-}
 
 type PlaygroundInnerProps = {
   nodeCount: number;
@@ -311,6 +136,9 @@ function PlaygroundInner({
             </svg>
             {showGraph ? 'Workflow' : 'CoT Graph'}
           </button>
+          <Link href="/simulate" className="graph-view-toggle" title="Paper trading simulation">
+            Paper Trade
+          </Link>
         </div>
       </header>
       <div className="playground-body">
@@ -318,12 +146,16 @@ function PlaygroundInner({
         {showGraph ? (
           <CotGraphView />
         ) : (
-          <FlowCanvas
+          <WorkflowCanvas
             onCountsChange={onCountsChange}
             runSignal={runSignal}
             onRunStateChange={onRunStateChange}
             onCanvasChange={onCanvasChange}
-            loadCanvas={loadCanvas}
+            loadCanvas={
+              loadCanvas
+                ? { key: loadCanvas.key, nodes: loadCanvas.nodes, edges: loadCanvas.edges }
+                : null
+            }
           />
         )}
       </div>
