@@ -35,12 +35,14 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     llmProvider: DEFAULT_LLM_PROVIDER,
     llmApiKey: '',
     model: defaultModelForProvider(DEFAULT_LLM_PROVIDER),
+    userPrompt: '',
   },
   arbitrageAgent: {
     simulate: false,
     llmProvider: DEFAULT_LLM_PROVIDER,
     llmApiKey: '',
     model: defaultModelForProvider(DEFAULT_LLM_PROVIDER),
+    userPrompt: '',
   },
   clob: {
     clobMode: 'read',

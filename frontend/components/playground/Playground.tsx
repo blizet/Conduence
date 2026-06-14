@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -13,6 +13,11 @@ import { PublishWorkflowModal } from './PublishWorkflowModal';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { InstalledAgentsProvider } from '@/lib/marketplace';
 import { AgentFeedProvider } from '@/lib/agent-feed';
+import {
+  fetchWorkflowLiveStatus,
+  startWorkflowLive,
+  stopWorkflowLive,
+} from '@/lib/workflow-live';
 
 const CotGraphView = dynamic(
   () => import('./CotGraphView').then((mod) => mod.CotGraphView),
@@ -35,6 +40,11 @@ type PlaygroundInnerProps = {
   onClosePublish: () => void;
   onCountsChange: (nodes: number, edges: number) => void;
   onRunWorkflow: () => void;
+  onGoLive: () => void;
+  onStopLive: () => void;
+  workflowLive: boolean;
+  liveBusy: boolean;
+  liveError: string | null;
   runBusy: boolean;
   runSignal: number;
   onRunStateChange: (running: boolean) => void;
@@ -59,6 +69,11 @@ function PlaygroundInner({
   onClosePublish,
   onCountsChange,
   onRunWorkflow,
+  onGoLive,
+  onStopLive,
+  workflowLive,
+  liveBusy,
+  liveError,
   runBusy,
   runSignal,
   onRunStateChange,
@@ -115,10 +130,34 @@ function PlaygroundInner({
           </button>
           <button
             type="button"
+            className={`graph-view-toggle${workflowLive ? ' graph-view-toggle--active' : ''}`}
+            onClick={workflowLive ? onStopLive : onGoLive}
+            disabled={showGraph || liveBusy || nodeCount === 0}
+            title={
+              workflowLive
+                ? 'Stop workflow — orchestrator and subagents go offline'
+                : 'Go Live — run wired subagents and orchestrator continuously'
+            }
+          >
+            {liveBusy ? '…' : workflowLive ? 'Stop Live' : 'Go Live'}
+          </button>
+          {liveError ? (
+            <span className="playground-header__stats" style={{ color: '#f87171' }}>
+              {liveError}
+            </span>
+          ) : null}
+          <button
+            type="button"
             className="graph-view-toggle"
             onClick={onRunWorkflow}
-            disabled={showGraph || runBusy}
-            title={showGraph ? 'Switch to workflow canvas first' : 'Run connected workflow'}
+            disabled={showGraph || runBusy || workflowLive}
+            title={
+              workflowLive
+                ? 'Stop Live before single Run Workflow'
+                : showGraph
+                  ? 'Switch to workflow canvas first'
+                  : 'Run connected workflow once'
+            }
           >
             {runBusy ? 'Running…' : 'Run Workflow'}
           </button>
@@ -170,6 +209,9 @@ function PlaygroundWithState() {
   const [showMarketplace, setShowMarketplace] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
   const [runBusy, setRunBusy] = useState(false);
+  const [workflowLive, setWorkflowLive] = useState(false);
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const [runSignal, setRunSignal] = useState(0);
   const [workflowRefreshSignal, setWorkflowRefreshSignal] = useState(0);
   const [loadCanvas, setLoadCanvas] = useState<{
@@ -224,6 +266,44 @@ function PlaygroundWithState() {
     setRunBusy(running);
   }, []);
 
+  useEffect(() => {
+    void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
+  }, []);
+
+  const onGoLive = useCallback(async () => {
+    setLiveBusy(true);
+    setLiveError(null);
+    const { nodes, edges } = canvasSnapshotRef.current;
+    const autoEmitCot = nodes.some(
+      (n) => n.type === 'cotBuilder' && Boolean(n.data?.autoEmit),
+    );
+    const result = await startWorkflowLive({
+      nodes,
+      edges,
+      config: autoEmitCot
+        ? { mind_agent_live: true, publishAsMindAgent: true }
+        : {},
+    });
+    setLiveBusy(false);
+    if (!result.ok) {
+      setLiveError(result.error ?? 'Go Live failed');
+      return;
+    }
+    setWorkflowLive(true);
+  }, []);
+
+  const onStopLive = useCallback(async () => {
+    setLiveBusy(true);
+    setLiveError(null);
+    const result = await stopWorkflowLive();
+    setLiveBusy(false);
+    if (!result.ok) {
+      setLiveError(result.error ?? 'Stop failed');
+      return;
+    }
+    setWorkflowLive(false);
+  }, []);
+
   return (
     <PlaygroundInner
       nodeCount={nodeCount}
@@ -238,6 +318,11 @@ function PlaygroundWithState() {
       onClosePublish={() => setShowPublish(false)}
       onCountsChange={onCountsChange}
       onRunWorkflow={onRunWorkflow}
+      onGoLive={onGoLive}
+      onStopLive={onStopLive}
+      workflowLive={workflowLive}
+      liveBusy={liveBusy}
+      liveError={liveError}
       runBusy={runBusy}
       runSignal={runSignal}
       onRunStateChange={onRunStateChange}

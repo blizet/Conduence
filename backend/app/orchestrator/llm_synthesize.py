@@ -69,6 +69,8 @@ async def synthesize_decision(
     rag_context: dict[str, Any] | None = None,
     skills: list[str] | None = None,
     graph_registry: dict[str, Any] | None = None,
+    subagent_registry_entry: dict[str, Any] | None = None,
+    mind_agent_registry: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     import json
 
@@ -84,8 +86,38 @@ async def synthesize_decision(
     )
     user_prompt = llm_config.get("userPrompt") or "Synthesize the orchestrator context into one trade decision JSON."
 
+    agent_id = signal.get("agent") or signal.get("agent_id") or ""
+    feed_meta: dict[str, Any] = {"agent_id": agent_id}
+    if subagent_registry_entry:
+        feed_meta.update(
+            {
+                "source": "subagent",
+                "transparent": True,
+                "execution_tools": subagent_registry_entry.get("execution_tools") or [],
+                "userPrompt": subagent_registry_entry.get("userPrompt") or "",
+            }
+        )
+    elif agent_id and (mind_agent_registry or {}).get(agent_id):
+        feed_meta.update(
+            {
+                "source": "mind_agent",
+                "black_box": True,
+                "publisher": (mind_agent_registry or {}).get(agent_id, {}).get("publisher"),
+            }
+        )
+
     context = {
         "signal": signal,
+        "feed": feed_meta,
+        "subagent": (
+            {
+                "id": subagent_registry_entry.get("id"),
+                "execution_tools": subagent_registry_entry.get("execution_tools"),
+                "userPrompt": subagent_registry_entry.get("userPrompt"),
+            }
+            if subagent_registry_entry
+            else None
+        ),
         "suggestions": suggestions,
         "evidence": evidence,
         "skills": skills or [],

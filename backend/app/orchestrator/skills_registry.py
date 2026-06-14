@@ -80,20 +80,6 @@ def build_skills_registry(compiled: dict[str, Any]) -> dict[str, Any]:
                 label=_label_for(sub_id),
             )
         )
-        for snapped in (compiled.get("subagent_tools") or {}).get(sub_id) or []:
-            snap_skill = SKILL_ALIASES.get(snapped, snapped)
-            if snap_skill in seen:
-                continue
-            seen.add(snap_skill)
-            specs.append(
-                SkillSpec(
-                    id=snapped,
-                    skill=snap_skill,
-                    category=TOOL_CATEGORIES.get(snapped, "tool"),
-                    source=f"snapped:{sub_id}",
-                    label=_label_for(snapped),
-                )
-            )
 
     for feed in compiled.get("feed_sources") or []:
         if feed in compiled.get("connected_subagents") or []:

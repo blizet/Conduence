@@ -60,6 +60,10 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
         "skills_registry": compiled.get("skills_registry") or {},
         "skills": (compiled.get("skills_registry") or {}).get("skills") or [],
         "context_graph": compiled.get("context_graph") or "correlation",
+        "subagent_registry": compiled.get("subagent_registry") or {},
+        "mind_agent_registry": compiled.get("mind_agent_registry") or {},
+        "orchestrator_registry": compiled.get("orchestrator_registry") or {},
+        "workflow_topology": compiled.get("topology") or {},
         "config": {
             "feed_sources": compiled.get("feed_sources") or [],
             **config,
@@ -212,15 +216,23 @@ async def evaluate(state: OrchestratorState) -> dict[str, Any]:
 async def llm_synthesize_node(state: OrchestratorState) -> dict[str, Any]:
     config = state.get("config") or {}
     llm_config = config.get("llm_config") or {}
+    signal = state.get("signal") or {}
+    agent_id = signal.get("agent") or signal.get("agent_id") or ""
+    orch_reg = state.get("orchestrator_registry") or {}
+    subagent_reg = orch_reg.get("subagent_registry") or state.get("subagent_registry") or {}
+    subagent_entry = subagent_reg.get(agent_id) if agent_id in subagent_reg else None
+
     decision, correlated = await synthesize_decision(
         llm_config,
-        state.get("signal") or {},
+        signal,
         state.get("suggestions") or [],
         state.get("tool_results") or {},
         state.get("evidence") or [],
         rag_context=state.get("rag_context") or {},
         skills=state.get("skills") or [],
         graph_registry=state.get("graph_registry") or {},
+        subagent_registry_entry=subagent_entry,
+        mind_agent_registry=state.get("mind_agent_registry") or {},
     )
     return {
         "decision": decision,

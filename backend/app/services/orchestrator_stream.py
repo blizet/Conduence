@@ -31,12 +31,30 @@ class OrchestratorStreamService:
         self._memory = memory
 
     def status(self) -> dict[str, Any]:
+        recent = self._memory.get("recent_signals") or []
+        previews: list[dict[str, Any]] = []
+        for sig in recent[-8:]:
+            if not isinstance(sig, dict):
+                continue
+            payload = sig.get("payload") if isinstance(sig.get("payload"), dict) else sig
+            previews.append(
+                {
+                    "agent": payload.get("agent") or sig.get("agent_id"),
+                    "type": payload.get("type"),
+                    "headline": payload.get("headline"),
+                    "thesis": payload.get("thesis"),
+                    "summary": payload.get("summary"),
+                    "direction": payload.get("direction") or payload.get("sentiment"),
+                    "ts": payload.get("ts") or sig.get("updated_at"),
+                }
+            )
         return {
             "ok": True,
             "running": self._running,
             "processed": self._processed,
             "lastResult": self._last_result,
-            "memorySize": len(self._memory.get("recent_signals") or []),
+            "memorySize": len(recent),
+            "recentSignals": list(reversed(previews)),
         }
 
     async def start(self, canvas: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:

@@ -20,6 +20,7 @@ from app.services.autonomous_stream import AutonomousAgentStreamService
 from app.services.external_feed import ExternalFeedService
 from app.services.ingress import SignalIngressService
 from app.services.orchestrator_stream import OrchestratorStreamService
+from app.services.workflow_live import WorkflowLiveService
 from app.ws.events import EventsManager
 
 logging.basicConfig(level=logging.INFO)
@@ -34,7 +35,10 @@ async def lifespan(app: FastAPI):
     ingress = SignalIngressService(producer, events)
     orchestrator_stream = OrchestratorStreamService(events)
     external_feeds = ExternalFeedService(producer, events, orchestrator_stream)
-    autonomous_streams = AutonomousAgentStreamService(producer, events, orchestrator_stream)
+    autonomous_streams = AutonomousAgentStreamService(
+        producer, events, orchestrator_stream, ingress=ingress
+    )
+    workflow_live = WorkflowLiveService(orchestrator_stream, autonomous_streams, ingress=ingress)
     main_worker = MainWorkerService(falkordb, events)
 
     app.state.infra_ready = {"falkordb": False, "kafka": False}
@@ -59,6 +63,7 @@ async def lifespan(app: FastAPI):
     app.state.autonomous_streams = autonomous_streams
     app.state.external_feeds = external_feeds
     app.state.orchestrator_stream = orchestrator_stream
+    app.state.workflow_live = workflow_live
     app.state.main_worker = main_worker
 
     logger.info("CoT backend (FastAPI) listening on http://localhost:%s", PORT)
@@ -67,6 +72,7 @@ async def lifespan(app: FastAPI):
     yield
 
     orchestrator_stream.stop()
+    await workflow_live.stop()
     await autonomous_streams.shutdown()
     await main_worker.stop()
     await producer.stop()

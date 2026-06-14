@@ -1,6 +1,8 @@
 # Full platform run guide
 
-End-to-end instructions for running the CoT_kb playground: infrastructure, autonomous agents (kalshiSports + newsAgent), marketplace, orchestrator workflows, CoT graph, and publishing workflows.
+End-to-end instructions for the CoT_kb playground: infrastructure, workflow Go Live, hosted sub-agents, external mind agents, marketplace publishing, orchestrator, and CoT graph.
+
+---
 
 ## Architecture overview
 
@@ -10,22 +12,158 @@ Three roles in a typical demo:
 Publisher (your machine)          Platform (docker + backend + frontend)       Subscriber (playground)
 ─────────────────────────         ──────────────────────────────────────       ─────────────────────
 kalshiSports + HTTP wrapper  ──►  Backend :4000  ──►  Kafka / FalkorDB         Install feed + build canvas
-                                  Playground :3001 ◄── WebSocket feeds          LLM → CoT Builder → Graph
+                                  Playground :3001 ◄── WebSocket feeds          Go Live → LLM → CoT
 ```
 
 | Role | What you run | What others see |
 |------|----------------|-----------------|
-| **Publisher** | `kalshiSports` + wrapper | Feed listed in marketplace |
-| **Subscriber** | Playground workflow | Live signals + LLM decisions |
-| **Graph viewer** | CoT Graph tab / FalkorDB | Decision chain in FalkorDB |
+| **External publisher** | `kalshiSports` + wrapper on your machine | Feed in marketplace; Live when signals arrive |
+| **Workflow operator** | Playground **Go Live** | Hosted sub-agents + orchestrator run 24/7 in backend |
+| **Subscriber** | Install mind agents + load published workflows | Signals, decisions, CoT graph |
 
 ### Agent types in the marketplace
 
-| Type | Badge | Who runs 24/7 | Marketplace controls |
-|------|-------|---------------|----------------------|
-| **Hosted** (newsAgent, arbitrageAgent) | Hosted | Your backend | Start / Stop live feed |
-| **External** (kalshiSports) | External | Publisher's machine | Live / Offline status only |
-| **Published workflow** | Workflow | Manual Run Workflow (today) | Load onto canvas |
+| Type | Badge | Who runs 24/7 | How to start |
+|------|-------|---------------|--------------|
+| **Hosted sub-agent** (newsAgent, arbitrageAgent) | Hosted | FastAPI backend (asyncio tasks) | **Go Live** on canvas (primary) or legacy per-agent Start in marketplace |
+| **External mind agent** (kalshiSports) | External | Publisher's machine | Publisher runs `python main.py`; platform ingests HTTP only |
+| **Published workflow** | Workflow / Mind agent | Backend when subscriber clicks **Go Live** | Load canvas → configure keys → **Go Live** |
+| **Published as mind agent** | Workflow + Mind agent | Same as Go Live | Strategy hidden; signals + CoT visible to subscribers |
+
+---
+
+## State management — how everything is tracked today
+
+**Important:** Live agent and workflow state is **in-memory inside the FastAPI process**. It is **not** persisted to Redis or a database. If the backend restarts, all live sessions stop and must be restarted via **Go Live** (or legacy Start buttons).
+
+### State layers
+
+```mermaid
+flowchart TB
+  subgraph ephemeral ["Ephemeral — backend process RAM"]
+    WL[WorkflowLiveService]
+    AS[AutonomousAgentStreamService]
+    OS[OrchestratorStreamService]
+    EF[ExternalFeedService]
+  end
+  subgraph durable ["Durable — docker services"]
+    K[Kafka / Redpanda topics]
+    F[FalkorDB graph]
+    M[data/workflows/marketplace.json]
+  end
+  subgraph browser ["Browser — localStorage"]
+    IA[cot-installed-mind-agents]
+    CK[legacy cot-coindesk-api-key]
+  end
+  WL --> AS
+  WL --> OS
+  AS --> K
+  EF --> K
+  OS --> K
+  K --> F
+```
+
+| Store | Location | What it holds | Survives restart? |
+|-------|----------|---------------|-------------------|
+| **Workflow live** | `WorkflowLiveService` (`backend/app/services/workflow_live.py`) | `_running`, `_workflow_context` (compiled registries), `_started_subagents[]` | No |
+| **Hosted sub-agent session** | `AutonomousAgentStreamService._sessions` | `running`, `emittedCount`, `lastSignal`, `lastError`, asyncio `Task` per agent | No |
+| **Orchestrator stream** | `OrchestratorStreamService` | `_canvas`, `_config`, `_memory.recent_signals`, `_queue`, `_processed`, `_last_result` | No |
+| **External mind agent** | `ExternalFeedService._sessions` | `lastSeen`, `lastSignal`, `emittedCount` — **live** = signal within `staleAfterSeconds` (45s) | No (lastSeen lost) |
+| **LangGraph run** | `OrchestratorState` per invocation | Signal, registries, tool results, decision — rebuilt each `run_once` | N/A (per-run) |
+| **Kafka topics** | Redpanda | `agent.feeds.*.public`, `market.signals.public` | Yes |
+| **CoT graph** | FalkorDB | Merged decision nodes/edges | Yes |
+| **Published workflows** | `data/workflows/marketplace.json` | Sanitized canvas templates | Yes |
+| **Installed agents (UI)** | `localStorage` key `cot-installed-mind-agents` | Which marketplace nodes appear on palette | Yes (browser only) |
+| **Canvas wiring** | React Flow in browser | Nodes, edges, API keys on nodes — **not auto-saved** unless you publish | Until page refresh |
+
+### Hosted sub-agent lifecycle (newsAgent / arbitrageAgent)
+
+1. **Go Live** → `POST /api/orchestrator/start` with full canvas.
+2. `compile_workflow_context()` builds `subagent_registry` (snapped tools, `userPrompt`, LLM config, `tool_registry` slice).
+3. `WorkflowLiveService` calls `AutonomousAgentStreamService.start(agent_id, config)` for each wired sub-agent.
+4. Backend spawns `asyncio.create_task(_run_loop)` → `streamSignals(config)` async generator.
+5. Each signal:
+   - Updates in-memory session (`lastSignal`, `emittedCount`)
+   - Publishes to Kafka `agent.feeds.<agentId>.public`
+   - Broadcasts WebSocket `agent.feed`
+   - Enqueues orchestrator if orchestrator stream is running
+   - Optionally auto-emits CoT via `cot_emit.maybe_emit_cot_for_subagent` when `autoEmit` or `publish_as_mind_agent`
+
+**Stop Live** → cancels tasks, clears sessions, stops orchestrator loop.
+
+### Sub-agent → mind agent (published workflow)
+
+When you publish with **Publish as mind agent** or Go Live with `cotBuilder.autoEmit`:
+
+- Topology flag `publish_as_mind_agent` is set in compiled `workflow_context`.
+- Sub-agents remain **transparent** to the publisher (you see tools + userPrompt on canvas).
+- Subscribers who install the published workflow see **signals + CoT only** — strategy (tools, prompts) is not exposed in the marketplace listing.
+- Runtime is still **your backend** hosting the asyncio loops — not a separate microservice per agent yet.
+
+### External mind agent lifecycle (kalshiSports)
+
+- Publisher runs `kalshiSports/main.py` on **their** machine (localhost, VPS, or later AWS EC2/ECS).
+- `cot_wrapper.py` POSTs to `POST /api/feeds/sportsScanner.user_demo/signal`.
+- Platform `ExternalFeedService` records `lastSeen` and publishes to Kafka.
+- **Live** = `lastSeen` within 45 seconds — no Start button on platform; publisher process IS the host.
+- Orchestrator (when Go Live) consumes enqueued signals same as hosted feeds.
+
+### Orchestrator memory
+
+- **Single-shot Run Workflow:** `POST /api/orchestrator/run` — uses `OrchestratorStreamService._memory` if present.
+- **Go Live:** `OrchestratorStreamService._loop` dequeues signals, runs LangGraph, updates `_memory.recent_signals` for corroboration across ticks.
+- Memory is **per backend process**, not per user/session (single-tenant demo today).
+
+### Frontend live state
+
+- `fetchWorkflowLiveStatus()` polls `GET /api/orchestrator/workflow/status` every 8s on sub-agent nodes.
+- `AgentFeedProvider` holds `agentFeeds` + WebSocket push for latest signals.
+- When `workflowLive === true`, sub-agent nodes and marketplace hide individual Start buttons.
+
+---
+
+## Hosting model — localhost today, AWS later
+
+### Today (local dev)
+
+| Component | Where it runs | 24/7? |
+|-----------|---------------|-------|
+| FastAPI backend | `npm run dev:backend` — one Python process | Only while terminal is open |
+| Hosted sub-agents | asyncio tasks **inside** that same process | Same as backend |
+| Orchestrator stream | asyncio task **inside** backend | Same as backend |
+| External publisher | Separate terminal (`kalshiSports`) | While that terminal runs |
+| Kafka, FalkorDB | `docker compose up -d` | Yes (containers) |
+| Next.js frontend | `npm run dev:frontend` | While terminal runs |
+
+**There is no separate container per mind agent today.** All hosted agents share one FastAPI worker.
+
+### Target AWS layout (recommended path)
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  Route 53 / ALB                                                  │
+│    ├── ECS Fargate: cot-backend (FastAPI, N replicas)           │
+│    ├── ECS Fargate or Amplify: cot-frontend (Next.js)           │
+│    ├── Amazon MSK (or self-managed Kafka) ← agent feeds + CoT     │
+│    ├── FalkorDB on EC2/ElastiCache-compatible or managed graph  │
+│    └── S3: data/workflows/marketplace.json (+ secrets Manager)  │
+└─────────────────────────────────────────────────────────────────┘
+         ▲                                    ▲
+         │ HTTP wrapper                       │ optional
+   Publisher ECS/EC2                    External agents (any cloud)
+   (kalshiSports, custom strategies)
+```
+
+| Concern | Local now | AWS later |
+|---------|-----------|-----------|
+| Workflow Go Live state | RAM in one process | Same pattern per ECS task; need **sticky sessions** or **single leader** until state is externalized |
+| 24/7 hosted agents | Keep backend terminal open | ECS service `desired_count >= 1`, health checks on `/api/health` |
+| External publishers | localhost:kalshiSports | Publisher's ECS task / Lambda+scheduled / on-prem |
+| Secrets (LLM keys, tool keys) | Node canvas + `.env` | AWS Secrets Manager; never on published canvas |
+| Durable signals | Kafka | MSK with retention policy |
+| CoT graph | FalkorDB container | FalkorDB cluster or Neo4j Aura per product choice |
+
+**Gap to close before multi-instance AWS:** persist `WorkflowLiveService` + session state in Redis or DynamoDB, or run exactly one backend replica for live workflows.
 
 ---
 
@@ -56,10 +194,10 @@ Wait ~1 minute for containers to become healthy.
 |---------|-----|---------|
 | **Playground** | http://localhost:3001 | Workflow canvas + marketplace |
 | **Backend API** | http://localhost:4000 | Orchestrator, feeds, CoT ingest |
-| **FalkorDB Browser** | http://localhost:3000 | Raw graph GUI (`redis://falkordb-server:6379`) |
+| **FalkorDB Browser** | http://localhost:3000 | Graph GUI |
 | **Redpanda Console** | http://localhost:8080 | Kafka topics and messages |
-| **Neo4j Browser** | http://localhost:7474 | Optional legacy graph (`neo4j` / `cot-kb-password`) |
-| **RedisInsight** | http://localhost:8001 | Redis visualization |
+| **Neo4j Browser** | http://localhost:7474 | Optional legacy (`neo4j` / `cot-kb-password`) |
+| **RedisInsight** | http://localhost:8001 | Optional Redis visualization |
 
 ### 3. Environment files
 
@@ -77,7 +215,7 @@ KAFKA_BROKERS=localhost:19092
 FALKORDB_HOST=localhost
 FALKORDB_PORT=6380
 
-# LLM orchestrator
+# LLM orchestrator + sub-agents
 GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-2.5-flash-lite
 
@@ -87,9 +225,6 @@ MAIN_USER_NODE_ID=user_771
 
 # External wrapper auth (must match kalshiSports)
 COT_WRAPPER_API_KEY=cot-dev-wrapper-key
-
-# Optional — hosted News Agent
-COINDESK_API_KEY=your_coindesk_key
 ```
 
 **Frontend:**
@@ -151,201 +286,192 @@ kalshiSports is an **external** mind agent: you run the process; the platform on
 ```powershell
 cd C:\Users\Anjali\Downloads\CoT_kb\kalshiSports
 
-# Offline demo (recommended first): win + stop-out + rejection
 python main.py --simulate
-
-# Or stop after N trade events
 python main.py --simulate --max-trades 3
-
-# Live paper mode (needs API_FOOTBALL_KEY)
-python main.py
+python main.py   # live — needs API_FOOTBALL_KEY
 ```
 
-Expected output:
-
-- `[runner] CoT wrapper enabled — emitting to platform feed`
-- Tick logs on stderr
-- Paper trade banners on ENTER / STOP_OUT / SETTLE
-
-The wrapper (`kalshiSports/cot_wrapper.py`) POSTs to:
+The wrapper POSTs to:
 
 ```http
 POST http://localhost:4000/api/feeds/sportsScanner.user_demo/signal
 Authorization: Bearer cot-dev-wrapper-key
-Content-Type: application/json
-
-{ "payload": { "type": "market_tick", "thesis": "...", "ts": "..." } }
 ```
 
-**Verify ingest (optional):**
+**Verify in Redpanda Console:** topic `agent.feeds.sportsScanner.user_demo.public`
 
-```powershell
-curl -X POST http://localhost:4000/api/feeds/sportsScanner.user_demo/signal `
-  -H "Authorization: Bearer cot-dev-wrapper-key" `
-  -H "Content-Type: application/json" `
-  -d "{\"payload\":{\"type\":\"market_tick\",\"thesis\":\"test\",\"ts\":\"2026-06-12T00:00:00Z\"}}"
-```
-
-**Verify in Redpanda Console** (http://localhost:8080):
-
-- Topic: `agent.feeds.sportsScanner.user_demo.public`
-
-Keep `python main.py` running — that is the publisher's 24/7 process (use tmux, a VPS, or Task Scheduler for production).
+Keep `python main.py` running — that is the publisher's 24/7 process.
 
 ---
 
 ## Part 3 — Marketplace: install mind agents
 
-In the playground (http://localhost:3001):
+1. Click **Marketplace** in the header.
+2. Install **Kalshi Sports Scanner**, **News Agent**, and/or **Arbitrage Agent** as needed.
+3. External agents show **Live** when the publisher process is sending signals (~45s window).
 
-1. Click **Marketplace** (header).
-2. Click the **(i)** icon for the **Wrapper Guide** (HTTP integration steps for any language).
-3. Find **Kalshi Sports Scanner** — badges: `External`, `Live` / `Offline`.
-4. Click **Install**.
-
-| Agent | Type | Subscriber action | Publisher action |
-|-------|------|-------------------|------------------|
-| Kalshi Sports Scanner | External | Install only | Run `python main.py` with wrapper |
-| News Agent | Hosted | Install + **Start live feed** | Set `COINDESK_API_KEY`, backend runs poll loop |
-| Arbitrage Agent | Hosted | Install + **Start live feed** | Backend runs scanner |
-
-External agents show **Live · receiving publisher feed** when the publisher process is active (signal within ~45s).
+**Note:** Per-agent **Start live feed** in the marketplace is legacy. Prefer **Go Live** on the workflow canvas (Part 5).
 
 ---
 
-## Part 4 — Build an orchestrator workflow
+## Part 4 — Build a workflow canvas
 
-### Recommended canvas (kalshiSports subscriber)
+### News + orchestrator (hosted sub-agent)
 
-Drag from the palette onto the canvas:
-
-| Node | Role |
-|------|------|
-| **Kalshi Sports Scanner** | External feed (after marketplace install) |
-| **LLM Analyzer** | LangGraph orchestrator / reasoning |
-| **CoT Builder** | Decision → graph JSON |
-| **Output** | Display result (optional) |
-
-Wire connections:
+Wire tools on the **left** of the News Agent node:
 
 ```text
-Kalshi Sports Scanner (out) ──► LLM Analyzer (in-0)
-LLM Analyzer (out-0)         ──► CoT Builder (in)
-CoT Builder (out)            ──► Output (in)   [optional]
+[cryptonews] ──► [newsAgent] ──► [llm] ──► [cotBuilder]
+[tavily]     ──►              ▲
 ```
 
-### Configure LLM Analyzer
+| Node | Configuration |
+|------|----------------|
+| **cryptonews / tavily** | API keys on tool nodes |
+| **News Agent** | LLM provider + API key + model; optional **User prompt** |
+| **Orchestrator (llm)** | Provider, system/user prompts, graph ID `user_771.main.v1` |
+| **CoT Builder** | Graph ID, user node ID; enable **Auto emit** for Kafka → FalkorDB |
 
-- **Provider / API key**: Gemini (or key from `backend/.env`)
-- **Context graph**: `Decision`
-- **Graph ID**: `user_771.main.v1`
-
-### Configure CoT Builder
-
-- **Graph ID**: `user_771.main.v1`
-- **User node ID**: `user_771`
-- Enable **Auto emit to Redpanda** to write decisions into FalkorDB automatically
-
-### Alternative: hosted News Agent workflow
-
-Same wiring with **News Agent** instead of Kalshi Sports:
+### Arbitrage scanner
 
 ```text
-News Agent ──► LLM Analyzer ──► CoT Builder ──► Output
+[polymarketGamma] ──► [arbitrageAgent] ──► [llm] ──► [cotBuilder]
+[kalshi]          ──►
 ```
 
-1. Marketplace → Install News Agent → **Start live feed**
-2. Set CoinDesk API key on the node or in `backend/.env`
+Arbitrage requires LLM on the node for same-event verification.
+
+### External sports feed subscriber
+
+```text
+[sportsScanner] ──► [llm] ──► [cotBuilder]
+```
+
+Install Kalshi Sports Scanner from marketplace; run kalshiSports publisher (Part 2).
+
+### Sub-agent only → CoT (no orchestrator)
+
+```text
+[newsAgent] ──► [cotBuilder]     with cotBuilder autoEmit ON
+```
+
+Go Live starts the sub-agent only; CoT auto-emits per signal.
 
 ---
 
-## Part 5 — Run the orchestrator
+## Part 5 — Go Live (primary 24/7 control)
 
-1. Ensure the feed is live (kalshiSports running, or News Agent started).
-2. Click **Run Workflow** in the playground header.
+1. Configure all API keys on tool and LLM nodes.
+2. Click **Go Live** in the playground header.
 
 What happens:
 
-1. **Phase A** — runnable tool nodes execute (preview on Output nodes).
-2. **Phase B** — `POST /api/orchestrator/run` with your canvas:
-   - Picks the latest signal from installed feeds (sports scanner, news, arb, whale, divergence)
-   - Runs LangGraph: tools → LLM synthesis → optional CoT draft
-3. Results appear on **LLM Analyzer** (`decisionJson`) and **CoT Builder**.
+1. `POST /api/orchestrator/start` with canvas JSON.
+2. `compile_workflow_context()` builds registries (`subagent_registry`, `orchestrator_registry`, `topology`).
+3. Each wired sub-agent starts an asyncio poll loop in the backend.
+4. If an LLM node exists, `OrchestratorStreamService` starts and consumes enqueued signals.
+5. If `cotBuilder.autoEmit` is on, Go Live also sets `mind_agent_live` / `publish_as_mind_agent` for CoT auto-emit.
 
-If the orchestrator falls back to demo Bitcoin news, no live feed has arrived yet — wait for a tick and run again.
+**Stop Live** → `POST /api/orchestrator/stop` — stops orchestrator and all started sub-agents.
+
+Status API:
+
+```http
+GET /api/orchestrator/workflow/status
+```
+
+Returns `running`, `started_subagents`, `topology`, per-subagent status.
+
+**Run Workflow** (single shot) is disabled while live — use Stop Live first.
 
 ---
 
-## Part 6 — View the CoT graph
+## Part 6 — Run Workflow once (debug / single decision)
 
-### A. In-playground (easiest)
+1. Ensure a feed has emitted at least one signal (Go Live running, or external publisher active).
+2. Click **Run Workflow**.
 
-1. Click **CoT Graph** in the header (node icon).
-2. Set **Graph ID** to `user_771.main.v1` and press Enter.
-3. Click nodes to inspect `user → protocol → market → trade` chains.
+Phases:
 
-If empty: emit a CoT first (non-HOLD decision + CoT Builder auto-emit or manual Build & emit).
+1. Runnable tool nodes on canvas (preview).
+2. `POST /api/orchestrator/run` — LangGraph with latest signal from installed feeds.
+3. Results on LLM Analyzer and CoT Builder nodes.
 
-### B. FalkorDB Browser
+If you see demo Bitcoin news, no live feed has arrived yet.
 
-- http://localhost:3000
-- Connect: `redis://falkordb-server:6379`
-- Graph name derived from `user_771.main.v1`
+---
 
-### C. Redpanda Console
+## Part 7 — View the CoT graph
 
-- http://localhost:8080
-- `market.signals.public` — `cot.delta` events after CoT emit
+### In-playground
+
+1. **CoT Graph** tab → Graph ID `user_771.main.v1`.
+2. Inspect `user → protocol → market → trade` chains.
+
+### FalkorDB Browser
+
+- http://localhost:3000 — `redis://falkordb-server:6379`
+
+### Redpanda Console
+
+- `market.signals.public` — CoT deltas after emit
 - `agent.feeds.*.public` — raw agent signals
 
 ---
 
-## Part 7 — Publish a workflow to the marketplace
+## Part 8 — Publish a workflow
 
-You can publish a canvas you built (similar in spirit to listing a mind agent strategy).
+1. Build canvas → **Publish**.
+2. Fill name, description, optional publisher handle.
+3. Check **Publish as mind agent** to hide strategy from subscribers (signals + CoT only).
+4. API keys stripped automatically → `data/workflows/marketplace.json`.
+5. Marketplace → **Workflow** badge (and **Mind agent** if checked) → **Load onto canvas**.
 
-1. Build your workflow on the canvas (at least one node).
-2. Click **Publish** in the playground header.
-3. Fill in **Name**, **Description**, **Publisher** (optional).
-4. API keys on nodes are stripped automatically before save.
-5. Open **Marketplace** — published entries appear with a **Workflow** badge.
-6. Others click **Load onto canvas** to import your template.
-
-Storage: `data/workflows/marketplace.json` on the backend.
-
-**Note:** Published workflows are **templates** today — subscribers load them and run manually with **Run Workflow**. They do not auto-run 24/7 like hosted newsAgent until orchestrator stream auto-start is wired in the UI.
+Subscribers configure their own keys and use **Go Live** to run 24/7 on their backend.
 
 ---
 
-## Part 8 — Making a strategy like newsAgent (hosted vs external)
+## Part 9 — Adding a new agent
 
 ### External wrapper (kalshiSports pattern)
 
-Best when the agent runs outside your platform (any language).
+1. Emit via `POST /api/feeds/{agent_id}/signal` + publisher API key.
+2. Register in `backend/app/external_agents/registry.py`.
+3. Add frontend node + marketplace entry.
+4. Publisher runs their process 24/7 on their infrastructure.
 
-1. Emit signals via `POST /api/feeds/{agent_id}/signal` with a publisher API key.
-2. Register listing in `backend/app/external_agents/registry.py`.
-3. Subscribers install from marketplace — no Start/Stop on your side.
+Reference: `kalshiSports/cot_wrapper.py`.
 
-See `kalshiSports/cot_wrapper.py` (~40 lines, HTTP only).
+### Hosted sub-agent (newsAgent / arbitrageAgent pattern)
 
-### Hosted like newsAgent
+1. Implement `streamSignals()` + `validateConfig()` in `backend/app/subagents/`.
+2. Register in `backend/app/subagents/registry.py` and `backend/app/signal_registry.py`.
+3. Add frontend node with tool snap handles + `userPrompt`.
+4. Wire tools on canvas; start via **Go Live**.
 
-Best when the platform should run the agent 24/7.
+Reference: `backend/app/subagents/news_subagent.py`, `backend/app/services/autonomous_stream.py`.
 
-1. Implement `agents/yourAgent/agent.py` with `streamSignals()` async generator.
-2. Register in `backend/app/signal_registry.py` (`AUTONOMOUS_AGENT_REGISTRY` + `MARKETPLACE_CATALOG`).
-3. Add a frontend node (copy `NewsAgentNode.tsx`).
-4. Subscribers **Install + Start live feed**.
+### Published workflow as product
 
-Reference: `agents/newsAgent/agent.py`, `backend/app/services/autonomous_stream.py`.
+1. Build canvas → Publish (optionally as mind agent).
+2. Subscribers load template → Go Live on their platform instance.
 
-### Published workflow (canvas template)
+---
 
-Best for sharing orchestrator topology (feeds + LLM + tools + CoT).
+## API reference (live operations)
 
-1. Build canvas → **Publish** → appears in marketplace as **Workflow**.
-2. Subscribers **Load onto canvas** → configure API keys → **Run Workflow**.
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/orchestrator/start` | Go Live — canvas + optional `config` |
+| `POST /api/orchestrator/stop` | Stop Live |
+| `GET /api/orchestrator/workflow/status` | Workflow + sub-agent live state |
+| `GET /api/orchestrator/status` | Orchestrator stream only |
+| `POST /api/orchestrator/run` | Single LangGraph run |
+| `POST /api/marketplace/agents/{id}/start` | Legacy per-agent start |
+| `POST /api/marketplace/agents/{id}/stop` | Legacy per-agent stop |
+| `GET /api/marketplace/agents/{id}/status` | Per-agent session status |
+| `POST /api/feeds/{agent_id}/signal` | External publisher ingest |
+| `POST /api/marketplace/workflows` | Publish canvas template |
 
 ---
 
@@ -353,19 +479,17 @@ Best for sharing orchestrator topology (feeds + LLM + tools + CoT).
 
 ```text
 □ docker compose up -d
-□ copy backend\.env.example → backend\.env (GEMINI_API_KEY, COT_WRAPPER_API_KEY)
-□ copy frontend\.env.example → frontend\.env.local
-□ copy kalshiSports\.env.example → kalshiSports\.env (keys match backend)
-□ npm run dev:backend          (Terminal A)
-□ npm run dev:frontend         (Terminal B) → http://localhost:3001
-□ python main.py --simulate    (Terminal C) — keep running
-□ Marketplace → Install Kalshi Sports Scanner → Live
-□ Canvas: Sports Scanner → LLM → CoT Builder
-□ LLM: Gemini key + graphId user_771.main.v1
-□ CoT Builder: auto-emit ON
-□ Run Workflow
+□ backend\.env — GEMINI_API_KEY, COT_WRAPPER_API_KEY, graph IDs
+□ frontend\.env.local
+□ kalshiSports\.env — wrapper keys match backend
+□ npm run dev:backend + npm run dev:frontend
+□ Optional: python main.py --simulate (external publisher)
+□ Marketplace → Install agents
+□ Canvas: snap tools → sub-agents → LLM → CoT Builder
+□ Tool + LLM API keys on nodes
+□ Go Live
 □ CoT Graph → user_771.main.v1
-□ Optional: Publish workflow → Marketplace → Workflow badge
+□ Optional: Publish workflow (mind agent checkbox)
 ```
 
 ---
@@ -374,14 +498,15 @@ Best for sharing orchestrator topology (feeds + LLM + tools + CoT).
 
 | Problem | Fix |
 |---------|-----|
-| Wrapper `connection refused` | Start backend first (`npm run dev:backend`) |
-| Marketplace **Offline** for external agent | `python main.py` not running or `COT_WRAPPER_ENABLED=0` |
-| `401 Invalid publisher API key` | `COT_PUBLISHER_KEY` in kalshiSports ≠ `COT_WRAPPER_API_KEY` in backend |
-| Run Workflow uses demo news signal | No live feed yet — wait for tick, then re-run |
-| CoT Graph empty | HOLD decision or CoT not emitted — use non-HOLD + auto-emit |
-| Kafka errors in `/api/health` | `docker compose up -d` and wait for redpanda healthy |
-| News Agent won't start | Set `COINDESK_API_KEY` in backend `.env` or node config |
-| Publish workflow fails | Backend must be running; canvas needs at least one node |
+| Go Live fails "requires cryptonews or tavily" | Wire at least one feed tool to News Agent |
+| Go Live fails LLM validation | Set provider + API key + model on sub-agent node |
+| Live stops after backend restart | Expected — in-memory state; click Go Live again |
+| External agent Offline | Publisher not running or wrapper disabled |
+| `401 Invalid publisher API key` | Keys mismatch between kalshiSports and backend `.env` |
+| Run Workflow uses demo signal | No live feed yet — Go Live or start publisher |
+| CoT Graph empty | HOLD decision or auto-emit off — use non-HOLD + auto-emit |
+| Kafka errors in `/api/health` | `docker compose up -d`, wait for redpanda healthy |
+| Publish fails | Backend running; canvas needs ≥1 node |
 
 ---
 
@@ -389,10 +514,18 @@ Best for sharing orchestrator topology (feeds + LLM + tools + CoT).
 
 | Path | Role |
 |------|------|
-| `kalshiSports/cot_wrapper.py` | HTTP wrapper reference |
-| `kalshiSports/README.md` | Scanner strategy + wrapper section |
-| `backend/app/external_agents/registry.py` | External marketplace listings |
-| `backend/app/signal_registry.py` | Hosted mind agent registry |
+| `backend/app/services/workflow_live.py` | Go Live coordinator |
+| `backend/app/services/autonomous_stream.py` | Hosted sub-agent tasks + Kafka + WS |
+| `backend/app/services/orchestrator_stream.py` | Orchestrator queue + memory |
+| `backend/app/services/external_feed.py` | External publisher ingest + live detection |
+| `backend/app/orchestrator/workflow_context.py` | Canvas → registries compile |
+| `backend/app/subagents/cot_emit.py` | Auto CoT from sub-agent signals |
+| `backend/app/signal_registry.py` | Marketplace catalog |
+| `backend/app/external_agents/registry.py` | External agent definitions |
 | `backend/app/services/workflow_marketplace.py` | Published workflow storage |
-| `data/workflows/marketplace.json` | Published workflow JSON store |
-| `frontend/components/playground/WrapperGuideModal.tsx` | In-app wrapper docs |
+| `data/workflows/marketplace.json` | Published templates |
+| `frontend/lib/workflow-live.ts` | Go Live client |
+| `frontend/lib/agent-feed.tsx` | WebSocket + agent status |
+| `frontend/lib/marketplace.tsx` | Installed agents (localStorage) |
+| `kalshiSports/cot_wrapper.py` | External publisher reference |
+| `ARCHITECTURE.md` | Design reference |

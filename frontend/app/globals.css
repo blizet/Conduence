@@ -401,17 +401,46 @@ body {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: none;
   border-radius: 4px;
   box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
   min-width: 90px;
   max-width: 280px;
   padding: 6px 7px 6px 9px;
 }
 
 .glass-node--wide {
-  width: 260px;
-  max-width: 260px;
+  width: 280px;
+  max-width: 280px;
+}
+
+.glass-node--has-outside-ports {
+  overflow: visible;
+}
+
+/* Outside input ports — label floats to the left of the diamond handle */
+.glass-node__port-outside {
+  position: absolute;
+  left: 0;
+  transform: translate(calc(-100% - 8px), -50%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.glass-node__port-handle--diamond {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 1px !important;
+  z-index: 5 !important;
+}
+
+.glass-node__port-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .glass-node__header {
@@ -474,26 +503,29 @@ body {
 }
 
 .glass-node:hover {
-  border-color: color-mix(in srgb, var(--node-accent) 35%, var(--glass-border));
   box-shadow:
     inset 0 1px 0 var(--glass-highlight),
-    0 0 14px color-mix(in srgb, var(--node-accent) 14%, transparent),
     0 4px 18px rgba(0, 0, 0, 0.5);
 }
 
+.glass-node:hover .glass-node__accent {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--node-accent) 65%, transparent);
+}
+
 .glass-node.selected {
-  border-color: color-mix(in srgb, var(--node-accent) 55%, transparent);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 18px color-mix(in srgb, var(--node-accent) 28%, transparent),
     0 2px 12px rgba(0, 0, 0, 0.4);
 }
 
+.glass-node.selected .glass-node__accent {
+  width: 3px;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--node-accent) 75%, transparent);
+}
+
 .glass-node--missing-key {
-  border-color: rgba(248, 113, 113, 0.65) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 12px rgba(248, 113, 113, 0.2),
     0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
@@ -512,9 +544,10 @@ body {
   top: 0;
   bottom: 0;
   width: 2px;
-  border-radius: 8px 0 0 8px;
+  border-radius: 4px 0 0 4px;
   background: var(--node-accent);
   box-shadow: 0 0 8px color-mix(in srgb, var(--node-accent) 50%, transparent);
+  transition: width 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* ── Shape language ─────────────────────────────────────────────
@@ -546,10 +579,10 @@ body {
 }
 
 .glass-node--terminal .glass-node__accent {
-  left: auto;
-  right: 0;
+  left: 0;
+  right: auto;
   width: 3px;
-  border-radius: 0 999px 999px 0;
+  border-radius: 4px 0 0 4px;
 }
 
 .glass-node--route {
@@ -567,34 +600,31 @@ body {
 }
 
 .glass-node--route .glass-node__accent {
-  background: linear-gradient(180deg, var(--node-accent), transparent);
+  background: var(--node-accent);
 }
 
 .glass-node--agent {
-  border-radius: 14px;
-  padding: 0 9px 8px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--node-accent) 9%, transparent), transparent 56px),
-    linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 45%),
-    rgba(14, 16, 24, 0.95);
+  border-radius: 4px;
+  padding: 6px 7px 6px 9px;
+  background: linear-gradient(165deg, #1e1e1e 0%, #121212 100%);
 }
 
 .glass-node--agent .glass-node__accent {
   left: 0;
-  right: 0;
+  right: auto;
   top: 0;
-  bottom: auto;
-  width: auto;
-  height: 2px;
-  border-radius: 14px 14px 0 0;
-  background: linear-gradient(90deg, var(--node-accent), color-mix(in srgb, var(--node-accent) 20%, transparent));
+  bottom: 0;
+  width: 2px;
+  height: auto;
+  border-radius: 4px 0 0 4px;
+  background: var(--node-accent);
 }
 
 .glass-node--agent .glass-node__header {
-  align-items: center;
-  padding: 8px 0 7px;
-  margin-bottom: 2px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  align-items: flex-start;
+  padding: 0;
+  margin-bottom: 0;
+  border-bottom: none;
 }
 
 .glass-node--agent .glass-node__icon {
@@ -1100,6 +1130,10 @@ select.node-input {
   background: transparent !important;
 }
 
+.playground-canvas .react-flow__node {
+  overflow: visible !important;
+}
+
 /* Custom nodes use GlassNode — XYFlow reserved types (output/input/default) ship a white card. */
 .react-flow__node.react-flow__node-input,
 .react-flow__node.react-flow__node-default,
@@ -1119,6 +1153,7 @@ select.node-input {
   font-size: inherit !important;
   color: inherit !important;
   text-align: left !important;
+  overflow: visible !important;
 }
 
 .react-flow__node.react-flow__node-input.selectable:hover,
@@ -1279,6 +1314,77 @@ select.node-input {
 
 .palette-section-title--subagents .palette-section-title__text {
   color: #38bdf8;
+}
+
+.palette-section-title--graphs {
+  color: #a78bfa;
+}
+
+.palette-section-title--graphs .palette-section-title__text {
+  color: #a78bfa;
+}
+
+.palette-tool-group__header--graphs {
+  color: rgba(167, 139, 250, 0.85);
+}
+
+.palette-tool-group__header--graphs:hover {
+  color: #a78bfa;
+}
+
+.palette-graph-list {
+  margin-left: 6px;
+}
+
+.palette-graph-subhead {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 6px 4px 2px;
+}
+
+.palette-graph-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 5px 6px;
+  margin: 2px 0;
+  border-radius: 4px;
+  background: rgba(167, 139, 250, 0.06);
+  border: 1px solid rgba(167, 139, 250, 0.12);
+}
+
+.palette-graph-item__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.palette-graph-item__label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.palette-graph-item__desc {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.palette-graph-item__meta {
+  font-size: 8px;
+  color: rgba(167, 139, 250, 0.8);
+  font-family: ui-monospace, monospace;
+  flex-shrink: 0;
+}
+
+.palette-empty--inline {
+  padding: 4px 6px;
+  font-size: 9px;
 }
 
 .palette-section-title--mindagents {

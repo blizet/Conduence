@@ -17,14 +17,6 @@ const CATEGORY_LABEL: Record<NodeCategory, string> = {
   orchestrator: 'main',
 };
 
-/**
- * Visual shape language (n8n-inspired, usability-preserving):
- * - trigger:  half-pill, rounded entry edge — workflow entry points
- * - terminal: half-pill mirrored — workflow exits
- * - route:    diamond icon plate — branching / decision nodes
- * - agent:    large gradient-header card — mind agents (the "brains")
- * - card:     standard glass card — tools & everything else
- */
 export type NodeShape = 'card' | 'trigger' | 'terminal' | 'route' | 'agent';
 
 type GlassNodeProps = {
@@ -57,6 +49,13 @@ export function GlassNode({
   const resolvedShape: NodeShape =
     shape ?? (category === 'mindagent' || category === 'orchestrator' ? 'agent' : 'card');
 
+  const inputPorts = handles.filter(
+    (h) => h.type === 'target' && h.label && h.position === 'left',
+  );
+  const plainHandles = handles.filter(
+    (h) => !(h.type === 'target' && h.label && h.position === 'left'),
+  );
+
   return (
     <div
       className={[
@@ -65,6 +64,7 @@ export function GlassNode({
         selected ? 'selected' : '',
         invalid ? 'glass-node--missing-key' : '',
         wide ? 'glass-node--wide' : '',
+        inputPorts.length > 0 ? 'glass-node--has-outside-ports' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -72,7 +72,36 @@ export function GlassNode({
     >
       <div className="glass-node__accent" />
 
-      {handles.map((h) => (
+      {inputPorts.map((h) => (
+        <Handle
+          key={h.id}
+          type="target"
+          position={Position.Left}
+          id={h.id}
+          className="glass-node__port-handle glass-node__port-handle--diamond"
+          style={{
+            background: accent,
+            borderColor: 'rgba(255,255,255,0.45)',
+            top: h.style?.top ?? '50%',
+            left: 0,
+            transform: 'translate(-50%, -50%) rotate(45deg)',
+          }}
+        />
+      ))}
+
+      {inputPorts.map((h) => (
+        <div
+          key={`outside-${h.id}`}
+          className="glass-node__port-outside nodrag nopan"
+          style={{ top: h.style?.top ?? '50%' }}
+        >
+          <span className="glass-node__port-label" style={{ color: accent }}>
+            {h.label}
+          </span>
+        </div>
+      ))}
+
+      {plainHandles.map((h) => (
         <Handle
           key={h.id ?? `${h.type}-${h.position}`}
           type={h.type}
@@ -105,7 +134,7 @@ export function GlassNode({
 
       {children}
 
-      {handles.some((h) => h.label) && (
+      {handles.some((h) => h.type === 'source' && h.label) && (
         <div className="glass-node__handle-labels">
           {handles
             .filter((h) => h.type === 'source' && h.label)

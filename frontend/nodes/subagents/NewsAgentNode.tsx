@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { useAgentFeed } from '@/lib/agent-feed';
 import {
@@ -7,9 +8,11 @@ import {
   normalizeProvider,
   type LlmProvider,
 } from '@/lib/llm-providers';
+import { fetchWorkflowLiveStatus } from '@/lib/workflow-live';
+import { subagentInputHandles } from '../shared/agentInputHandles';
 import { GlassNode } from '../shared/GlassNode';
-import { ApiKeyField } from '../shared/ApiKeyField';
 import { LlmProviderFields } from '../shared/LlmProviderFields';
+import { PromptField } from '../shared/PromptField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import type { WorkflowNode } from '../types';
 
@@ -23,39 +26,23 @@ function NewsIcon() {
 }
 
 export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
-  const {
-    latestNews,
-    newsCount,
-    newsStreamRunning,
-    newsStreamError,
-    feedTopic,
-    startNewsStream,
-    stopNewsStream,
-    saveApiKey,
-    getStoredApiKey,
-  } = useAgentFeed();
+  const { latestNews, newsCount, newsStreamRunning, newsStreamError, feedTopic } = useAgentFeed();
   const updateData = useNodeData(id);
+  const [workflowLive, setWorkflowLive] = useState(false);
 
-  const coindeskKey = data.apiKey ?? getStoredApiKey();
   const llmProvider = normalizeProvider(data.llmProvider);
   const llmApiKey = data.llmApiKey ?? '';
   const llmModel = data.model ?? defaultModelForProvider(llmProvider);
-
   const llmReady = Boolean(llmProvider && llmApiKey.trim() && llmModel.trim());
-  const canStart = llmReady && (data.simulate || coindeskKey);
+  const managedByWorkflow = workflowLive;
 
-  const toggleStream = () => {
-    if (newsStreamRunning) {
-      stopNewsStream();
-    } else if (canStart) {
-      void startNewsStream(coindeskKey, {
-        simulate: Boolean(data.simulate),
-        llmProvider,
-        llmApiKey,
-        model: llmModel,
-      });
-    }
-  };
+  useEffect(() => {
+    void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
+    const t = setInterval(() => {
+      void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
+    }, 8000);
+    return () => clearInterval(t);
+  }, []);
 
   return (
     <GlassNode
@@ -66,31 +53,13 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
       icon={<NewsIcon />}
       selected={selected}
       wide
-      handles={[
-        { type: 'target', position: 'left', id: 'in-tools' },
-        { type: 'source', position: 'right', id: 'out-news' },
-      ]}
+      handles={subagentInputHandles('out-news')}
     >
       <div onKeyDown={stopNodeKeyPropagation}>
         <div className="node-field">
-          <div className="node-field__label">Required tools (optional snap)</div>
-          <div className="node-field__hint">
-            CoinDesk Data (this node) · CryptoNews API + Tavily (left handle) for enrichment
-          </div>
-        </div>
-        <ApiKeyField
-          label="CoinDesk Data API key"
-          value={coindeskKey}
-          placeholder="Data feed key (not OpenAI/Gemini/Claude)…"
-          onChange={(v) => {
-            saveApiKey(v);
-            updateData({ apiKey: v });
-          }}
-        />
-        <div className="node-field">
           <div className="node-field__label">LLM for decision inference</div>
           <div className="node-field__hint">
-            Required — used to infer sentiment, categories, keywords, thesis, direction, strength
+            Required — sentiment, categories, keywords, thesis (SYSTEM_PROMPT is fixed)
           </div>
         </div>
         <LlmProviderFields
@@ -104,45 +73,41 @@ export function NewsAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
           onModelChange={(m) => updateData({ model: m })}
           onApiKeyChange={(k) => updateData({ llmApiKey: k })}
         />
+        <PromptField
+          label="User prompt (strategy focus)"
+          value={data.userPrompt ?? ''}
+          rows={2}
+          placeholder="e.g. Focus on ETF flows and regulation headlines…"
+          onChange={(v) => updateData({ userPrompt: v })}
+        />
         <div className="node-field">
           <div className="node-field__label">Sub-agent feed</div>
           <div className="node-status-row">
             <span
-              className={`node-live-dot${newsStreamRunning ? ' node-live-dot--on' : ''}`}
-              style={{ color: newsStreamRunning ? data.accent : undefined }}
+              className={`node-live-dot${newsStreamRunning || managedByWorkflow ? ' node-live-dot--on' : ''}`}
+              style={{
+                color: newsStreamRunning || managedByWorkflow ? data.accent : undefined,
+              }}
             />
             <span className="node-field__hint">
-              {newsStreamRunning
-                ? `Live · ${feedTopic ?? 'agent.feeds.newsAgent.public'}`
-                : llmReady
-                  ? 'Start from here or Marketplace (requires backend + Redpanda)'
-                  : 'Set LLM provider, API key, and model to enable'}
+              {managedByWorkflow
+                ? 'Managed by workflow Go Live'
+                : newsStreamRunning
+                  ? `Live · ${feedTopic ?? 'agent.feeds.newsAgent.public'}`
+                  : llmReady
+                    ? 'Use Go Live on the header or Marketplace (legacy Start removed when workflow live)'
+                    : 'Set LLM provider, API key, and model'}
             </span>
           </div>
           <label className="node-checkbox-row nodrag">
             <input
               type="checkbox"
               checked={Boolean(data.simulate)}
-              disabled={newsStreamRunning}
+              disabled={newsStreamRunning || managedByWorkflow}
               onChange={(e) => updateData({ simulate: e.target.checked })}
             />
-            Simulate mode — uses canned headlines, still calls LLM
+            Simulate mode — canned headlines, still calls LLM
           </label>
-          <button
-            type="button"
-            className="node-add-btn"
-            style={{ marginTop: 4, borderColor: `${data.accent}55`, color: data.accent }}
-            onClick={toggleStream}
-            disabled={!newsStreamRunning && !canStart}
-          >
-            {newsStreamRunning
-              ? 'Stop sub-agent'
-              : llmReady
-                ? data.simulate
-                  ? 'Start sub-agent (simulated)'
-                  : 'Start sub-agent'
-                : 'Configure LLM first'}
-          </button>
           {newsStreamError && (
             <div className="node-field__hint" style={{ color: '#f87171', marginTop: 4 }}>
               {newsStreamError}

@@ -1,10 +1,7 @@
-"""News sub-agent — autonomous CoinDesk feed (platform id: newsAgent).
+"""News sub-agent — tool-registry-driven feed (platform id: newsAgent).
 
-Standalone template: requires its own LLM (provider + API key + model) to infer
-sentiment, categories, keywords, thesis, direction, and strength from each headline.
-
-Standalone CLI: python -m app.subagents.news_subagent [--simulate] [--interval 30]
-Canvas/registry: wired via app.subagents.registry
+Wire cryptonews and/or tavily into the node (left handle). SYSTEM_PROMPT is fixed;
+optional userPrompt on the node steers analysis.
 
 Event contract:
 {
@@ -12,7 +9,7 @@ Event contract:
   "publishedAt": iso8601, "sentiment": "bullish|bearish|neutral",
   "direction": "bullish|bearish|neutral", "strength": float,
   "keywords": [str], "categories": [str], "thesis": str,
-  "summary": str, "source": str, "ts": iso8601
+  "summary": str, "source": str, "evidence": [str], "ts": iso8601
 }
 """
 
@@ -28,11 +25,10 @@ from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
 from app.llm.client import complete_json
-from app.subagents.news_coindesk import fetch_latest_articles
+from app.subagents.tool_loop import NEWS_FEED_TOOLS, fetch_headlines_from_tools
 
 NEWS_POLL_INTERVAL_MS = int(os.getenv("NEWS_POLL_INTERVAL_MS", "30000"))
 SIMULATE_INTERVAL_MS = int(os.getenv("NEWS_SIMULATE_INTERVAL_MS", "8000"))
-COINDESK_API_KEY = os.getenv("COINDESK_API_KEY", "").strip()
 
 ALLOWED_CATEGORIES = ["Crypto", "Finance", "Economics", "Politics", "Entertainment", "Weather"]
 ALLOWED_DIRECTIONS = {"bullish", "bearish", "neutral"}
@@ -60,17 +56,36 @@ SIMULATED_HEADLINES = [
      "Headline CPI at 3.4% vs 3.1% expected; rate-cut odds fall sharply."),
 ]
 
+SYSTEM_PROMPT = (
+    "You are a crypto/financial news analyst. Given a headline and optional summary, "
+    "classify the news for trading. Return ONLY a JSON object with these exact keys:\n"
+    "  sentiment: one of 'bullish', 'bearish', 'neutral'\n"
+    "  direction: same as sentiment\n"
+    "  strength: float in [0.0, 1.0] — your conviction in the direction\n"
+    "  keywords: 3-8 short uppercase tickers or topic tokens (e.g. ['BTC','ETF','SEC'])\n"
+    "  categories: 1-3 from ['Crypto','Finance','Economics','Politics','Entertainment','Weather']\n"
+    "  thesis: one sentence explaining the trade implication\n"
+    "No markdown, no extra commentary."
+)
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _resolve_subagent_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Normalize config from workflow live or legacy marketplace start."""
+    if config.get("execution_tools") is not None:
+        return config
+    wc = config.get("workflow_context") or {}
+    entry = (wc.get("subagent_registry") or {}).get("newsAgent") or {}
+    if entry:
+        return {**entry, **{k: v for k, v in config.items() if k not in entry}}
+    return config
+
+
 def _validate_llm_config(config: dict[str, Any]) -> dict[str, Any]:
-    """Return normalized LLM config or raise ValueError with what's missing."""
     provider = (config.get("llmProvider") or config.get("provider") or "").strip().lower()
-    api_key = (config.get("llmApiKey") or config.get("apiKey") or "").strip() \
-        if config.get("llmApiKey") else (config.get("llmApiKey") or "").strip()
-    # Use llmApiKey explicitly — apiKey is for the CoinDesk feed key
     api_key = (config.get("llmApiKey") or "").strip()
     model = (config.get("model") or "").strip()
 
@@ -96,23 +111,24 @@ def _validate_llm_config(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-SYSTEM_PROMPT = (
-    "You are a crypto/financial news analyst. Given a headline and optional summary, "
-    "classify the news for trading. Return ONLY a JSON object with these exact keys:\n"
-    "  sentiment: one of 'bullish', 'bearish', 'neutral'\n"
-    "  direction: same as sentiment\n"
-    "  strength: float in [0.0, 1.0] — your conviction in the direction\n"
-    "  keywords: 3-8 short uppercase tickers or topic tokens (e.g. ['BTC','ETF','SEC'])\n"
-    "  categories: 1-3 from ['Crypto','Finance','Economics','Politics','Entertainment','Weather']\n"
-    "  thesis: one sentence explaining the trade implication\n"
-    "No markdown, no extra commentary."
-)
+async def _infer_with_llm(
+    headline: str,
+    summary: str,
+    llm_config: dict[str, Any],
+    *,
+    user_prompt: str = "",
+    evidence: list[str] | None = None,
+) -> dict[str, Any]:
+    parts = []
+    if user_prompt:
+        parts.append(f"Strategy focus: {user_prompt}")
+    parts.append(f"Headline: {headline}")
+    parts.append(f"Summary: {summary or '(none)'}")
+    if evidence:
+        parts.append("Tool evidence:\n" + "\n".join(f"- {e}" for e in evidence[:8]))
+    user_message = "\n\n".join(parts)
 
-
-async def _infer_with_llm(headline: str, summary: str, llm_config: dict[str, Any]) -> dict[str, Any]:
-    """Call the LLM to enrich a headline. Raises if the LLM returns no usable output."""
-    user_prompt = f"Headline: {headline}\n\nSummary: {summary or '(none)'}"
-    parsed = await complete_json(llm_config, SYSTEM_PROMPT, user_prompt)
+    parsed = await complete_json(llm_config, SYSTEM_PROMPT, user_message)
     if not parsed:
         raise RuntimeError("LLM returned no parseable JSON for news enrichment")
 
@@ -159,8 +175,12 @@ async def _make_signal(
     published_at: str | None,
     source: str,
     llm_config: dict[str, Any],
+    user_prompt: str = "",
+    evidence: list[str] | None = None,
 ) -> dict[str, Any]:
-    inferred = await _infer_with_llm(headline, summary, llm_config)
+    inferred = await _infer_with_llm(
+        headline, summary, llm_config, user_prompt=user_prompt, evidence=evidence
+    )
     return {
         "type": "news",
         "agent": "newsAgent",
@@ -175,6 +195,7 @@ async def _make_signal(
         "thesis": inferred["thesis"],
         "summary": summary,
         "source": source,
+        "evidence": evidence or [],
         "ts": _now_iso(),
     }
 
@@ -189,28 +210,40 @@ class NewsAgent:
         self._seen_keys: set[str] = set()
 
     async def poll_once(
-        self, coindesk_key: str, llm_config: dict[str, Any], limit: int = 20
+        self,
+        execution_tools: list[str],
+        tool_configs: dict[str, dict[str, Any]],
+        llm_config: dict[str, Any],
+        *,
+        user_prompt: str = "",
+        limit: int = 20,
     ) -> list[dict[str, Any]]:
-        result = await fetch_latest_articles({"apiKey": coindesk_key, "limit": limit})
+        articles = await fetch_headlines_from_tools(execution_tools, tool_configs, limit=limit)
         signals: list[dict[str, Any]] = []
-        for article in result["articles"]:
+        evidence = [f"{a.get('source')}: {a.get('title', '')[:100]}" for a in articles[:5]]
+        for article in articles:
             try:
                 signal = await _make_signal(
                     headline=article["title"],
                     summary=article.get("summary") or "",
                     url=article.get("url") or "",
                     published_at=article.get("publishedAt"),
-                    source=article.get("source") or "CoinDesk",
+                    source=article.get("source") or "feed",
                     llm_config=llm_config,
+                    user_prompt=user_prompt,
+                    evidence=evidence,
                 )
                 signals.append(signal)
             except Exception as exc:
-                print(f"[newsAgent] LLM enrichment failed for '{article.get('title')}': {exc}", file=sys.stderr)
+                print(f"[newsAgent] LLM enrichment failed: {exc}", file=sys.stderr)
         signals.sort(key=lambda s: s.get("publishedAt", ""), reverse=True)
         return signals
 
     async def stream_simulated_signals(
-        self, llm_config: dict[str, Any]
+        self,
+        llm_config: dict[str, Any],
+        *,
+        user_prompt: str = "",
     ) -> AsyncIterator[dict[str, Any]]:
         pool = list(SIMULATED_HEADLINES)
         random.shuffle(pool)
@@ -227,6 +260,7 @@ class NewsAgent:
                     published_at=None,
                     source="simulated",
                     llm_config=llm_config,
+                    user_prompt=user_prompt,
                 )
             except Exception as exc:
                 print(f"[newsAgent] simulate LLM call failed: {exc}", file=sys.stderr)
@@ -234,19 +268,28 @@ class NewsAgent:
 
     async def stream_news_signals(
         self,
-        coindesk_key: str,
+        execution_tools: list[str],
+        tool_configs: dict[str, dict[str, Any]],
         llm_config: dict[str, Any],
+        *,
+        user_prompt: str = "",
         limit: int = 20,
         simulate: bool = False,
     ) -> AsyncIterator[dict[str, Any]]:
         if simulate:
-            async for signal in self.stream_simulated_signals(llm_config):
+            async for signal in self.stream_simulated_signals(llm_config, user_prompt=user_prompt):
                 yield signal
             return
 
         while True:
             try:
-                batch = await self.poll_once(coindesk_key, llm_config, limit)
+                batch = await self.poll_once(
+                    execution_tools,
+                    tool_configs,
+                    llm_config,
+                    user_prompt=user_prompt,
+                    limit=limit,
+                )
                 fresh = [s for s in batch if _signal_key(s) not in self._seen_keys]
                 if fresh:
                     signal = fresh[0]
@@ -261,32 +304,48 @@ news_agent = NewsAgent()
 
 
 async def stream_news_signals(config: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
-    """Registry entry — streams news signals from node config."""
-    llm_config = _validate_llm_config(config)
-    simulate = bool(config.get("simulate"))
-    coindesk_key = (config.get("apiKey") or "").strip() or COINDESK_API_KEY
-    if not simulate and not coindesk_key:
-        raise ValueError(
-            "CoinDesk data API key required (set apiKey on the News Agent node or COINDESK_API_KEY env)."
-        )
+    """Registry entry — streams news signals from workflow subagent registry."""
+    cfg = _resolve_subagent_config(config)
+    llm_config = _validate_llm_config({**cfg, **(cfg.get("llm_config") or {})})
+    simulate = bool(cfg.get("simulate"))
+    execution_tools = list(cfg.get("execution_tools") or [])
+    tool_configs = dict(cfg.get("tool_configs") or {})
+    user_prompt = (cfg.get("userPrompt") or "").strip()
     limit = int(config.get("limit") or config.get("newsPollLimit") or 20)
-    async for signal in news_agent.stream_news_signals(coindesk_key, llm_config, limit, simulate=simulate):
+
+    if not simulate and not execution_tools:
+        raise ValueError(
+            "Wire at least one feed tool (cryptonews or tavily) into the News Agent node."
+        )
+    if not simulate:
+        feed_tools = [t for t in execution_tools if t in NEWS_FEED_TOOLS]
+        if not feed_tools:
+            raise ValueError(
+                f"News Agent requires a feed tool ({', '.join(sorted(NEWS_FEED_TOOLS))}). "
+                "Connect cryptonews or tavily to the left handle."
+            )
+
+    async for signal in news_agent.stream_news_signals(
+        execution_tools,
+        tool_configs,
+        llm_config,
+        user_prompt=user_prompt,
+        limit=limit,
+        simulate=simulate,
+    ):
         yield signal
 
 
 async def validate_news_config(config: dict[str, Any]) -> None:
-    """Refuse to run unless LLM config is complete (+ data key if not simulated)."""
-    llm_config = _validate_llm_config(config)
-    if config.get("simulate"):
+    cfg = _resolve_subagent_config(config)
+    _validate_llm_config({**cfg, **(cfg.get("llm_config") or {})})
+    if cfg.get("simulate"):
         return
-    coindesk_key = (config.get("apiKey") or "").strip() or COINDESK_API_KEY
-    if not coindesk_key:
+    execution_tools = list(cfg.get("execution_tools") or [])
+    if not execution_tools:
         raise ValueError(
-            "CoinDesk data API key required — set apiKey on the News Agent node, "
-            "or COINDESK_API_KEY in backend/.env, or start with simulate=true."
+            "Wire at least one feed tool (cryptonews or tavily) into the News Agent node."
         )
-    # Sanity-check the CoinDesk endpoint; LLM credentials are validated on first call.
-    await fetch_latest_articles({"apiKey": coindesk_key, "limit": int(config.get("limit") or 1)})
 
 
 async def _run_cli(simulate: bool, interval_s: float, limit: int) -> None:
@@ -294,15 +353,12 @@ async def _run_cli(simulate: bool, interval_s: float, limit: int) -> None:
         "llmProvider": os.getenv("NEWS_LLM_PROVIDER", "gemini"),
         "llmApiKey": os.getenv("NEWS_LLM_API_KEY", ""),
         "model": os.getenv("NEWS_LLM_MODEL", "gemini-2.0-flash"),
-        "apiKey": os.getenv("COINDESK_API_KEY", ""),
+        "execution_tools": ["cryptonews"],
+        "tool_configs": {"cryptonews": {"apiKey": os.getenv("CRYPTONEWS_API_KEY", "")}},
         "simulate": simulate,
         "limit": limit,
     }
-    llm_config = _validate_llm_config(config)
-    coindesk_key = config["apiKey"]
-    agent = NewsAgent(poll_ms=int(interval_s * 1000))
-    stream = agent.stream_news_signals(coindesk_key, llm_config, limit=limit, simulate=simulate)
-    async for signal in stream:
+    async for signal in stream_news_signals(config):
         print(json.dumps(signal), flush=True)
 
 

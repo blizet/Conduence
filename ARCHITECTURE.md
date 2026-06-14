@@ -1,47 +1,47 @@
-# Architecture — Sub-agents, Orchestrator, Tools
+# Architecture — Sub-agents, Orchestrator, Tools, Workflows
 
-This repo has three composable layers. Each layer is a **template** that the user wires
-together on the React Flow canvas. The wiring (edges) decides what data flows where at
-runtime.
+This repo has four composable layers. Each layer is a **template** that the user wires
+together on the React Flow canvas. **Edges define execution scope** — which tools and
+sub-agents participate in a workflow — not runtime data piping between nodes.
 
 ```
                     ┌──────────────┐
             ┌──────►│  Sub-agent   │──── emits signal ────┐
-            │       │  (News / Arb)│                      │
-   data     │       └──────────────┘                      ▼
-  source ───┤                                       ┌──────────────┐         ┌──────────┐
+            │       │  (News / Arb)│   (transparent)      │
+   tool     │       └──────────────┘                      ▼
+  snap  ────┤                                       ┌──────────────┐         ┌──────────┐
             │                                       │ Orchestrator │ ──────► │ CoT /    │
             │       ┌──────────────┐                │ (LangGraph)  │         │ Output   │
-            └──────►│    Tool      │ ──── enriches ►│              │         └──────────┘
+            └──────►│    Tool      │ ──── invoke ──►│              │         └──────────┘
                     │ (CoinGecko…) │                └──────┬───────┘
                     └──────────────┘                       │
-                                                           └── invokes tools in parallel
+                                                           └── invokes tools wired to LLM only
 ```
 
-- **Sub-agents** produce signals (they are the *only* layer that streams events).
-- **Tools** are stateless async functions wrapping one external API call.
-- **Orchestrator** is a LangGraph that consumes a signal, optionally calls tools,
-  and emits a trade decision.
+| Layer | Role | Visibility to orchestrator |
+| --- | --- | --- |
+| **Sub-agents** (hosted) | Stream signals from snapped tools + fixed `SYSTEM_PROMPT` + optional `userPrompt` | **Transparent** — orchestrator sees `subagent_registry` (tools, userPrompt, capabilities) |
+| **Mind agents** (marketplace installs) | External or published workflows | **Black box** — only signals, CoT, and reasoning visible; strategy hidden |
+| **Tools** | Stateless async API wrappers | Invoked by sub-agents (snapped) or orchestrator (wired to LLM) |
+| **Orchestrator** | LangGraph that consumes signals and emits trade decisions | Sees registries compiled from canvas |
 
-Whether a tool/sub-agent participates in a run is determined entirely by **whether
-the user drew an edge to it on the canvas.**
+Whether a tool or sub-agent participates is determined entirely by **canvas edges**.
 
 ---
 
-## 1. Sub-agents — signal producers
+## 1. Sub-agents — transparent signal producers
 
-Each sub-agent is a **standalone template**: it owns its data source, its LLM, and
-the schema of the signal it emits. It does not depend on the orchestrator being
-present; it just streams to a Kafka topic and via WebSocket.
+Each hosted sub-agent is a **standalone template**: it fetches data via **snapped tools**
+on the canvas (tool registry), runs a fixed `SYSTEM_PROMPT` in code, and accepts an
+optional `userPrompt` on the node for strategy focus. It streams to Kafka and WebSocket.
 
-| Sub-agent | Data source | LLM job | Polls |
+| Sub-agent | Feed tools (wire on left) | LLM job | Polls |
 | --- | --- | --- | --- |
-| **News** (`newsAgent`) | CoinDesk public API | classify headline → `sentiment`, `direction`, `strength`, `keywords`, `categories`, `thesis` | default 30 s |
-| **Arbitrage** (`arbitrageAgent`) | Polymarket Gamma + Kalshi (concurrent) | verify two markets resolve on the **same event** and write the per-opportunity thesis | default 15 s |
+| **News** (`newsAgent`) | `cryptonews`, `tavily` (snapped) | classify headline → sentiment, direction, strength, keywords, categories, thesis | default 30 s |
+| **Arbitrage** (`arbitrageAgent`) | `polymarketGamma`, `kalshi` (snapped) | verify two markets resolve on the **same event** and write the per-opportunity thesis | default 15 s |
 
-Both sub-agents now **refuse to run** unless three fields are provided on the
-node: `llmProvider` (`openai` / `claude` / `gemini`), `llmApiKey`, and `model`.
-Validation lives in `_validate_llm_config` in each sub-agent file. The shared
+Both sub-agents **refuse to run** unless `llmProvider`, `llmApiKey`, and `model` are set
+on the node. Validation lives in `_validate_llm_config` in each sub-agent file. The shared
 LLM client is `backend/app/llm/client.py` (`complete_json`).
 
 Common signal shape:
@@ -51,24 +51,22 @@ Common signal shape:
   "type": "news" | "arbitrage",
   "agent": "newsAgent" | "arbitrageAgent",
   "direction": "bullish" | "bearish" | "neutral",
-  "strength": 0.0,        // float, LLM-inferred conviction
+  "strength": 0.0,
   "keywords": [],
-  "thesis": "",           // LLM-written one-liner
-  "ts": "iso8601",
-  // …plus type-specific fields (headline/url for news, opportunity/legs for arb)
+  "thesis": "",
+  "ts": "iso8601"
 }
 ```
 
-Registry: `backend/app/subagents/registry.py` exposes each sub-agent with a
-`streamSignals(config)` async generator and a `validateConfig(config)` gate.
-The `requiredTools` field on each entry is **documentation only** today — it
-lists tools the sub-agent *can* benefit from if snapped on the canvas (e.g.
-News lists `cryptonews` + `tavily` for richer enrichment).
+Registry: `backend/app/subagents/registry.py` exposes each sub-agent with
+`streamSignals(config)` and `validateConfig(config)`. Tool fetching is centralized in
+`backend/app/subagents/tool_loop.py`.
 
 Sub-agent files:
 - `backend/app/subagents/news_subagent.py`
 - `backend/app/subagents/arbitrage_subagent.py`
-- `backend/app/subagents/news_coindesk.py` — CoinDesk fetcher used by News
+- `backend/app/subagents/tool_loop.py` — registry-driven tool invocation
+- `backend/app/subagents/cot_emit.py` — auto CoT emit when workflow is live
 - `backend/app/subagents/registry.py`
 
 ---
@@ -76,196 +74,139 @@ Sub-agent files:
 ## 2. Tools — stateless async endpoints
 
 A tool is a single async function `f(params: dict) -> dict` returning
-`{ ok, source, request, data, error }`. There is no class hierarchy; the
-contract is the dict shape.
+`{ ok, source, request, data, error }`.
 
 Registered in `backend/app/orchestrator/tools_registry.py`:
 
 ```python
 TOOL_HANDLERS = {
-    "coingecko":        fetch_coingecko,         # price
-    "coinmarketcap":    fetch_coinmarketcap,     # price
-    "polymarketGamma":  fetch_gamma_markets,     # markets
-    "polymarketWallet": fetch_polymarket_wallet, # markets
-    "cryptonews":       fetch_cryptonews,        # research
-    "tavily":           fetch_tavily,            # research
-    "cryptoquant":      fetch_cryptoquant,       # on-chain
-    "defillama":        fetch_defillama,         # macro / TVL
-    "clob":             _invoke_clob,            # execution (Polymarket)
-    "kalshi":           _invoke_kalshi,          # execution (Kalshi)
+    "coingecko":        fetch_coingecko,
+    "coinmarketcap":    fetch_coinmarketcap,
+    "polymarketGamma":  fetch_gamma_markets,
+    "polymarketWallet": fetch_polymarket_wallet,
+    "cryptonews":       fetch_cryptonews,
+    "tavily":           fetch_tavily,
+    "cryptoquant":      fetch_cryptoquant,
+    "defillama":        fetch_defillama,
+    "clob":             _invoke_clob,
+    "kalshi":           _invoke_kalshi,
 }
 ```
 
-`ToolRegistry.invoke_parallel(calls)` runs the list concurrently with a cap
-of `MAX_ENRICHMENT_CALLS = 6` per run. Errors don't abort the run — they're
-returned as `{ ok: false, error }` on the per-tool result so the orchestrator
-can decide what to do.
+`ToolRegistry.invoke_parallel(calls)` runs concurrently (cap `MAX_ENRICHMENT_CALLS = 6`).
+Errors are per-tool `{ ok: false, error }` — they do not abort the run.
 
-`backend/app/orchestrator/tool_specs.py` carries the LLM-facing
-**descriptions** of each tool (when to use, when not, parameter schema) so
-the orchestrator can choose tools at planning time.
+`backend/app/orchestrator/tool_specs.py` carries LLM-facing descriptions for orchestrator
+planning. Sub-agents receive a `tool_registry` slice from `compile_workflow_context`.
 
 ---
 
 ## 3. Orchestrator — LangGraph router + LLM synthesizer
 
-The orchestrator turns a single inbound signal into a single trade decision.
-It is a LangGraph (`backend/app/orchestrator/graph.py`) with these nodes
-(implementations in `backend/app/orchestrator/nodes.py`):
+The orchestrator turns inbound signals into trade decisions. LangGraph topology in
+`backend/app/orchestrator/graph.py`, nodes in `backend/app/orchestrator/nodes.py`:
 
 ```
-ingest_signal
-       │
-       ▼
-   route_signal ──► fast_publish_arbitrage ──► END       (arbitrage)
-       │
-       ├──────► context_only ──► END                     (neutral & non-news)
-       │
-       └──────► remember_signal
-                       │
-                       ▼
-                   match_graph     (correlation / decision graph lookup)
-                       │
-                       ▼
-                   plan_tools      (which connected tools to call)
-                       │
-                       ▼
-                   invoke_tools    (parallel via ToolRegistry)
-                       │
-                       ▼
-                   evaluate        (DecisionEngine ranks)
-                       │
-                       ▼
-                   llm_synthesize  (LLM writes final decision JSON)
-                       │
-                       ▼
-                   publish_outputs (emit CoT if cotBuilder is wired)
+ingest_signal → route_signal → … → llm_synthesize → publish_outputs
 ```
 
-Routing logic in `route_signal` (`nodes.py`):
-- `type == "arbitrage"` → **fast path**: arbitrage is market-neutral and
-  self-verifying, so it bypasses the LLM and publishes the suggestion directly.
-- Neutral signal **and** not a news signal → `context_only`: recorded for
-  corroboration but no trade emitted.
-- Otherwise → **deliberate path**: tools + LLM synthesis.
+At ingest, `compile_workflow_context` populates state with:
+- `subagent_registry` — transparent metadata for wired sub-agents
+- `mind_agent_registry` — black-box feed sources (marketplace installs)
+- `orchestrator_registry` — execution tools, visible tools, LLM config
+- `workflow_topology` — `has_orchestrator`, `auto_emit_cot`, `publish_as_mind_agent`
 
-Tool planning (`planner.plan_tool_calls`) decides *which* tools to call based
-on the signal's keywords and the connected-tool list. It only ever plans a
-call to a tool that the canvas marked as connected.
+`llm_synthesize` receives `subagent_registry_entry` for transparent sub-agents so the
+orchestrator LLM can reason about feed context and user strategy focus without seeing
+mind-agent internals.
 
-The orchestrator's own LLM (the `LlmNode` on the canvas) writes the final
-decision in `llm_synthesize_node` using the synthesis prompt from the node's
-config; it falls back to a deterministic decision if no LLM key is provided.
+**Skills registry** (`skills_registry.py`): exposes wired tools and sub-agent feed ids to
+the orchestrator LLM. Snapped sub-agent tools are **not** duplicated as orchestrator skills
+— sub-agents own their tool loop.
 
 ---
 
-## 4. Canvas wiring — how edges map to behavior
+## 4. Canvas wiring — compile to registries
 
-The user wires the workflow on the canvas. `backend/app/orchestrator/compile.py`
-turns nodes + edges into the runtime config. The edge direction is what matters:
+`backend/app/orchestrator/workflow_context.py` (`compile_workflow_context`) turns nodes +
+edges into runtime registries:
 
 | Edge | Effect |
 | --- | --- |
-| `Tool ─► Sub-agent`        | Records the tool in `subagent_tools[sub_agent_id]`. The sub-agent can use it for enrichment if it chooses to (current sub-agents have their own fixed data sources, so this is informational today). |
-| `Sub-agent ─► Orchestrator (llm)` | Marks the sub-agent as a **connected_subagent**. Its node-data (including LLM creds) is captured in `subagent_configs`. Its signals flow into the orchestrator's run queue. |
-| `Tool ─► Orchestrator (llm)`      | Marks the tool as a **connected_tool**. The orchestrator's planner can invoke it during the deliberate path. The tool's `apiKey` (from node-data) is captured in `tool_configs`. |
-| `Orchestrator (llm) ─► Output`    | The downstream node (e.g. `cotBuilder`) is added to `output_nodes`. `publish_outputs` emits to it only if the LLM decision is not `HOLD`. |
+| `Tool ─► Sub-agent` | Tool added to sub-agent `execution_tools` + `tool_configs` |
+| `Sub-agent ─► Orchestrator (llm)` | Sub-agent in `connected_subagents`; signals flow to orchestrator |
+| `Tool ─► Orchestrator (llm)` | Tool in orchestrator `execution_tools` (planner can invoke) |
+| `Sub-agent ─► cotBuilder` | Standalone path; `auto_emit_cot` when cotBuilder `autoEmit` is on |
+| `Orchestrator (llm) ─► cotBuilder` | Decision path; CoT emitted when decision is not HOLD |
 
-Example canvas → compiled config:
+Example:
 
 ```
-[coingecko] ──► [newsAgent] ──► [llm] ──► [cotBuilder]
-[cryptonews] ─►              ▲
+[cryptonews] ──► [newsAgent] ──► [llm] ──► [cotBuilder]
+[tavily]     ──►              ▲
 [polymarketGamma] ────────────┘
 ```
 
-Compiles to:
-```jsonc
-{
-  "connected_tools":     ["polymarketGamma"],            // edge tool → llm
-  "connected_subagents": ["newsAgent"],                  // edge subagent → llm
-  "subagent_tools":      { "newsAgent": ["coingecko", "cryptonews"] }, // edges tool → subagent
-  "output_nodes":        [{ "type": "cotBuilder", ... }] // edge llm → output
-}
-```
-
-`SUB_AGENT_NODE_TYPES`, `PURE_TOOL_NODE_TYPES`, and `ORCHESTRATOR_NODE_TYPE` in
-`compile.py` are the source of truth for which node types fall into which
-category.
+Compiles to `subagent_registry.newsAgent.execution_tools = ["cryptonews", "tavily"]`,
+`orchestrator_registry.execution_tools = ["polymarketGamma"]`, etc.
 
 ---
 
-## 5. Runtime — what happens when you click "Start sub-agent"
+## 5. Workflow Go Live
 
-1. **Node UI** — `NewsAgentNode.tsx` / `ArbitrageAgentNode.tsx` collects
-   `llmProvider`, `llmApiKey`, `model`, and (for News) the CoinDesk key, then
-   calls `startNewsStream(…)` or `startAgent('arbitrageAgent', …)` from
-   `frontend/lib/agent-feed.tsx`.
-2. **HTTP** — Frontend POSTs `/api/marketplace/agents/<id>/start` with the
-   full config object.
-3. **API** — `backend/app/api/routes.py` resolves the agent in
-   `signal_registry` and delegates to the autonomous-stream service.
-4. **Validate** — `validateConfig(config)` runs; for News/Arb this is the
-   `_validate_llm_config` check. Missing keys → `400` returned to UI; the
-   start button stays "Configure LLM first".
-5. **Spawn** — A background task calls `streamSignals(config)` (the
-   async generator on the sub-agent).
-6. **Emit** — For each yielded signal:
-   - publishes to Kafka topic `agent.feeds.<id>.public`,
-   - broadcasts to WebSocket clients (the canvas listens here),
-   - if the orchestrator is enabled, enqueues the signal into the
-     orchestrator run pipeline (`OrchestratorStreamService._loop`).
-7. **Orchestrator run** — `runner.run_orchestrator(signal, canvas, config,
-   memory)` invokes the compiled LangGraph and returns `{ decision,
-   suggestions, cot, tool_results, … }`. Memory carries `recent_signals` so
-   the next signal sees corroboration.
-8. **UI** — `agent-feed.tsx` updates `agentFeeds[<id>].latest` and the node
-   re-renders with the latest signal preview.
+**Primary control:** header **Go Live / Stop Live** in the playground (`Playground.tsx`).
 
-`Stop` posts `/api/marketplace/agents/<id>/stop`; the background task is
-cancelled and the topic stops receiving new envelopes.
+1. Frontend POSTs `POST /api/orchestrator/start` with full canvas + optional config
+   (`mind_agent_live`, `publishAsMindAgent` when cotBuilder has `autoEmit`).
+2. `WorkflowLiveService` (`backend/app/services/workflow_live.py`) compiles context and
+   starts **all wired sub-agents** via `AutonomousStreamService`, then the orchestrator
+   if an LLM node exists.
+3. `POST /api/orchestrator/stop` stops orchestrator and all started sub-agents.
+4. `GET /api/orchestrator/workflow/status` reports live state.
+
+Sub-agent nodes and marketplace cards show **Managed by workflow Go Live** when active;
+per-agent Start buttons are hidden. **Run Workflow** (single shot) is disabled while live.
+
+CoT auto-emit: when `cotBuilder.autoEmit` is on or `publish_as_mind_agent` is set,
+`cot_emit.maybe_emit_cot_for_subagent` publishes decision JSON to Kafka after each signal.
 
 ---
 
-## 6. File index
+## 6. Mind agents vs hosted sub-agents
+
+| | Hosted sub-agent | Mind agent (marketplace) |
+| --- | --- | --- |
+| Strategy | Transparent (`userPrompt` + tools in registry) | Hidden |
+| Start | Workflow Go Live (or legacy per-agent API) | Publisher runs workflow live |
+| CoT | Optional via cotBuilder / publish flag | Auto when publisher goes live |
+| Publish | N/A | `PublishWorkflowModal` → `publishAsMindAgent` |
+
+Published workflows are stored in `data/workflows/marketplace.json` with secrets stripped.
+
+---
+
+## 7. File index
 
 **Sub-agents** (`backend/app/subagents/`)
-- `registry.py` — sub-agent catalog + streaming wrappers
-- `news_subagent.py` — News (CoinDesk + LLM)
-- `arbitrage_subagent.py` — Arbitrage (Polymarket × Kalshi + LLM)
-- `news_coindesk.py` — CoinDesk data fetcher
+- `registry.py`, `news_subagent.py`, `arbitrage_subagent.py`
+- `tool_loop.py`, `cot_emit.py`
 
 **Orchestrator** (`backend/app/orchestrator/`)
-- `graph.py` — LangGraph topology
-- `nodes.py` — node implementations
-- `compile.py` — canvas → registries
-- `planner.py` — picks which tools to invoke
-- `tools_registry.py` — tool dispatch table
-- `tool_specs.py` — LLM-facing tool descriptions
-- `decision_engine.py` — ranks signals into trade suggestions
-- `llm_synthesize.py` — LLM writes the final decision JSON
-- `graph_registry.py` — correlation + decision context graphs
-- `correlation_graph.py` — graph impact propagation
-- `skills_registry.py` — per-run callable capability list
+- `workflow_context.py` — canvas → registries (primary compile)
+- `compile.py` — re-export alias
+- `graph.py`, `nodes.py`, `planner.py`, `llm_synthesize.py`
+- `tools_registry.py`, `tool_specs.py`, `skills_registry.py`
+- `graph_registry.py`, `state.py`, `runner.py`
 
-**Tools** (`backend/app/tools/`)
-- `coingecko.py`, `coinmarketcap.py`, `polymarket_gamma.py`,
-  `polymarket_wallet.py`, `cryptonews.py`, `tavily.py`, `cryptoquant.py`,
-  `defillama.py`, `clob.py`, `kalshi.py`, `cot_builder.py`
-
-**LLM** (`backend/app/llm/`)
-- `client.py` — multi-provider client (`complete_json`) for OpenAI, Gemini, Claude
-
-**API / services** (`backend/app/`)
-- `api/routes.py` — HTTP endpoints (marketplace, tools, orchestrator)
-- `services/orchestrator_stream.py` — orchestrator background loop
-- `signal_registry.py` — marketplace catalog (hosted + external producers)
+**Services** (`backend/app/services/`)
+- `workflow_live.py` — Go Live orchestration
+- `workflow_marketplace.py` — publish/browse workflows
+- `autonomous_stream.py` — sub-agent background streams
+- `orchestrator_stream.py` — orchestrator background loop
 
 **Frontend**
-- `frontend/nodes/subagents/{NewsAgentNode,ArbitrageAgentNode}.tsx` — sub-agent node UI
-- `frontend/nodes/mindagents/LlmNode.tsx` — orchestrator node UI
-- `frontend/nodes/tools/*.tsx` — per-tool node UI
-- `frontend/nodes/shared/LlmProviderFields.tsx` — reusable provider/model/key block
-- `frontend/lib/agent-feed.tsx` — start/stop + WebSocket feed listener
-- `frontend/lib/llm-providers.ts` — provider list + default models
-- `frontend/lib/dnd.ts` — node default data when dragged from palette
+- `frontend/components/playground/Playground.tsx` — Go Live / Stop Live
+- `frontend/lib/workflow-live.ts` — workflow live API client
+- `frontend/nodes/subagents/{NewsAgentNode,ArbitrageAgentNode}.tsx`
+- `frontend/components/playground/{PublishWorkflowModal,AgentMarketplace}.tsx`
+- `frontend/lib/dnd.ts` — node defaults including `userPrompt`

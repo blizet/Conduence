@@ -14,6 +14,7 @@ export type MarketplaceWorkflowListing = {
   updatedAt?: string;
   nodeCount?: number;
   edgeCount?: number;
+  publishAsMindAgent?: boolean;
 };
 
 export type MarketplaceWorkflow = MarketplaceWorkflowListing & {
@@ -50,6 +51,7 @@ export async function publishWorkflowToMarketplace(payload: {
   name: string;
   description?: string;
   publisher?: string;
+  publishAsMindAgent?: boolean;
   canvas: { nodes: WorkflowNode[]; edges: Edge[] };
 }): Promise<{ ok: boolean; error?: string; workflow?: MarketplaceWorkflowListing }> {
   const res = await fetch(`${API_URL}/api/marketplace/workflows`, {

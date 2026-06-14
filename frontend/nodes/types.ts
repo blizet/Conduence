@@ -132,6 +132,8 @@ export type HandleConfig = {
   position: 'left' | 'right' | 'top' | 'bottom';
   id?: string;
   label?: string;
+  /** Show dashed rail + plus affordance for multi-tool wiring */
+  multiConnect?: boolean;
   style?: React.CSSProperties;
 };
 

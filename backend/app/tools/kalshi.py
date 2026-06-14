@@ -25,6 +25,54 @@ def _normalized(*, source: str, request: dict[str, Any], data: Any = None, error
     }
 
 
+async def list_kalshi_markets(body: dict[str, Any] | None = None) -> dict[str, Any]:
+    """List open Kalshi markets (public, no auth)."""
+    body = body or {}
+    limit = int(body.get("limit") or 200)
+    pages = int(body.get("pages") or 3)
+    request = {"action": "list_markets", "limit": limit, "pages": pages}
+    markets: list[dict[str, Any]] = []
+    cursor: str | None = None
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+            for _ in range(max(1, pages)):
+                params: dict[str, Any] = {"status": "open", "limit": limit}
+                if cursor:
+                    params["cursor"] = cursor
+                res = await client.get(f"{KALSHI_BASE}/markets", params=params)
+                if res.status_code >= 400:
+                    return _normalized(
+                        source="kalshi",
+                        request=request,
+                        error=f"Kalshi markets list failed ({res.status_code}): {res.text[:200]}",
+                    )
+                payload = res.json() if res.content else {}
+                batch = payload.get("markets") if isinstance(payload, dict) else []
+                if isinstance(batch, list):
+                    markets.extend(batch)
+                cursor = payload.get("cursor") if isinstance(payload, dict) else None
+                if not cursor or not batch:
+                    break
+    except Exception as exc:
+        return _normalized(source="kalshi", request=request, error=str(exc))
+
+    return _normalized(source="kalshi", request=request, data={"markets": markets, "count": len(markets)})
+
+
+async def fetch_kalshi(body: dict[str, Any]) -> dict[str, Any]:
+    """Tool entry — quote by ticker or list markets."""
+    if (body.get("action") or "").strip() == "list_markets":
+        return await list_kalshi_markets(body)
+    ticker = (body.get("ticker") or "").strip()
+    if not ticker:
+        return _normalized(
+            source="kalshi",
+            request=body,
+            error="ticker is required (or action=list_markets)",
+        )
+    return await get_kalshi_quote(ticker)
+
+
 async def get_kalshi_quote(ticker: str) -> dict[str, Any]:
     """Top-of-book quote for one Kalshi market (public, no auth)."""
     request = {"ticker": ticker}

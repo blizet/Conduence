@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 from app.tools.clob import get_clob_quote
-from app.tools.kalshi import get_kalshi_quote
+from app.tools.kalshi import fetch_kalshi, get_kalshi_quote
 from app.tools.coingecko import fetch_coingecko
 from app.tools.coinmarketcap import fetch_coinmarketcap
 from app.tools.cryptonews import fetch_cryptonews
@@ -44,10 +44,7 @@ async def _invoke_clob(body: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _invoke_kalshi(body: dict[str, Any]) -> dict[str, Any]:
-    ticker = (body.get("ticker") or "").strip()
-    if not ticker:
-        return {"ok": False, "source": "kalshi", "request": body, "error": "ticker is required"}
-    return await get_kalshi_quote(ticker)
+    return await fetch_kalshi(body)
 
 
 TOOL_HANDLERS: dict[str, ToolFn] = {

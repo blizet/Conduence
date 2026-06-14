@@ -36,3 +36,7 @@ class OrchestratorState(TypedDict, total=False):
     skills: list[str]
     rag_context: dict[str, Any]
     context_graph: str
+    subagent_registry: dict[str, Any]
+    mind_agent_registry: dict[str, Any]
+    orchestrator_registry: dict[str, Any]
+    workflow_topology: dict[str, Any]

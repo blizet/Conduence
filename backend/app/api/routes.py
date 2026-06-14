@@ -379,7 +379,22 @@ async def external_agent_heartbeat(
 
 @orchestrator_router.get("/context-graphs")
 async def orchestrator_context_graphs() -> dict[str, Any]:
-    return {"graphs": [{"id": k, **v} for k, v in GRAPH_CATALOG.items()]}
+    from app.orchestrator.graph_registry import build_graph_registry
+
+    registry = build_graph_registry()
+    by_id = {g["id"]: g for g in registry.get("available") or [] if isinstance(g, dict)}
+    graphs = []
+    for key, meta in GRAPH_CATALOG.items():
+        spec = by_id.get(key) or {}
+        graphs.append(
+            {
+                "id": key,
+                **meta,
+                "node_count": spec.get("node_count", 0),
+                "edge_count": spec.get("edge_count", 0),
+            }
+        )
+    return {"graphs": graphs}
 
 
 def _graph_id_from_canvas(canvas: dict[str, Any]) -> str | None:
@@ -441,9 +456,14 @@ async def orchestrator_status(request: Request) -> dict[str, Any]:
 async def orchestrator_start(request: Request, body: dict[str, Any]) -> dict[str, Any]:
     canvas = body.get("canvas") or {"nodes": [], "edges": []}
     config = body.get("config") or {}
-    return await request.app.state.orchestrator_stream.start(canvas, config)
+    return await request.app.state.workflow_live.start(canvas, config)
 
 
 @orchestrator_router.post("/stop")
 async def orchestrator_stop(request: Request) -> dict[str, Any]:
-    return request.app.state.orchestrator_stream.stop()
+    return await request.app.state.workflow_live.stop()
+
+
+@orchestrator_router.get("/workflow/status")
+async def workflow_live_status(request: Request) -> dict[str, Any]:
+    return request.app.state.workflow_live.status()

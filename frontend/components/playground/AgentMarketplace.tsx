@@ -10,6 +10,7 @@ import {
 } from '@/lib/workflow-marketplace';
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
+import { fetchWorkflowLiveStatus } from '@/lib/workflow-live';
 import { WrapperGuideModal } from './WrapperGuideModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -74,6 +75,7 @@ export function AgentMarketplace({
   } = useAgentFeed();
 
   const [guideOpen, setGuideOpen] = useState(false);
+  const [workflowLive, setWorkflowLive] = useState(false);
   const [workflows, setWorkflows] = useState<MarketplaceWorkflowListing[]>([]);
   const [workflowBusy, setWorkflowBusy] = useState<string | null>(null);
   const [externalStatus, setExternalStatus] = useState<Record<string, AgentLiveStatus>>({});
@@ -87,6 +89,7 @@ export function AgentMarketplace({
   useEffect(() => {
     if (!open) return;
     void loadWorkflows();
+    void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
   }, [open, loadWorkflows, workflowRefreshSignal]);
 
   const installWorkflow = async (workflowId: string) => {
@@ -257,7 +260,7 @@ export function AgentMarketplace({
                         </>
                       )}
 
-                      {!external && agent.id === 'newsAgent' && isInstalled && (
+                      {!external && agent.id === 'newsAgent' && isInstalled && !workflowLive && (
                         <button
                           type="button"
                           className={`marketplace-btn${newsStreamRunning ? ' marketplace-btn--stop' : ''}`}
@@ -271,7 +274,7 @@ export function AgentMarketplace({
                         </button>
                       )}
 
-                      {!external && agent.autonomous && agent.id !== 'newsAgent' && isInstalled && (
+                      {!external && agent.autonomous && agent.id !== 'newsAgent' && isInstalled && !workflowLive && (
                         <button
                           type="button"
                           className={`marketplace-btn${agentFeeds[agent.id]?.running ? ' marketplace-btn--stop' : ''}`}
@@ -286,6 +289,11 @@ export function AgentMarketplace({
                       )}
                     </div>
 
+                    {isInstalled && workflowLive && agent.autonomous && !external && (
+                      <p className="marketplace-card__live marketplace-card__live--muted">
+                        Managed by workflow Go Live
+                      </p>
+                    )}
                     {isInstalled && live && (
                       <p className={`marketplace-card__live${isLive ? '' : ' marketplace-card__live--muted'}`}>
                         {live}
@@ -314,6 +322,9 @@ export function AgentMarketplace({
                   <div className="marketplace-card__title-row">
                     <h3 className="marketplace-card__name">{workflow.name}</h3>
                     <span className="marketplace-badge marketplace-badge--workflow">Workflow</span>
+                    {workflow.publishAsMindAgent && (
+                      <span className="marketplace-badge marketplace-badge--live">Mind agent</span>
+                    )}
                   </div>
                   {workflow.description && (
                     <p className="marketplace-card__desc">{workflow.description}</p>

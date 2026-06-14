@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { useAgentFeed } from '@/lib/agent-feed';
 import {
@@ -8,8 +8,11 @@ import {
   normalizeProvider,
   type LlmProvider,
 } from '@/lib/llm-providers';
+import { fetchWorkflowLiveStatus } from '@/lib/workflow-live';
+import { subagentInputHandles } from '../shared/agentInputHandles';
 import { GlassNode } from '../shared/GlassNode';
 import { LlmProviderFields } from '../shared/LlmProviderFields';
+import { PromptField } from '../shared/PromptField';
 import { stopNodeKeyPropagation, useNodeData } from '../shared/useNodeData';
 import type { WorkflowNode } from '../types';
 
@@ -42,8 +45,9 @@ function isArbitrageEvent(value: unknown): value is ArbitrageEvent {
 }
 
 export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNode>) {
-  const { agentFeeds, startAgent, stopAgent, refreshAgentStatus } = useAgentFeed();
+  const { agentFeeds, refreshAgentStatus } = useAgentFeed();
   const updateData = useNodeData(id);
+  const [workflowLive, setWorkflowLive] = useState(false);
 
   const feed = agentFeeds[AGENT_ID];
   const running = feed?.running ?? false;
@@ -57,20 +61,14 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
 
   useEffect(() => {
     void refreshAgentStatus(AGENT_ID);
+    void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
+    const t = setInterval(() => {
+      void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
+    }, 8000);
+    return () => clearInterval(t);
   }, [refreshAgentStatus]);
 
-  const toggleStream = () => {
-    if (running) {
-      stopAgent(AGENT_ID);
-    } else if (llmReady) {
-      void startAgent(AGENT_ID, {
-        simulate,
-        llmProvider,
-        llmApiKey,
-        model: llmModel,
-      });
-    }
-  };
+  const managedByWorkflow = workflowLive;
 
   return (
     <GlassNode
@@ -81,18 +79,9 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
       icon={<ArbIcon />}
       selected={selected}
       wide
-      handles={[
-        { type: 'target', position: 'left', id: 'in-tools' },
-        { type: 'source', position: 'right', id: 'out-arb' },
-      ]}
+      handles={subagentInputHandles('out-arb')}
     >
       <div onKeyDown={stopNodeKeyPropagation}>
-        <div className="node-field">
-          <div className="node-field__label">Required tools (optional snap)</div>
-          <div className="node-field__hint">
-            Polymarket Gamma + Kalshi (public APIs, no keys) · Polymarket / Kalshi execution tools for trades
-          </div>
-        </div>
         <div className="node-field">
           <div className="node-field__label">LLM for same-event verification</div>
           <div className="node-field__hint">
@@ -110,45 +99,39 @@ export function ArbitrageAgentNode({ id, data, selected }: NodeProps<WorkflowNod
           onModelChange={(m) => updateData({ model: m })}
           onApiKeyChange={(k) => updateData({ llmApiKey: k })}
         />
+        <PromptField
+          label="User prompt (strategy focus)"
+          value={data.userPrompt ?? ''}
+          rows={2}
+          placeholder="e.g. Only crypto threshold markets with >$50K liquidity…"
+          onChange={(v) => updateData({ userPrompt: v })}
+        />
         <div className="node-field">
           <div className="node-field__label">Polymarket × Kalshi scanner</div>
           <div className="node-status-row">
             <span
-              className={`node-live-dot${running ? ' node-live-dot--on' : ''}`}
-              style={{ color: running ? data.accent : undefined }}
+              className={`node-live-dot${running || managedByWorkflow ? ' node-live-dot--on' : ''}`}
+              style={{ color: running || managedByWorkflow ? data.accent : undefined }}
             />
             <span className="node-field__hint">
-              {running
-                ? `Live · ${feed?.feedTopic ?? 'agent.feeds.arbitrageAgent.public'}`
-                : llmReady
-                  ? 'Scans both venues in parallel (requires backend + Redpanda)'
-                  : 'Set LLM provider, API key, and model to enable'}
+              {managedByWorkflow
+                ? 'Managed by workflow Go Live'
+                : running
+                  ? `Live · ${feed?.feedTopic ?? 'agent.feeds.arbitrageAgent.public'}`
+                  : llmReady
+                    ? 'Use Go Live on the header to start scanning'
+                    : 'Set LLM provider, API key, and model to enable'}
             </span>
           </div>
           <label className="node-checkbox-row nodrag">
             <input
               type="checkbox"
               checked={simulate}
-              disabled={running}
+              disabled={running || managedByWorkflow}
               onChange={(e) => updateData({ simulate: e.target.checked })}
             />
             Simulate mode — offline fixtures, still calls LLM
           </label>
-          <button
-            type="button"
-            className="node-add-btn"
-            style={{ marginTop: 4, borderColor: `${data.accent}55`, color: data.accent }}
-            onClick={toggleStream}
-            disabled={!running && !llmReady}
-          >
-            {running
-              ? 'Stop sub-agent'
-              : llmReady
-                ? simulate
-                  ? 'Start sub-agent (simulated)'
-                  : 'Start sub-agent'
-                : 'Configure LLM first'}
-          </button>
           {feed?.error && (
             <div className="node-field__hint" style={{ color: '#f87171', marginTop: 4 }}>
               {feed.error}

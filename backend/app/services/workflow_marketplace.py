@@ -77,6 +77,7 @@ def list_workflows() -> list[dict[str, Any]]:
                 "updatedAt": entry.get("updatedAt"),
                 "nodeCount": len(canvas.get("nodes") or []),
                 "edgeCount": len(canvas.get("edges") or []),
+                "publishAsMindAgent": bool(entry.get("publishAsMindAgent")),
             }
         )
     listings.sort(key=lambda w: w.get("updatedAt") or w.get("publishedAt") or "", reverse=True)
@@ -121,6 +122,7 @@ def publish_workflow(body: dict[str, Any]) -> dict[str, Any]:
         "publishedAt": workflows[existing_idx]["publishedAt"] if existing_idx is not None else now,
         "updatedAt": now,
         "canvas": sanitized,
+        "publishAsMindAgent": bool(body.get("publishAsMindAgent")),
     }
 
     if existing_idx is not None:

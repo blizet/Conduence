@@ -16,10 +16,12 @@ class AutonomousAgentStreamService:
         producer: SignalProducerService,
         events: EventsManager,
         orchestrator: Any | None = None,
+        ingress: Any | None = None,
     ) -> None:
         self._producer = producer
         self._events = events
         self._orchestrator = orchestrator
+        self._ingress = ingress
         self._sessions: dict[str, dict[str, Any]] = {}
         self._stop_flags: dict[str, bool] = {}
         self._tasks: dict[str, asyncio.Task] = {}
@@ -73,7 +75,8 @@ class AutonomousAgentStreamService:
             "feedTopic": defn["feedTopic"],
             "eventType": defn["eventType"],
         }
-        self._tasks[agent_id] = asyncio.create_task(self._run_loop(agent_id, defn, config))
+        run_config = {**config, "ingress": self._ingress}
+        self._tasks[agent_id] = asyncio.create_task(self._run_loop(agent_id, defn, run_config))
         logger.info("Autonomous stream started agent=%s topic=%s", agent_id, defn["feedTopic"])
         return {"ok": True, "running": True, "feedTopic": defn["feedTopic"]}
 
@@ -93,7 +96,7 @@ class AutonomousAgentStreamService:
             async for signal in defn["streamSignals"](config):
                 if self._stop_flags.get(agent_id):
                     break
-                await self._emit(agent_id, defn["feedTopic"], defn["eventType"], signal)
+                await self._emit(agent_id, defn["feedTopic"], defn["eventType"], signal, config)
         except asyncio.CancelledError:
             pass
         except Exception as exc:
@@ -109,7 +112,12 @@ class AutonomousAgentStreamService:
                 session["running"] = False
 
     async def _emit(
-        self, agent_id: str, feed_topic: str, event_type: str, signal: Any
+        self,
+        agent_id: str,
+        feed_topic: str,
+        event_type: str,
+        signal: Any,
+        config: dict[str, Any] | None = None,
     ) -> None:
         session = self._sessions.get(agent_id)
         if session:
@@ -154,3 +162,14 @@ class AutonomousAgentStreamService:
                 )
             except Exception as exc:
                 logger.warning("Orchestrator enqueue failed: %s", exc)
+
+        wc = (config or {}).get("workflow_context")
+        if wc and self._ingress:
+            from app.subagents.cot_emit import maybe_emit_cot_for_subagent
+
+            await maybe_emit_cot_for_subagent(
+                signal if isinstance(signal, dict) else {},
+                agent_id=agent_id,
+                workflow_context=wc,
+                ingress=self._ingress,
+            )

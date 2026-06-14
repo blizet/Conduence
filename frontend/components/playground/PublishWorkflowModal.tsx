@@ -21,6 +21,7 @@ export function PublishWorkflowModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [publisher, setPublisher] = useState('');
+  const [publishAsMindAgent, setPublishAsMindAgent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -38,6 +39,7 @@ export function PublishWorkflowModal({
       name: name.trim(),
       description: description.trim(),
       publisher: publisher.trim() || undefined,
+      publishAsMindAgent,
       canvas: sanitizeCanvasForPublish(canvas),
     });
     setBusy(false);
@@ -51,6 +53,7 @@ export function PublishWorkflowModal({
       setName('');
       setDescription('');
       setPublisher('');
+      setPublishAsMindAgent(false);
       setSuccess('');
       onClose();
     }, 1200);
@@ -109,6 +112,14 @@ export function PublishWorkflowModal({
               value={publisher}
               onChange={(e) => setPublisher(e.target.value)}
             />
+          </label>
+          <label className="node-checkbox-row">
+            <input
+              type="checkbox"
+              checked={publishAsMindAgent}
+              onChange={(e) => setPublishAsMindAgent(e.target.checked)}
+            />
+            Publish as mind agent — strategy hidden; subscribers see signals and CoT only
           </label>
           {error && <p className="marketplace-card__error">{error}</p>}
           {success && <p className="publish-workflow-form__success">{success}</p>}

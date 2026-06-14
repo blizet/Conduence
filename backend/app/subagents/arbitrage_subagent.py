@@ -29,12 +29,8 @@ import sys
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncIterator
 
-import httpx
-
 from app.llm.client import complete_json
-
-GAMMA_URL = "https://gamma-api.polymarket.com/markets"
-KALSHI_URL = "https://external-api.kalshi.com/trade-api/v2/markets"
+from app.subagents.tool_loop import ARB_SCAN_TOOLS, fetch_scan_markets_from_tools
 
 ARB_POLL_INTERVAL_MS = int(os.getenv("ARB_POLL_INTERVAL_MS", "15000"))
 ARB_SIMULATE_INTERVAL_MS = int(os.getenv("ARB_SIMULATE_INTERVAL_MS", "8000"))
@@ -159,18 +155,39 @@ SYSTEM_PROMPT = (
 )
 
 
+def _resolve_subagent_config(config: dict[str, Any]) -> dict[str, Any]:
+    if config.get("execution_tools") is not None:
+        return config
+    wc = config.get("workflow_context") or {}
+    entry = (wc.get("subagent_registry") or {}).get("arbitrageAgent") or {}
+    if entry:
+        return {**entry, **{k: v for k, v in config.items() if k not in entry}}
+    return config
+
+
 async def _verify_same_event_with_llm(
-    poly: dict[str, Any], kalshi: dict[str, Any], llm_config: dict[str, Any]
+    poly: dict[str, Any],
+    kalshi: dict[str, Any],
+    llm_config: dict[str, Any],
+    *,
+    user_prompt: str = "",
 ) -> dict[str, Any]:
     poly_close = poly["close_dt"].isoformat() if poly.get("close_dt") else "unknown"
     kalshi_close = kalshi["close_dt"].isoformat() if kalshi.get("close_dt") else "unknown"
-    user_prompt = (
-        f"Polymarket question: {poly['title']}\n"
-        f"Polymarket close: {poly_close}\n\n"
-        f"Kalshi question: {kalshi['title']}\n"
-        f"Kalshi close: {kalshi_close}"
+    parts = []
+    if user_prompt:
+        parts.append(f"Strategy focus: {user_prompt}")
+    parts.extend(
+        [
+            f"Polymarket question: {poly['title']}",
+            f"Polymarket close: {poly_close}",
+            "",
+            f"Kalshi question: {kalshi['title']}",
+            f"Kalshi close: {kalshi_close}",
+        ]
     )
-    parsed = await complete_json(llm_config, SYSTEM_PROMPT, user_prompt)
+    user_prompt_msg = "\n".join(parts)
+    parsed = await complete_json(llm_config, SYSTEM_PROMPT, user_prompt_msg)
     if not parsed:
         return {"same_event": False, "confidence": 0.0, "reasoning": "LLM returned no parseable response", "thesis": "", "keywords": []}
 
@@ -235,91 +252,6 @@ def evaluate_pair(poly: dict[str, Any], kalshi: dict[str, Any], confidence: floa
 
 
 # ----------------------------------------------------------------------
-# fetchers (open markets only) — unchanged
-# ----------------------------------------------------------------------
-async def _get_json(
-    client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None
-) -> dict | list:
-    response = await client.get(url, params=params)
-    response.raise_for_status()
-    return response.json()
-
-
-async def fetch_polymarket(client: httpx.AsyncClient, limit: int = 300) -> list[dict[str, Any]]:
-    raw = await _get_json(client, GAMMA_URL, params={
-        "closed": "false", "active": "true", "archived": "false",
-        "limit": limit, "order": "volume24hr", "ascending": "false",
-    })
-    out = []
-    for m in raw if isinstance(raw, list) else []:
-        title = m.get("question") or ""
-        if not title or m.get("closed") or not m.get("active", True):
-            continue
-        if m.get("acceptingOrders") is False:
-            continue
-        try:
-            best_bid = float(m.get("bestBid") or 0)
-            best_ask = float(m.get("bestAsk") or 0)
-        except (TypeError, ValueError):
-            continue
-        if not (0 < best_ask < 1):
-            continue
-        close_dt = parse_date_guess(title, m.get("endDate"))
-        if close_dt and close_dt < now_utc():
-            continue
-        out.append({
-            "platform": "polymarket",
-            "title": title,
-            "slug": m.get("slug", ""),
-            "url": f"https://polymarket.com/market/{m.get('slug', '')}",
-            "yes_ask": best_ask,
-            "no_ask": 1.0 - best_bid if best_bid > 0 else 1.0,
-            "liquidity": float(m.get("liquidity") or 0),
-            "volume_24h": float(m.get("volume24hr") or 0),
-            "close_dt": close_dt,
-        })
-    return out
-
-
-async def fetch_kalshi(
-    client: httpx.AsyncClient, limit: int = 200, pages: int = 3
-) -> list[dict[str, Any]]:
-    out: list[dict[str, Any]] = []
-    cursor = None
-    for _ in range(pages):
-        params: dict[str, Any] = {"status": "open", "limit": limit}
-        if cursor:
-            params["cursor"] = cursor
-        payload = await _get_json(client, KALSHI_URL, params=params)
-        markets = payload.get("markets", []) if isinstance(payload, dict) else []
-        for m in markets:
-            if m.get("status") != "open":
-                continue
-            title = m.get("title") or ""
-            yes_ask, no_ask = m.get("yes_ask"), m.get("no_ask")
-            if not title or not yes_ask or not no_ask:
-                continue
-            close_dt = parse_date_guess(title, m.get("close_time"))
-            if close_dt and close_dt < now_utc():
-                continue
-            out.append({
-                "platform": "kalshi",
-                "title": title,
-                "ticker": m.get("ticker", ""),
-                "url": f"https://kalshi.com/markets/{m.get('ticker', '')}",
-                "yes_ask": float(yes_ask) / 100.0,
-                "no_ask": float(no_ask) / 100.0,
-                "liquidity": float(m.get("liquidity") or 0) / 100.0,
-                "volume_24h": float(m.get("volume_24h") or m.get("volume") or 0),
-                "close_dt": close_dt,
-            })
-        cursor = payload.get("cursor") if isinstance(payload, dict) else None
-        if not cursor or not markets:
-            break
-    return out
-
-
-# ----------------------------------------------------------------------
 # simulate fixtures
 # ----------------------------------------------------------------------
 def _sim_markets() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -380,6 +312,8 @@ async def _build_events(
     poly_markets: list[dict[str, Any]],
     kalshi_markets: list[dict[str, Any]],
     llm_config: dict[str, Any],
+    *,
+    user_prompt: str = "",
 ) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     for poly in poly_markets:
@@ -391,7 +325,9 @@ async def _build_events(
             if not pre_filter_pair(poly, kalshi):
                 continue
             try:
-                verdict = await _verify_same_event_with_llm(poly, kalshi, llm_config)
+                verdict = await _verify_same_event_with_llm(
+                    poly, kalshi, llm_config, user_prompt=user_prompt
+                )
             except Exception as exc:
                 print(f"[arbitrageAgent] LLM verification failed: {exc}", file=sys.stderr)
                 continue
@@ -432,17 +368,23 @@ async def _build_events(
     return events
 
 
-async def scan(simulate: bool, llm_config: dict[str, Any]) -> list[dict[str, Any]]:
+async def scan(
+    simulate: bool,
+    llm_config: dict[str, Any],
+    execution_tools: list[str],
+    tool_configs: dict[str, dict[str, Any]],
+    *,
+    user_prompt: str = "",
+) -> list[dict[str, Any]]:
     if simulate:
         poly_markets, kalshi_markets = _sim_markets()
     else:
-        async with httpx.AsyncClient(
-            timeout=12, headers={"Accept": "application/json", "User-Agent": "cot-arb-agent/1.0"}
-        ) as client:
-            poly_markets, kalshi_markets = await asyncio.gather(
-                fetch_polymarket(client), fetch_kalshi(client)
-            )
-    return await _build_events(poly_markets, kalshi_markets, llm_config)
+        poly_markets, kalshi_markets = await fetch_scan_markets_from_tools(
+            execution_tools, tool_configs
+        )
+    return await _build_events(
+        poly_markets, kalshi_markets, llm_config, user_prompt=user_prompt
+    )
 
 
 def _event_key(event: dict[str, Any]) -> str:
@@ -459,12 +401,24 @@ class ArbitrageAgent:
         self._seen_keys: set[str] = set()
 
     async def stream_arbitrage_signals(
-        self, llm_config: dict[str, Any], simulate: bool = False
+        self,
+        llm_config: dict[str, Any],
+        execution_tools: list[str],
+        tool_configs: dict[str, dict[str, Any]],
+        *,
+        user_prompt: str = "",
+        simulate: bool = False,
     ) -> AsyncIterator[dict[str, Any]]:
         interval_ms = ARB_SIMULATE_INTERVAL_MS if simulate else self.poll_ms
         while True:
             try:
-                for event in await scan(simulate, llm_config):
+                for event in await scan(
+                    simulate,
+                    llm_config,
+                    execution_tools,
+                    tool_configs,
+                    user_prompt=user_prompt,
+                ):
                     key = _event_key(event)
                     if not simulate and key in self._seen_keys:
                         continue
@@ -479,16 +433,46 @@ arbitrage_agent = ArbitrageAgent()
 
 
 async def stream_arbitrage_signals(config: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
-    """Registry entry — streams arb signals from node config."""
-    llm_config = _validate_llm_config(config)
-    simulate = bool(config.get("simulate"))
-    async for event in arbitrage_agent.stream_arbitrage_signals(llm_config, simulate=simulate):
+    """Registry entry — streams arb signals from workflow subagent registry."""
+    cfg = _resolve_subagent_config(config)
+    llm_config = _validate_llm_config({**cfg, **(cfg.get("llm_config") or {})})
+    simulate = bool(cfg.get("simulate"))
+    execution_tools = list(cfg.get("execution_tools") or [])
+    tool_configs = dict(cfg.get("tool_configs") or {})
+    user_prompt = (cfg.get("userPrompt") or "").strip()
+
+    if not simulate:
+        if not execution_tools:
+            raise ValueError(
+                "Wire polymarketGamma and kalshi into the Arbitrage Agent node (left handle)."
+            )
+        missing = [t for t in ("polymarketGamma", "kalshi") if t not in execution_tools]
+        if missing:
+            raise ValueError(
+                f"Arbitrage Agent missing required scan tools: {', '.join(missing)}. "
+                "Connect polymarketGamma and kalshi to the left handle."
+            )
+
+    async for event in arbitrage_agent.stream_arbitrage_signals(
+        llm_config,
+        execution_tools,
+        tool_configs,
+        user_prompt=user_prompt,
+        simulate=simulate,
+    ):
         yield event
 
 
 async def validate_arbitrage_config(config: dict[str, Any]) -> None:
-    """Refuse to run unless LLM config is complete."""
-    _validate_llm_config(config)
+    cfg = _resolve_subagent_config(config)
+    _validate_llm_config({**cfg, **(cfg.get("llm_config") or {})})
+    if cfg.get("simulate"):
+        return
+    execution_tools = list(cfg.get("execution_tools") or [])
+    if "polymarketGamma" not in execution_tools or "kalshi" not in execution_tools:
+        raise ValueError(
+            "Arbitrage Agent requires polymarketGamma and kalshi tools wired on the canvas."
+        )
 
 
 async def _run_cli(simulate: bool, interval_s: float) -> None:
@@ -496,11 +480,11 @@ async def _run_cli(simulate: bool, interval_s: float) -> None:
         "llmProvider": os.getenv("ARB_LLM_PROVIDER", "gemini"),
         "llmApiKey": os.getenv("ARB_LLM_API_KEY", ""),
         "model": os.getenv("ARB_LLM_MODEL", "gemini-2.0-flash"),
+        "execution_tools": ["polymarketGamma", "kalshi"],
+        "tool_configs": {},
         "simulate": simulate,
     }
-    llm_config = _validate_llm_config(config)
-    agent = ArbitrageAgent(poll_ms=int(interval_s * 1000))
-    async for event in agent.stream_arbitrage_signals(llm_config, simulate=simulate):
+    async for event in stream_arbitrage_signals(config):
         print(json.dumps(event), flush=True)
 
 
