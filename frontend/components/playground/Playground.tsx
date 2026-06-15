@@ -200,14 +200,6 @@ function PlaygroundInner({
           </button>
           <button
             type="button"
-            className="graph-view-toggle marketplace-toggle"
-            onClick={onToggleMarketplace}
-            title="Mind agent marketplace — published workflows tagged Workflow"
-          >
-            Marketplace
-          </button>
-          <button
-            type="button"
             className={`graph-view-toggle${workflowLive ? ' graph-view-toggle--active' : ''}`}
             onClick={workflowLive ? onStopLive : onGoLive}
             disabled={showGraph || liveBusy || nodeCount === 0}

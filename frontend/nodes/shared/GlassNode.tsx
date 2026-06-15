@@ -17,7 +17,17 @@ const CATEGORY_LABEL: Record<NodeCategory, string> = {
   orchestrator: 'main',
 };
 
-export type NodeShape = 'card' | 'circle' | 'square' | 'execution' | 'trigger' | 'terminal' | 'route' | 'agent';
+export type NodeShape =
+  | 'card'
+  | 'circle'
+  | 'square'
+  | 'execution'
+  | 'triangle-right'
+  | 'triangle-up'
+  | 'trigger'
+  | 'terminal'
+  | 'route'
+  | 'agent';
 
 type GlassNodeProps = {
   label: string;
@@ -63,19 +73,23 @@ export function GlassNode({
   const isOrchestrator = category === 'orchestrator';
   const isCircle = resolvedShape === 'circle';
   const isExecution = resolvedShape === 'execution';
-  const isCompact = isCircle || isExecution;
-  const isSubagentCard = category === 'subagent' && resolvedShape === 'card';
+  const isTriangleRight = resolvedShape === 'triangle-right';
+  const isTriangleUp = resolvedShape === 'triangle-up';
+  const isTriangle = isTriangleRight || isTriangleUp;
+  const isCompact = isCircle || isExecution || isTriangle;
+  const isAgentCard =
+    (category === 'subagent' || category === 'mindagent') && resolvedShape === 'card';
 
   const leftPorts = handles.filter((h) => isLabeledPort(h, 'left'));
   const rightPorts = handles.filter((h) => isLabeledPort(h, 'right'));
   const topPorts = handles.filter((h) => isLabeledPort(h, 'top'));
-  const bottomPorts = handles.filter((h) => isLabeledPort(h, 'bottom'));
+  const bottomPorts = handles.filter((h) => h.position === 'bottom');
   const plainHandles = handles.filter(
     (h) =>
+      h.position !== 'bottom' &&
       !isLabeledPort(h, 'left') &&
       !isLabeledPort(h, 'right') &&
-      !isLabeledPort(h, 'top') &&
-      !isLabeledPort(h, 'bottom'),
+      !isLabeledPort(h, 'top'),
   );
 
   const portHandleClass = (diamond: boolean) =>
@@ -91,7 +105,9 @@ export function GlassNode({
         `glass-node--${resolvedShape}`,
         isCompact ? 'glass-node--compact' : '',
         isExecution ? 'glass-node--execution' : '',
-        isSubagentCard ? 'glass-node--subagent-card' : '',
+        isTriangleRight ? 'glass-node--triangle-right' : '',
+        isTriangleUp ? 'glass-node--triangle-up' : '',
+        isAgentCard ? 'glass-node--subagent-card' : '',
         isOrchestrator ? 'glass-node--orchestrator' : '',
         bottomPorts.length > 0 ? 'glass-node--has-bottom-ports' : '',
         topPorts.length > 0 ? 'glass-node--has-top-ports' : '',
@@ -106,7 +122,26 @@ export function GlassNode({
         .join(' ')}
       style={{ '--node-accent': accent } as React.CSSProperties}
     >
-      {isExecution ? (
+      {isTriangle ? (
+        <div className="glass-node__triangle-shape" aria-hidden>
+          <div className="glass-node__triangle-border" />
+          <div className="glass-node__triangle-inner" />
+          <svg
+            className="glass-node__triangle-edge-glow"
+            viewBox="0 0 70 64"
+            preserveAspectRatio="none"
+          >
+            {isTriangleUp ? (
+              <line x1="3" y1="62" x2="67" y2="62" className="glass-node__triangle-glow-stroke" />
+            ) : (
+              <polyline
+                points="4,4 66,32 4,60"
+                className="glass-node__triangle-glow-stroke"
+              />
+            )}
+          </svg>
+        </div>
+      ) : isExecution ? (
         <div className="glass-node__accent-bottom" aria-hidden />
       ) : !isCircle ? (
         <div className="glass-node__accent" />
@@ -131,17 +166,19 @@ export function GlassNode({
         />
       ))}
 
-      {leftPorts.map((h) => (
-        <div
-          key={`outside-left-${h.id}`}
-          className="glass-node__port-outside nodrag nopan"
-          style={{ top: h.style?.top ?? '50%' }}
-        >
-          <span className="glass-node__port-label" style={{ color: accent }}>
-            {h.label}
-          </span>
-        </div>
-      ))}
+      {leftPorts.map((h) =>
+        isTriangle ? null : (
+          <div
+            key={`outside-left-${h.id}`}
+            className="glass-node__port-outside nodrag nopan"
+            style={{ top: h.style?.top ?? '50%' }}
+          >
+            <span className="glass-node__port-label" style={{ color: accent }}>
+              {h.label}
+            </span>
+          </div>
+        ),
+      )}
 
       {rightPorts.map((h) => (
         <Handle
@@ -162,17 +199,19 @@ export function GlassNode({
         />
       ))}
 
-      {rightPorts.map((h) => (
-        <div
-          key={`outside-right-${h.id}`}
-          className="glass-node__port-outside-right nodrag nopan"
-          style={{ top: h.style?.top ?? '50%' }}
-        >
-          <span className="glass-node__port-label" style={{ color: accent }}>
-            {h.label}
-          </span>
-        </div>
-      ))}
+      {rightPorts.map((h) =>
+        isTriangle ? null : (
+          <div
+            key={`outside-right-${h.id}`}
+            className="glass-node__port-outside-right nodrag nopan"
+            style={{ top: h.style?.top ?? '50%' }}
+          >
+            <span className="glass-node__port-label" style={{ color: accent }}>
+              {h.label}
+            </span>
+          </div>
+        ),
+      )}
 
       {topPorts.map((h) => (
         <Handle
@@ -193,17 +232,19 @@ export function GlassNode({
         />
       ))}
 
-      {topPorts.map((h) => (
-        <div
-          key={`outside-top-${h.id}`}
-          className="glass-node__port-above nodrag nopan"
-          style={{ left: h.style?.left ?? '50%' }}
-        >
-          <span className="glass-node__port-label" style={{ color: accent }}>
-            {h.label}
-          </span>
-        </div>
-      ))}
+      {topPorts.map((h) =>
+        isTriangle ? null : (
+          <div
+            key={`outside-top-${h.id}`}
+            className="glass-node__port-above nodrag nopan"
+            style={{ left: h.style?.left ?? '50%' }}
+          >
+            <span className="glass-node__port-label" style={{ color: accent }}>
+              {h.label}
+            </span>
+          </div>
+        ),
+      )}
 
       {bottomPorts.map((h) => (
         <Handle
@@ -218,17 +259,19 @@ export function GlassNode({
         />
       ))}
 
-      {bottomPorts.map((h) => (
-        <div
-          key={`outside-bottom-${h.id}`}
-          className="glass-node__port-below nodrag nopan"
-          style={{ left: h.style?.left ?? '50%' }}
-        >
-          <span className="glass-node__port-label" style={{ color: accent }}>
-            {h.label}
-          </span>
-        </div>
-      ))}
+      {bottomPorts.map((h) =>
+        h.label ? (
+          <div
+            key={`outside-bottom-${h.id}`}
+            className="glass-node__port-below nodrag nopan"
+            style={{ left: h.style?.left ?? '50%' }}
+          >
+            <span className="glass-node__port-label" style={{ color: accent }}>
+              {h.label}
+            </span>
+          </div>
+        ) : null,
+      )}
 
       {plainHandles.map((h) => (
         <Handle
@@ -254,20 +297,21 @@ export function GlassNode({
               'glass-node__icon',
               'glass-node__icon--compact',
               isExecution ? 'glass-node__icon--compact-square' : '',
+              isTriangle ? 'glass-node__icon--compact-triangle' : '',
             ]
               .filter(Boolean)
               .join(' ')}
           >
             <span className="glass-node__icon-inner">{icon}</span>
           </div>
-          <span className="glass-node__compact-label">{label}</span>
+          {!isTriangle ? <span className="glass-node__compact-label">{label}</span> : null}
         </div>
       ) : (
         <>
           <div
             className={[
               'glass-node__header',
-              isSubagentCard ? 'glass-node__header--subagent' : '',
+              isAgentCard ? 'glass-node__header--subagent' : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -278,14 +322,14 @@ export function GlassNode({
             <div className="glass-node__meta">
               <div className="glass-node__title-row">
                 <span className="glass-node__label">{label}</span>
-                {!isSubagentCard ? (
+                {!isAgentCard ? (
                   <span className={`glass-node__badge glass-node__badge--${category}`}>
                     {CATEGORY_LABEL[category]}
                   </span>
                 ) : null}
               </div>
               {description ? (
-                <div className={isSubagentCard ? 'glass-node__subtitle' : 'glass-node__desc'}>
+                <div className={isAgentCard ? 'glass-node__subtitle' : 'glass-node__desc'}>
                   {description}
                 </div>
               ) : null}

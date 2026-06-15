@@ -91,9 +91,8 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     type: 'sportsScanner',
     label: 'Kalshi Sports Scanner',
     description: 'External late-game soccer feed — publisher runs kalshiSports + HTTP wrapper',
-    category: 'subagent',
+    category: 'mindagent',
     accent: '#4ade80',
-    requiresInstall: true,
   },
   {
     type: 'polymarketGamma',

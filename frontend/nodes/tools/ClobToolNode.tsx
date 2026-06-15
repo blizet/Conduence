@@ -23,7 +23,7 @@ export function ClobToolNode({ data, selected }: NodeProps<WorkflowNode>) {
       accent={data.accent}
       icon={<ClobIcon />}
       selected={selected}
-      shape="execution"
+      shape="triangle-right"
       handles={executionToolHandles()}
     />
   );

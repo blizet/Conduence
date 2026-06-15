@@ -24,7 +24,7 @@ export function KalshiToolNode({ data, selected }: NodeProps<WorkflowNode>) {
       accent={data.accent}
       icon={<KalshiIcon />}
       selected={selected}
-      shape="execution"
+      shape="triangle-right"
       handles={executionToolHandles()}
     />
   );

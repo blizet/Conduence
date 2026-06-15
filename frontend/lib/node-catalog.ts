@@ -142,7 +142,7 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
       'External Kalshi soccer scanner — receives late-game signals from the kalshiSports publisher via HTTP wrapper.',
     helpsWith: [
       'Specialized sports feed for Kalshi soccer markets.',
-      'Install from marketplace to subscribe to the publisher.',
+      'Wire into the orchestrator feed for late-game signals.',
     ],
   },
 };

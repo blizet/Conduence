@@ -1,7 +1,7 @@
 'use client';
 
 import type { NodeProps } from '@xyflow/react';
-import { subagentInputHandles } from '../shared/agentInputHandles';
+import { mindagentInputHandles } from '../shared/agentInputHandles';
 import { GlassNode } from '../shared/GlassNode';
 import type { WorkflowNode } from '../types';
 
@@ -19,11 +19,12 @@ export function SportsScannerNode({ data, selected }: NodeProps<WorkflowNode>) {
     <GlassNode
       label={data.label}
       description={data.description ?? 'Kalshi soccer feed via HTTP wrapper'}
-      category="subagent"
+      category="mindagent"
       accent={data.accent ?? '#4ade80'}
       icon={<SportsIcon />}
       selected={selected}
-      handles={subagentInputHandles('out-sports')}
+      shape="card"
+      handles={mindagentInputHandles('out-sports')}
     />
   );
 }

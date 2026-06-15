@@ -826,6 +826,135 @@ body {
     0 2px 10px color-mix(in srgb, var(--node-accent) 40%, transparent);
 }
 
+.glass-node--triangle-up,
+.glass-node--triangle-right {
+  width: 70px;
+  min-width: 70px;
+  max-width: 70px;
+  height: 64px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.glass-node__triangle-shape {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-node__triangle-border,
+.glass-node__triangle-inner {
+  position: absolute;
+  inset: 0;
+}
+
+.glass-node__triangle-border {
+  background: color-mix(in srgb, var(--node-accent) 28%, #3a3a3a);
+}
+
+.glass-node__triangle-inner {
+  background: linear-gradient(165deg, #383838 0%, #2c2c2c 55%, #262626 100%);
+}
+
+.glass-node--triangle-up .glass-node__triangle-border {
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+.glass-node--triangle-up .glass-node__triangle-inner {
+  clip-path: polygon(50% 2.5%, 3% 97.5%, 97% 97.5%);
+}
+
+.glass-node--triangle-right .glass-node__triangle-border {
+  clip-path: polygon(0% 0%, 0% 100%, 100% 50%);
+}
+
+.glass-node--triangle-right .glass-node__triangle-inner {
+  clip-path: polygon(3% 3%, 3% 97%, 96.5% 50%);
+}
+
+.glass-node__triangle-edge-glow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.glass-node__triangle-glow-stroke {
+  fill: none;
+  stroke: var(--node-accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--node-accent) 75%, transparent));
+}
+
+.glass-node--triangle-up.selected .glass-node__triangle-glow-stroke,
+.glass-node--triangle-right.selected .glass-node__triangle-glow-stroke {
+  stroke-width: 3;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--node-accent) 90%, transparent));
+}
+
+.glass-node--triangle-up:hover .glass-node__triangle-glow-stroke,
+.glass-node--triangle-right:hover .glass-node__triangle-glow-stroke {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--node-accent) 80%, transparent));
+}
+
+.glass-node--triangle-up .glass-node__compact,
+.glass-node--triangle-right .glass-node__compact {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+.glass-node--triangle-up .glass-node__compact {
+  top: 57%;
+  left: 50%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+}
+
+.glass-node--triangle-right .glass-node__compact {
+  top: 50%;
+  left: 34%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+}
+
+.glass-node__icon--compact-triangle {
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.glass-node--triangle-up.glass-node--has-top-ports .glass-node__port-handle--dot {
+  top: 0 !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.glass-node--triangle-right.glass-node--has-outside-ports .glass-node__port-handle--dot {
+  top: 50% !important;
+  left: 0 !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.glass-node--triangle-up.glass-node--has-top-ports,
+.glass-node--triangle-right.glass-node--has-outside-ports {
+  margin: 0;
+}
+
 .glass-node__icon--compact-square {
   border-radius: 4px;
 }
@@ -2334,11 +2463,11 @@ select.node-input {
 }
 
 .palette-section-title--mindagents {
-  color: #7a7a7a;
+  color: #4ade80;
 }
 
 .palette-section-title--mindagents .palette-section-title__text {
-  color: #7a7a7a;
+  color: #4ade80;
 }
 
 .palette-tool-group {

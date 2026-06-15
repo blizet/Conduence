@@ -214,6 +214,10 @@ function isSubagentVisible(item: PaletteItem, installed: Set<string>) {
   return true;
 }
 
+function isMindAgentVisible(item: PaletteItem) {
+  return item.category === 'mindagent';
+}
+
 export function NodePalette() {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
@@ -255,14 +259,19 @@ export function NodePalette() {
             (item.toolGroup?.includes(q) ?? false),
         )
       : PALETTE_ITEMS;
-    return base.filter(
-      (item) =>
-        item.category !== 'subagent' || isSubagentVisible(item, installedNodeTypes),
-    );
+    return base.filter((item) => {
+      if (item.category === 'subagent') return isSubagentVisible(item, installedNodeTypes);
+      if (item.category === 'mindagent') return isMindAgentVisible(item);
+      return true;
+    });
   }, [query, installedNodeTypes]);
 
   const mainAgentItems = useMemo(
     () => filtered.filter((item) => item.category === 'orchestrator'),
+    [filtered],
+  );
+  const mainAgentsItems = useMemo(
+    () => filtered.filter((item) => item.category === 'mindagent'),
     [filtered],
   );
   const subagentItems = useMemo(
@@ -351,6 +360,18 @@ export function NodePalette() {
               </div>
             )}
 
+            {mainAgentsItems.length > 0 && (
+              <div className="palette-section">
+                <div className="palette-section-title palette-section-title--mindagents">
+                  <span className="palette-section-title__text">Mind Agent</span>
+                  <span className="palette-section-title__rule" aria-hidden />
+                </div>
+                {mainAgentsItems.map((item) => (
+                  <PaletteEntry key={item.type} item={item} />
+                ))}
+              </div>
+            )}
+
             {subagentItems.length > 0 && (
               <div className="palette-section">
                 <div className="palette-section-title palette-section-title--subagents">
@@ -433,6 +454,13 @@ export function NodePalette() {
           {mainAgentItems.length > 0 && (
             <div className="palette-rail-group">
               {mainAgentItems.map((item) => (
+                <RailEntry key={item.type} item={item} />
+              ))}
+            </div>
+          )}
+          {mainAgentsItems.length > 0 && (
+            <div className="palette-rail-group">
+              {mainAgentsItems.map((item) => (
                 <RailEntry key={item.type} item={item} />
               ))}
             </div>

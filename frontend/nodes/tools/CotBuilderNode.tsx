@@ -24,6 +24,7 @@ export function CotBuilderNode({ data, selected }: NodeProps<WorkflowNode>) {
       accent={data.accent}
       icon={<CotIcon />}
       selected={selected}
+      shape="circle"
       handles={[
         { type: 'target', position: 'left', id: 'in-decision', style: { top: '35%' } },
         { type: 'target', position: 'left', id: 'in-correlated', style: { top: '65%' } },

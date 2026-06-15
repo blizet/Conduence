@@ -6,7 +6,6 @@ import Link from 'next/link';
 import type { Edge } from '@xyflow/react';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
-import { AgentMarketplace } from '@/components/playground/AgentMarketplace';
 import { NodePalette } from '@/components/playground/NodePalette';
 import { WorkflowCanvas } from '@/components/playground/WorkflowCanvas';
 import { InstalledAgentsProvider } from '@/lib/marketplace';
@@ -328,8 +327,6 @@ function SimulateAppInner() {
   const [paperRunning, setPaperRunning] = useState(false);
   const [workflowRunning, setWorkflowRunning] = useState(false);
   const [workflowRunSignal, setWorkflowRunSignal] = useState(0);
-  const [showMarketplace, setShowMarketplace] = useState(false);
-  const [workflowRefreshSignal] = useState(0);
   const [nodeCount, setNodeCount] = useState(0);
   const [edgeCount, setEdgeCount] = useState(0);
   const [canvasHydrateKey, setCanvasHydrateKey] = useState(0);
@@ -461,20 +458,6 @@ function SimulateAppInner() {
     paperRunning,
   ]);
 
-  const onInstallWorkflow = useCallback(
-    (canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => {
-      if (!activeId) return;
-      setShowMarketplace(false);
-      updateWorkspace(activeId, {
-        canvas,
-        workflowName: undefined,
-        workflowId: undefined,
-      });
-      setCanvasHydrateKey((k) => k + 1);
-    },
-    [activeId, updateWorkspace],
-  );
-
   if (!hydrated || !activeWorkspace) {
     return (
       <div className="playground-loading">
@@ -488,13 +471,6 @@ function SimulateAppInner() {
 
   return (
     <div className="playground-shell">
-      <AgentMarketplace
-        open={showMarketplace}
-        onClose={() => setShowMarketplace(false)}
-        onInstallWorkflow={onInstallWorkflow}
-        workflowRefreshSignal={workflowRefreshSignal}
-      />
-
       <header className="playground-header">
         <Image
           src="/conduence-logo.png"
@@ -524,14 +500,6 @@ function SimulateAppInner() {
           <span className="playground-header__stats">
             {nodeCount} nodes · {edgeCount} edges · {formatUsd(equity)}
           </span>
-          <button
-            type="button"
-            className="graph-view-toggle marketplace-toggle"
-            onClick={() => setShowMarketplace(true)}
-            title="Import workflow from marketplace"
-          >
-            Marketplace
-          </button>
           <button
             type="button"
             className="graph-view-toggle"
