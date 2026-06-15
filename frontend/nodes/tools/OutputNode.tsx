@@ -22,7 +22,6 @@ export function OutputNode({ data, selected }: NodeProps<WorkflowNode>) {
       accent={data.accent}
       icon={<OutputIcon />}
       selected={selected}
-      shape="triangle-up"
       handles={[{ type: 'target', position: 'left' }]}
     />
   );

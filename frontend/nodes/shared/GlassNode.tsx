@@ -304,7 +304,7 @@ export function GlassNode({
           >
             <span className="glass-node__icon-inner">{icon}</span>
           </div>
-          {!isTriangle ? <span className="glass-node__compact-label">{label}</span> : null}
+          {!isCompact ? <span className="glass-node__compact-label">{label}</span> : null}
         </div>
       ) : (
         <>

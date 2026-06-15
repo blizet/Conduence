@@ -22,7 +22,6 @@ export function CatalogToolNode({ data, selected, toolId, icon }: CatalogToolNod
       icon={icon}
       selected={selected}
       invalid={isToolNodeMissingKey(toolId, data)}
-      shape="triangle-up"
       handles={standardToolHandles()}
     />
   );
