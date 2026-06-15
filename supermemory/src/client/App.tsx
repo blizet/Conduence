@@ -6,6 +6,14 @@ import { GraphView } from "./GraphView";
 import { LlmSettingsPanel, useLlmSettings, type ProviderOption } from "./LlmSettings";
 import { TokenUsagePanel } from "./TokenUsage";
 
+function MessageIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ChatPanel({
   messages,
   onSend,
@@ -19,6 +27,8 @@ function ChatPanel({
   envFallbackConfigured,
   supermemoryConfigured,
   supermemoryLoaded,
+  open,
+  onToggleOpen,
 }: {
   messages: ChatMessage[];
   onSend: (text: string) => void;
@@ -32,15 +42,26 @@ function ChatPanel({
   envFallbackConfigured: boolean;
   supermemoryConfigured: boolean;
   supermemoryLoaded: boolean;
+  open: boolean;
+  onToggleOpen: () => void;
 }) {
   const [input, setInput] = useState("");
+  const [sessionOpen, setSessionOpen] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const el = messagesRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (open) {
+      const t = window.setTimeout(() => textareaRef.current?.focus(), 320);
+      return () => window.clearTimeout(t);
+    }
+  }, [open]);
 
   const submit = useCallback(() => {
     const text = input.trim();
@@ -50,66 +71,143 @@ function ChatPanel({
   }, [input, loading, onSend]);
 
   return (
-    <section className="chat-panel">
-      <header>
-        <h1>Weighted causal graph</h1>
-        <p className="muted">
-          Talk in natural language. Weights run from <strong>-1 to 1</strong>: positive = direct,
-          negative = inverse.
-        </p>
-        {pendingCount > 0 && (
-          <p className="badge warn">{pendingCount} relationship(s) need a weight</p>
-        )}
-        {supermemoryConfigured && (
-          <p className="badge ok">
-            Supermemory {supermemoryLoaded ? "· graph restored" : "· connected"}
-          </p>
-        )}
-        {graphComplete && <p className="badge ok">Graph complete — all edges weighted</p>}
-        <TokenUsagePanel usage={tokenUsage} />
-        <LlmSettingsPanel
-          settings={llmSettings}
-          onChange={onLlmSettingsChange}
-          providers={providers}
-          envFallbackConfigured={envFallbackConfigured}
-        />
-      </header>
-
-      <div className="messages" ref={messagesRef}>
-        {messages.map((m, i) => (
-          <div key={i} className={`bubble ${m.role}`}>
-            {m.content.split("\n").map((line, j) => (
-              <p key={j}>{line}</p>
-            ))}
+    <div className="chat-widget">
+      <div
+        className={`chat-window glass-panel${open ? " chat-window--open" : ""}`}
+        aria-hidden={!open}
+      >
+        <div className="chat-window__header">
+          <div className="chat-window__intro">
+            <span className="chat-window__label">Build graph</span>
+            <p className="chat-window__hint">
+              Describe causal links in natural language. Weights run <strong>−1 to 1</strong> — positive
+              direct, negative inverse.
+            </p>
           </div>
-        ))}
-        {loading && <div className="bubble assistant typing">Thinking…</div>}
+          <button
+            type="button"
+            className="chat-window__minimize"
+            onClick={onToggleOpen}
+            title="Minimize chat"
+            aria-label="Minimize chat"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 8h10" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="chat-window__status">
+          {pendingCount > 0 && (
+            <span className="status-pill status-pill--warn">{pendingCount} need weight</span>
+          )}
+          {supermemoryConfigured && (
+            <span className="status-pill status-pill--ok">
+              Supermemory {supermemoryLoaded ? "· restored" : "· connected"}
+            </span>
+          )}
+          {graphComplete && <span className="status-pill status-pill--ok">Graph complete</span>}
+        </div>
+
+        <div className="chat-window__messages" ref={messagesRef}>
+          {messages.length === 0 && !loading && (
+            <div className="chat-window__empty">
+              <p>Start by describing relationships between markets, assets, or events.</p>
+              <p className="muted">
+                e.g. &ldquo;Iran conflict continues → oil up, BTC and ETH down&rdquo;
+              </p>
+            </div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={`chat-bubble chat-bubble--${m.role}`}>
+              {m.content.split("\n").map((line, j) => (
+                <p key={j}>{line}</p>
+              ))}
+            </div>
+          ))}
+          {loading && <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">Thinking…</div>}
+        </div>
+
+        <form
+          className="chat-window__composer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          <textarea
+            ref={textareaRef}
+            rows={3}
+            placeholder="Describe causal links or set weights: 1:0.8 2:-0.7"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+          />
+          <button type="submit" className="btn-primary" disabled={loading || !input.trim()}>
+            Send
+          </button>
+        </form>
+
+        <div className="chat-window__session">
+          <button
+            type="button"
+            className="session-drawer__toggle"
+            onClick={() => setSessionOpen((v) => !v)}
+            aria-expanded={sessionOpen}
+          >
+            <svg
+              className={`session-drawer__chevron${sessionOpen ? " session-drawer__chevron--open" : ""}`}
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="currentColor"
+            >
+              <path d="M3 1.5L7.5 5 3 8.5V1.5z" />
+            </svg>
+            <span className="session-drawer__title">Session &amp; LLM</span>
+            {tokenUsage.llmTurns > 0 && (
+              <span className="session-drawer__meta">{tokenUsage.llmTurns} calls</span>
+            )}
+          </button>
+          {sessionOpen && (
+            <div className="session-drawer__body">
+              <TokenUsagePanel usage={tokenUsage} />
+              <LlmSettingsPanel
+                settings={llmSettings}
+                onChange={onLlmSettingsChange}
+                providers={providers}
+                envFallbackConfigured={envFallbackConfigured}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
-        <textarea
-          rows={3}
-          placeholder="e.g. Iran war continues → oil up, BTC/ETH/crypto down. For weights: 1:0.8 2:-0.7 3:-0.6"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-        />
-        <button type="submit" disabled={loading || !input.trim()}>
-          Send
+      {!open && (
+        <button
+          type="button"
+          className="chat-fab"
+          onClick={onToggleOpen}
+          title="Open chat"
+          aria-label="Open chat"
+          aria-expanded={false}
+        >
+          <span className="chat-fab__icon">
+            <MessageIcon />
+          </span>
+          {pendingCount > 0 && (
+            <span className="chat-fab__badge" aria-label={`${pendingCount} pending weights`}>
+              {pendingCount > 9 ? "9+" : pendingCount}
+            </span>
+          )}
         </button>
-      </form>
-    </section>
+      )}
+    </div>
   );
 }
 
@@ -122,6 +220,7 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [tokenUsage, setTokenUsage] = useState<ConversationTokenUsage>(emptyConversationUsage());
   const [llmSettings, setLlmSettings] = useLlmSettings();
+  const [chatOpen, setChatOpen] = useState(false);
   const [health, setHealth] = useState<{
     envFallbackConfigured: boolean;
     supermemoryConfigured: boolean;
@@ -228,59 +327,57 @@ export function App() {
   const hasLlmKey = Boolean(llmSettings.apiKey?.trim()) || Boolean(health?.envFallbackConfigured);
 
   return (
-    <div className="app">
+    <div className="playground-root">
       {!hasLlmKey && (
-        <div className="banner">
-          Choose a provider below and paste your API key (Gemini, OpenAI, or Claude), or set{" "}
+        <div className="app-banner">
+          Choose a provider in <strong>Session &amp; LLM</strong> and paste your API key, or set{" "}
           <code>LLM_API_KEY</code> in <code>supermemory/.env</code> as a server fallback.
         </div>
       )}
-      <div className="layout">
-        <ChatPanel
-          messages={messages}
-          onSend={send}
-          loading={loading}
-          pendingCount={pendingCount}
-          graphComplete={graphComplete}
-          tokenUsage={tokenUsage}
-          llmSettings={llmSettings}
-          onLlmSettingsChange={setLlmSettings}
-          providers={health?.providers ?? []}
-          envFallbackConfigured={health?.envFallbackConfigured ?? false}
-          supermemoryConfigured={health?.supermemoryConfigured ?? false}
-          supermemoryLoaded={supermemoryLoaded}
-        />
-        <div className="graph-panel">
-          <div className="graph-toolbar">
-            <div className="graph-toolbar__title">
-              <span className="graph-toolbar__label">Live graph</span>
-              <span className="graph-toolbar__meta">
-                {graph.nodes.length} nodes · {graph.edges.length} edges
-              </span>
-            </div>
-            <div className="graph-toolbar__actions">
+      <div className="playground-shell">
+        <header className="playground-header">
+          <img
+            src="/conduence-logo.png"
+            alt="Conduence"
+            className="playground-header__logo"
+            width={250}
+            height={50}
+          />
+          <div className="playground-header__actions">
+            {health?.supermemoryConfigured && (
               <button
                 type="button"
-                className="btn-secondary"
-                onClick={() => reset({ fresh: true })}
-                title="Start a blank session without restoring Supermemory"
+                className="graph-view-toggle graph-view-toggle--active"
+                onClick={() => reset({ fresh: false })}
+                title="New session and restore graph from Supermemory"
               >
-                New session
+                Restore
               </button>
-              {health?.supermemoryConfigured && (
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => reset({ fresh: false })}
-                  title="New session and restore graph from Supermemory"
-                >
-                  Restore from Supermemory
-                </button>
-              )}
-            </div>
+            )}
           </div>
-          <GraphView graph={graph} onWeightChange={setEdgeWeight} />
-        </div>
+        </header>
+
+        <main className="app-workspace">
+          <div className="graph-stage">
+            <GraphView graph={graph} onWeightChange={setEdgeWeight} />
+          </div>
+          <ChatPanel
+            messages={messages}
+            onSend={send}
+            loading={loading}
+            pendingCount={pendingCount}
+            graphComplete={graphComplete}
+            tokenUsage={tokenUsage}
+            llmSettings={llmSettings}
+            onLlmSettingsChange={setLlmSettings}
+            providers={health?.providers ?? []}
+            envFallbackConfigured={health?.envFallbackConfigured ?? false}
+            supermemoryConfigured={health?.supermemoryConfigured ?? false}
+            supermemoryLoaded={supermemoryLoaded}
+            open={chatOpen}
+            onToggleOpen={() => setChatOpen((v) => !v)}
+          />
+        </main>
       </div>
     </div>
   );

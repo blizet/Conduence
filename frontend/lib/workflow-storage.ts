@@ -45,7 +45,7 @@ export function setActiveWorkflowId(id: string): void {
   localStorage.setItem(ACTIVE_ID_KEY, id);
 }
 
-export function createSavedWorkflow(name = 'Untitled workflow'): SavedWorkflow {
+export function createSavedWorkflow(name = 'Workflow'): SavedWorkflow {
   const now = new Date().toISOString();
   return {
     id: uid(),
@@ -97,7 +97,7 @@ export function upsertWorkflowCanvas(
 }
 
 export function renameWorkflow(id: string, name: string): SavedWorkflow[] {
-  const trimmed = name.trim() || 'Untitled workflow';
+  const trimmed = name.trim() || 'Workflow';
   const workflows = loadSavedWorkflows();
   const idx = workflows.findIndex((w) => w.id === id);
   if (idx === -1) return workflows;

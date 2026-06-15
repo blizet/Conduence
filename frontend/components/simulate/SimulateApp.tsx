@@ -328,7 +328,6 @@ function SimulateAppInner() {
   const [workflowRunning, setWorkflowRunning] = useState(false);
   const [workflowRunSignal, setWorkflowRunSignal] = useState(0);
   const [nodeCount, setNodeCount] = useState(0);
-  const [edgeCount, setEdgeCount] = useState(0);
   const [canvasHydrateKey, setCanvasHydrateKey] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const workspacesRef = useRef(workspaces);
@@ -389,9 +388,8 @@ function SimulateAppInner() {
     [activeId],
   );
 
-  const onCountsChange = useCallback((nodes: number, edges: number) => {
+  const onCountsChange = useCallback((nodes: number, _edges: number) => {
     setNodeCount(nodes);
-    setEdgeCount(edges);
   }, []);
 
   const loadCanvasPayload = useMemo(() => {
@@ -498,7 +496,7 @@ function SimulateAppInner() {
 
         <div className="playground-header__actions">
           <span className="playground-header__stats">
-            {nodeCount} nodes · {edgeCount} edges · {formatUsd(equity)}
+            {formatUsd(equity)}
           </span>
           <button
             type="button"

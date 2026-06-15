@@ -32,7 +32,7 @@ export function computeDegrees(graph: WeightedGraph): Map<string, number> {
 }
 
 export function edgeStrokeColor(weight: number | null, expectedSign?: 1 | -1): string {
-  if (weight == null) return "rgba(91, 141, 239, 0.55)";
+  if (weight == null) return "rgba(160, 160, 160, 0.55)";
   if (weight > 0) return "rgba(34, 197, 94, 0.85)";
   if (weight < 0) return "rgba(239, 68, 68, 0.85)";
   return "rgba(148, 163, 184, 0.6)";

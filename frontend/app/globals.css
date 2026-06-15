@@ -1532,6 +1532,7 @@ select.node-input {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-left: auto;
 }
 
 .graph-view-toggle {
@@ -1622,6 +1623,174 @@ select.node-input {
   color: rgba(168, 168, 168, 0.85);
   font-size: 13px;
   letter-spacing: 0.04em;
+}
+
+/* Floating workflow dock — top-left canvas overlay */
+.workflow-dock {
+  position: absolute;
+  top: var(--playground-rail-inset);
+  left: var(--playground-rail-inset);
+  z-index: 9;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  max-width: min(320px, calc(100% - 2 * var(--playground-rail-inset)));
+  padding: 6px 8px;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)),
+    rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow:
+    0 14px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: auto;
+}
+
+.workflow-dock__nav,
+.workflow-dock__add,
+.workflow-dock__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(200, 206, 218, 0.95);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.workflow-dock__nav:hover:not(:disabled),
+.workflow-dock__add:hover:not(:disabled),
+.workflow-dock__delete:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.workflow-dock__nav:disabled,
+.workflow-dock__add:disabled,
+.workflow-dock__delete:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.workflow-dock__add {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.workflow-dock__delete {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  color: rgba(248, 113, 113, 0.9);
+}
+
+.workflow-dock__delete:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+}
+
+.workflow-delete-confirm {
+  width: min(360px, 100%);
+  padding: 20px 22px;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.workflow-delete-confirm__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f0f2f5;
+}
+
+.workflow-delete-confirm__text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(180, 186, 198, 0.95);
+}
+
+.workflow-delete-confirm__text strong {
+  color: #e8eaed;
+  font-weight: 600;
+}
+
+.workflow-delete-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.workflow-delete-confirm__delete {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.workflow-delete-confirm__delete:hover {
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
+.workflow-dock__name,
+.workflow-dock__name-input {
+  flex: 1;
+  min-width: 72px;
+  max-width: 180px;
+  margin: 0;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: #f0f2f5;
+  text-align: center;
+}
+
+.workflow-dock__name {
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.12s ease;
+}
+
+.workflow-dock__name:hover:not(:disabled) {
+  color: #fff;
+}
+
+.workflow-dock__name:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.workflow-dock__name-input {
+  outline: none;
+  border-bottom: 1px solid rgba(91, 141, 239, 0.55);
+  padding-bottom: 2px;
+}
+
+.workflow-dock__name-input:disabled {
+  opacity: 0.7;
 }
 
 .inspector-panel {

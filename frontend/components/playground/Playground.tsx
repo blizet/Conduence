@@ -9,7 +9,6 @@ import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
 import { NodePalette } from './NodePalette';
 import { AgentMarketplace } from './AgentMarketplace';
-import { PublishWorkflowModal } from './PublishWorkflowModal';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { InstalledAgentsProvider } from '@/lib/marketplace';
 import { AgentFeedProvider } from '@/lib/agent-feed';
@@ -39,25 +38,17 @@ const CotGraphView = dynamic(
 
 type PlaygroundInnerProps = {
   nodeCount: number;
-  edgeCount: number;
   showGraph: boolean;
   showMarketplace: boolean;
-  showPublish: boolean;
   onToggleGraph: () => void;
   onToggleMarketplace: () => void;
   onCloseMarketplace: () => void;
-  onOpenPublish: () => void;
-  onClosePublish: () => void;
   onCountsChange: (nodes: number, edges: number) => void;
-  onRunWorkflow: () => void;
   onGoLive: () => void;
   onStopLive: () => void;
   workflowLive: boolean;
   liveBusy: boolean;
   liveError: string | null;
-  runBusy: boolean;
-  runSignal: number;
-  onRunStateChange: (running: boolean) => void;
   onCanvasChange: (nodes: WorkflowNode[], edges: Edge[]) => void;
   canvasSnapshot: { nodes: WorkflowNode[]; edges: Edge[] };
   onInstallWorkflow: (canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => void;
@@ -65,38 +56,30 @@ type PlaygroundInnerProps = {
   canvasBootKey: string;
   storageReady: boolean;
   workflowRefreshSignal: number;
-  onWorkflowPublished: () => void;
-  savedWorkflows: SavedWorkflow[];
-  activeWorkflowId: string;
   activeWorkflowName: string;
-  onSelectWorkflow: (id: string) => void;
+  workflowIndex: number;
+  workflowCount: number;
   onRenameWorkflow: (name: string) => void;
+  onPrevWorkflow: () => void;
+  onNextWorkflow: () => void;
   onNewWorkflow: () => void;
-  onDeleteWorkflow: (id: string) => void;
+  onDeleteWorkflow: () => void;
   onCanvasHydrated: () => void;
 };
 
 function PlaygroundInner({
   nodeCount,
-  edgeCount,
   showGraph,
   showMarketplace,
-  showPublish,
   onToggleGraph,
   onToggleMarketplace,
   onCloseMarketplace,
-  onOpenPublish,
-  onClosePublish,
   onCountsChange,
-  onRunWorkflow,
   onGoLive,
   onStopLive,
   workflowLive,
   liveBusy,
   liveError,
-  runBusy,
-  runSignal,
-  onRunStateChange,
   onCanvasChange,
   canvasSnapshot,
   onInstallWorkflow,
@@ -104,12 +87,12 @@ function PlaygroundInner({
   canvasBootKey,
   storageReady,
   workflowRefreshSignal,
-  onWorkflowPublished,
-  savedWorkflows,
-  activeWorkflowId,
   activeWorkflowName,
-  onSelectWorkflow,
+  workflowIndex,
+  workflowCount,
   onRenameWorkflow,
+  onPrevWorkflow,
+  onNextWorkflow,
   onNewWorkflow,
   onDeleteWorkflow,
   onCanvasHydrated,
@@ -122,12 +105,6 @@ function PlaygroundInner({
         onInstallWorkflow={onInstallWorkflow}
         workflowRefreshSignal={workflowRefreshSignal}
       />
-      <PublishWorkflowModal
-        open={showPublish}
-        onClose={onClosePublish}
-        canvas={canvasSnapshot}
-        onPublished={onWorkflowPublished}
-      />
       <header className="playground-header">
         <Image
           src="/conduence-logo.png"
@@ -137,67 +114,7 @@ function PlaygroundInner({
           className="playground-header__logo"
           priority
         />
-        <div className="playground-header__workflows">
-          <label className="playground-workflow-bar__label" htmlFor="playground-workflow-select">
-            Workflow
-          </label>
-          <select
-            id="playground-workflow-select"
-            className="playground-workflow-bar__select"
-            value={activeWorkflowId}
-            onChange={(e) => onSelectWorkflow(e.target.value)}
-            disabled={workflowLive}
-            title={workflowLive ? 'Stop Live before switching workflows' : 'Select a saved workflow'}
-          >
-            {savedWorkflows.map((wf) => (
-              <option key={wf.id} value={wf.id}>
-                {wf.name}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            className="playground-workflow-bar__name"
-            value={activeWorkflowName}
-            onChange={(e) => onRenameWorkflow(e.target.value)}
-            disabled={workflowLive}
-            aria-label="Workflow name"
-            placeholder="Workflow name"
-          />
-          <button
-            type="button"
-            className="graph-view-toggle playground-workflow-bar__new"
-            onClick={onNewWorkflow}
-            disabled={workflowLive}
-            title="Create a new workflow"
-          >
-            + New
-          </button>
-          {savedWorkflows.length > 1 ? (
-            <button
-              type="button"
-              className="graph-view-toggle playground-workflow-bar__delete"
-              onClick={() => onDeleteWorkflow(activeWorkflowId)}
-              disabled={workflowLive}
-              title="Delete this workflow"
-            >
-              Delete
-            </button>
-          ) : null}
-        </div>
         <div className="playground-header__actions">
-          <span className="playground-header__stats">
-            {nodeCount} nodes · {edgeCount} edges
-          </span>
-          <button
-            type="button"
-            className="graph-view-toggle"
-            onClick={onOpenPublish}
-            disabled={showGraph || nodeCount === 0}
-            title={nodeCount === 0 ? 'Add nodes to the canvas first' : 'Publish this workflow to the marketplace'}
-          >
-            Publish
-          </button>
           <button
             type="button"
             className={`graph-view-toggle${workflowLive ? ' graph-view-toggle--active' : ''}`}
@@ -216,21 +133,6 @@ function PlaygroundInner({
               {liveError}
             </span>
           ) : null}
-          <button
-            type="button"
-            className="graph-view-toggle"
-            onClick={onRunWorkflow}
-            disabled={showGraph || runBusy || workflowLive}
-            title={
-              workflowLive
-                ? 'Stop Live before single Run Workflow'
-                : showGraph
-                  ? 'Switch to workflow canvas first'
-                  : 'Run connected workflow once'
-            }
-          >
-            {runBusy ? 'Running…' : 'Run Workflow'}
-          </button>
           <button
             type="button"
             className={`graph-view-toggle${showGraph ? ' graph-view-toggle--active' : ''}`}
@@ -260,8 +162,6 @@ function PlaygroundInner({
           <WorkflowCanvas
             key={canvasBootKey}
             onCountsChange={onCountsChange}
-            runSignal={runSignal}
-            onRunStateChange={onRunStateChange}
             onCanvasChange={onCanvasChange}
             onCanvasHydrated={onCanvasHydrated}
             initialNodes={loadCanvas?.nodes ?? []}
@@ -271,6 +171,15 @@ function PlaygroundInner({
                 ? { key: loadCanvas.key, nodes: loadCanvas.nodes, edges: loadCanvas.edges }
                 : null
             }
+            activeWorkflowName={activeWorkflowName}
+            workflowIndex={workflowIndex}
+            workflowCount={workflowCount}
+            workflowLive={workflowLive}
+            onRenameWorkflow={onRenameWorkflow}
+            onPrevWorkflow={onPrevWorkflow}
+            onNextWorkflow={onNextWorkflow}
+            onNewWorkflow={onNewWorkflow}
+            onDeleteWorkflow={onDeleteWorkflow}
           />
         )}
       </div>
@@ -280,19 +189,15 @@ function PlaygroundInner({
 
 function PlaygroundWithState() {
   const [nodeCount, setNodeCount] = useState(0);
-  const [edgeCount, setEdgeCount] = useState(0);
   const [showGraph, setShowGraph] = useState(false);
   const [showMarketplace, setShowMarketplace] = useState(false);
-  const [showPublish, setShowPublish] = useState(false);
-  const [runBusy, setRunBusy] = useState(false);
   const [workflowLive, setWorkflowLive] = useState(false);
   const [liveBusy, setLiveBusy] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
-  const [runSignal, setRunSignal] = useState(0);
   const [workflowRefreshSignal, setWorkflowRefreshSignal] = useState(0);
   const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflow[]>([]);
   const [activeWorkflowId, setActiveWorkflowIdState] = useState('');
-  const [activeWorkflowName, setActiveWorkflowName] = useState('Untitled workflow');
+  const [activeWorkflowName, setActiveWorkflowName] = useState('Workflow');
   const [loadCanvas, setLoadCanvas] = useState<{
     key: number;
     nodes: WorkflowNode[];
@@ -331,7 +236,6 @@ function PlaygroundWithState() {
       edges: workflow.canvas.edges,
     };
     setNodeCount(workflow.canvas.nodes.length);
-    setEdgeCount(workflow.canvas.edges.length);
     setLoadCanvas({
       key: Date.now(),
       nodes: workflow.canvas.nodes,
@@ -380,9 +284,8 @@ function PlaygroundWithState() {
     }, 250);
   }, []);
 
-  const onCountsChange = useCallback((nodes: number, edges: number) => {
+  const onCountsChange = useCallback((nodes: number, _edges: number) => {
     setNodeCount(nodes);
-    setEdgeCount(edges);
   }, []);
 
   const onCanvasChange = useCallback(
@@ -433,21 +336,33 @@ function PlaygroundWithState() {
     loadWorkflowIntoCanvas(workflow);
   }, [flushPersist, loadWorkflowIntoCanvas, persistActiveCanvas]);
 
-  const onDeleteWorkflow = useCallback(
-    (id: string) => {
-      flushPersist();
-      const { nodes, edges } = canvasSnapshotRef.current;
-      persistActiveCanvas(nodes, edges);
-      flushPersist();
-      const { workflows, activeId } = deleteSavedWorkflow(id);
-      setSavedWorkflows(workflows);
-      setActiveWorkflowIdState(activeId);
-      activeWorkflowIdRef.current = activeId;
-      const next = getWorkflowById(activeId);
-      if (next) loadWorkflowIntoCanvas(next);
-    },
-    [flushPersist, loadWorkflowIntoCanvas, persistActiveCanvas],
-  );
+  const workflowIndex = savedWorkflows.findIndex((wf) => wf.id === activeWorkflowId);
+  const workflowCount = savedWorkflows.length;
+
+  const onPrevWorkflow = useCallback(() => {
+    if (workflowIndex <= 0) return;
+    onSelectWorkflow(savedWorkflows[workflowIndex - 1].id);
+  }, [onSelectWorkflow, savedWorkflows, workflowIndex]);
+
+  const onNextWorkflow = useCallback(() => {
+    if (workflowIndex < 0 || workflowIndex >= savedWorkflows.length - 1) return;
+    onSelectWorkflow(savedWorkflows[workflowIndex + 1].id);
+  }, [onSelectWorkflow, savedWorkflows, workflowIndex]);
+
+  const onDeleteWorkflow = useCallback(() => {
+    const id = activeWorkflowIdRef.current;
+    if (!id) return;
+    flushPersist();
+    const { nodes, edges } = canvasSnapshotRef.current;
+    persistActiveCanvas(nodes, edges);
+    flushPersist();
+    const { workflows, activeId } = deleteSavedWorkflow(id);
+    setSavedWorkflows(workflows);
+    setActiveWorkflowIdState(activeId);
+    activeWorkflowIdRef.current = activeId;
+    const next = getWorkflowById(activeId);
+    if (next) loadWorkflowIntoCanvas(next);
+  }, [flushPersist, loadWorkflowIntoCanvas, persistActiveCanvas]);
 
   const onInstallWorkflow = useCallback((canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => {
     setShowGraph(false);
@@ -455,7 +370,6 @@ function PlaygroundWithState() {
     suppressPersistRef.current = true;
     canvasSnapshotRef.current = canvas;
     setNodeCount(canvas.nodes.length);
-    setEdgeCount(canvas.edges.length);
     setLoadCanvas({ key: Date.now(), ...canvas });
     const id = activeWorkflowIdRef.current;
     if (id) {
@@ -463,11 +377,6 @@ function PlaygroundWithState() {
       setSavedWorkflows(next);
     }
     suppressPersistRef.current = false;
-  }, []);
-
-  const onWorkflowPublished = useCallback(() => {
-    setWorkflowRefreshSignal((v) => v + 1);
-    setShowMarketplace(true);
   }, []);
 
   const onToggleGraph = useCallback(() => {
@@ -480,14 +389,6 @@ function PlaygroundWithState() {
 
   const onCloseMarketplace = useCallback(() => {
     setShowMarketplace(false);
-  }, []);
-
-  const onRunWorkflow = useCallback(() => {
-    setRunSignal((value) => value + 1);
-  }, []);
-
-  const onRunStateChange = useCallback((running: boolean) => {
-    setRunBusy(running);
   }, []);
 
   useEffect(() => {
@@ -531,25 +432,17 @@ function PlaygroundWithState() {
   return (
     <PlaygroundInner
       nodeCount={nodeCount}
-      edgeCount={edgeCount}
       showGraph={showGraph}
       showMarketplace={showMarketplace}
-      showPublish={showPublish}
       onToggleGraph={onToggleGraph}
       onToggleMarketplace={onToggleMarketplace}
       onCloseMarketplace={onCloseMarketplace}
-      onOpenPublish={() => setShowPublish(true)}
-      onClosePublish={() => setShowPublish(false)}
       onCountsChange={onCountsChange}
-      onRunWorkflow={onRunWorkflow}
       onGoLive={onGoLive}
       onStopLive={onStopLive}
       workflowLive={workflowLive}
       liveBusy={liveBusy}
       liveError={liveError}
-      runBusy={runBusy}
-      runSignal={runSignal}
-      onRunStateChange={onRunStateChange}
       onCanvasChange={onCanvasChange}
       canvasSnapshot={canvasSnapshotRef.current}
       onInstallWorkflow={onInstallWorkflow}
@@ -557,12 +450,12 @@ function PlaygroundWithState() {
       canvasBootKey={canvasBootKey}
       storageReady={storageReady}
       workflowRefreshSignal={workflowRefreshSignal}
-      onWorkflowPublished={onWorkflowPublished}
-      savedWorkflows={savedWorkflows}
-      activeWorkflowId={activeWorkflowId}
       activeWorkflowName={activeWorkflowName}
-      onSelectWorkflow={onSelectWorkflow}
+      workflowIndex={workflowIndex}
+      workflowCount={workflowCount}
       onRenameWorkflow={onRenameWorkflow}
+      onPrevWorkflow={onPrevWorkflow}
+      onNextWorkflow={onNextWorkflow}
       onNewWorkflow={onNewWorkflow}
       onDeleteWorkflow={onDeleteWorkflow}
       onCanvasHydrated={onCanvasHydrated}

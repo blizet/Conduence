@@ -121,7 +121,7 @@ export function GraphView({
         interaction: {
           hover: true,
           tooltipDelay: 80,
-          navigationButtons: true,
+          navigationButtons: false,
           keyboard: { enabled: false },
           selectConnectedEdges: false,
         },
@@ -204,8 +204,8 @@ export function GraphView({
     return (
       <div className="cot-graph-view cot-graph-view--empty">
         <div className="graph-empty">
-          <p>Your weighted graph will appear here.</p>
-          <p className="muted">Describe causal links in chat to build the graph.</p>
+          <p>Your causal graph will appear here as you chat.</p>
+          <p className="muted">Click the message button at the bottom-left to describe relationships.</p>
         </div>
       </div>
     );

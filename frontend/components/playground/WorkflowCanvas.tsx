@@ -21,6 +21,7 @@ import type { WorkflowNode } from '@/nodes/types';
 import { useAgentFeed } from '@/lib/agent-feed';
 import { NodeInspectorPanel } from './NodeInspectorPanel';
 import { PlaygroundMinimap } from './PlaygroundMinimap';
+import { WorkflowDock } from './WorkflowDock';
 
 export type WorkflowCanvasProps = {
   onCountsChange?: (nodes: number, edges: number) => void;
@@ -31,6 +32,15 @@ export type WorkflowCanvasProps = {
   initialNodes?: WorkflowNode[];
   initialEdges?: Edge[];
   loadCanvas?: { key: string | number; nodes: WorkflowNode[]; edges: Edge[] } | null;
+  activeWorkflowName?: string;
+  workflowIndex?: number;
+  workflowCount?: number;
+  workflowLive?: boolean;
+  onRenameWorkflow?: (name: string) => void;
+  onPrevWorkflow?: () => void;
+  onNextWorkflow?: () => void;
+  onNewWorkflow?: () => void;
+  onDeleteWorkflow?: () => void;
 };
 
 export function WorkflowCanvas({
@@ -42,6 +52,15 @@ export function WorkflowCanvas({
   initialNodes = [],
   initialEdges = [],
   loadCanvas,
+  activeWorkflowName = 'Workflow',
+  workflowIndex = 0,
+  workflowCount = 1,
+  workflowLive = false,
+  onRenameWorkflow,
+  onPrevWorkflow,
+  onNextWorkflow,
+  onNewWorkflow,
+  onDeleteWorkflow,
 }: WorkflowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
@@ -245,6 +264,19 @@ export function WorkflowCanvas({
           edges={edges}
           feedSignals={agentFeeds}
         />
+        {onRenameWorkflow && onPrevWorkflow && onNextWorkflow && onNewWorkflow && onDeleteWorkflow ? (
+          <WorkflowDock
+            activeWorkflowName={activeWorkflowName}
+            workflowIndex={workflowIndex}
+            workflowCount={workflowCount}
+            workflowLive={workflowLive}
+            onRenameWorkflow={onRenameWorkflow}
+            onPrevWorkflow={onPrevWorkflow}
+            onNextWorkflow={onNextWorkflow}
+            onNewWorkflow={onNewWorkflow}
+            onDeleteWorkflow={onDeleteWorkflow}
+          />
+        ) : null}
       </div>
     </div>
   );
