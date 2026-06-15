@@ -39,6 +39,11 @@ const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
       <path d="M6 7h4M6 9.5h2.5" />
     </Svg>
   ),
+  telegram: (p) => (
+    <Svg {...p}>
+      <path d="M2.5 7.5L13 3.5 10.5 13.5 7.5 9.5 5.5 11.5 4.5 9.5 7.5 7.5 2.5 7.5z" />
+    </Svg>
+  ),
   cotBuilder: (p) => (
     <Svg {...p}>
       <circle cx="4" cy="4" r="1.8" />
@@ -111,6 +116,12 @@ const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
       <path d="M12.5 4.5L11 8.5h3l-1.5-4z" />
     </Svg>
   ),
+  riskAnalyzer: (p) => (
+    <Svg {...p}>
+      <path d="M8 2.5l5.5 9.5H2.5L8 2.5z" />
+      <path d="M8 6.5v3M8 11h.01" />
+    </Svg>
+  ),
   llm: (p) => (
     <Svg {...p}>
       <circle cx="8" cy="8" r="4.5" />
@@ -133,5 +144,6 @@ export function getPaletteIcon(type: string, size?: number): React.ReactNode {
 export function getChipShapeClass(item: PaletteItem): string {
   if (item.category === 'orchestrator' || item.category === 'mindagent') return 'palette-chip--agent';
   if (item.category === 'subagent') return 'palette-chip--subagent';
+  if (item.toolGroup === 'execution' || item.toolGroup === 'socials') return 'palette-chip--execution';
   return 'palette-chip--tool';
 }

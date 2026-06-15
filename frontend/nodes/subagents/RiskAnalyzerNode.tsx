@@ -5,25 +5,25 @@ import { subagentInputHandles } from '../shared/agentInputHandles';
 import { GlassNode } from '../shared/GlassNode';
 import type { WorkflowNode } from '../types';
 
-function NewsIcon() {
+function RiskIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="2" y="3" width="12" height="10" rx="1" />
-      <path d="M5 6h6M5 9h4" />
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M8 2.5l5.5 9.5H2.5L8 2.5z" />
+      <path d="M8 6.5v3M8 11h.01" />
     </svg>
   );
 }
 
-export function NewsAgentNode({ data, selected }: NodeProps<WorkflowNode>) {
+export function RiskAnalyzerNode({ data, selected }: NodeProps<WorkflowNode>) {
   return (
     <GlassNode
       label={data.label}
       description={data.description}
       category="subagent"
       accent={data.accent}
-      icon={<NewsIcon />}
+      icon={<RiskIcon />}
       selected={selected}
-      handles={subagentInputHandles('out-news')}
+      handles={subagentInputHandles('out-risk')}
     />
   );
 }

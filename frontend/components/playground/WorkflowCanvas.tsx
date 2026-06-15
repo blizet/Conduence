@@ -1,16 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   addEdge,
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useOnSelectionChange,
   type Connection,
   type Edge,
 } from '@xyflow/react';
@@ -19,10 +19,7 @@ import { runWorkflow } from '@/lib/workflow-runner';
 import { getPaletteItem, nodeTypes as registeredNodeTypes } from '@/nodes';
 import type { WorkflowNode } from '@/nodes/types';
 import { useAgentFeed } from '@/lib/agent-feed';
-
-function minimapNodeColor(node: WorkflowNode): string {
-  return node.data?.accent ?? '#5b8def';
-}
+import { NodeInspectorPanel } from './NodeInspectorPanel';
 
 export type WorkflowCanvasProps = {
   onCountsChange?: (nodes: number, edges: number) => void;
@@ -44,6 +41,7 @@ export function WorkflowCanvas({
   const { agentFeeds } = useAgentFeed();
   const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const nodesRef = useRef<WorkflowNode[]>([]);
   const edgesRef = useRef<Edge[]>([]);
   const runningRef = useRef(false);
@@ -54,6 +52,39 @@ export function WorkflowCanvas({
 
   loadCanvasRef.current = loadCanvas;
 
+  useOnSelectionChange({
+    onChange: ({ nodes: selectedNodes }) => {
+      setSelectedNodeId(selectedNodes.length === 1 ? selectedNodes[0].id : null);
+    },
+  });
+
+  const selectedNode = useMemo(
+    () => (selectedNodeId ? (nodes.find((node) => node.id === selectedNodeId) ?? null) : null),
+    [nodes, selectedNodeId],
+  );
+
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: WorkflowNode) => {
+      setSelectedNodeId(node.id);
+      setNodes((current) =>
+        current.map((n) => ({
+          ...n,
+          selected: n.id === node.id,
+        })),
+      );
+    },
+    [setNodes],
+  );
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+    setNodes((current) => current.map((n) => ({ ...n, selected: false })));
+  }, [setNodes]);
+
+  const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: WorkflowNode[] }) => {
+    setSelectedNodeId(selectedNodes.length === 1 ? selectedNodes[0].id : null);
+  }, []);
+
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
@@ -63,10 +94,15 @@ export function WorkflowCanvas({
   }, [edges]);
 
   useEffect(() => {
+    if (selectedNodeId && !nodes.some((node) => node.id === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
+
+  useEffect(() => {
     onCountsChange?.(nodes.length, edges.length);
   }, [nodes.length, edges.length, onCountsChange]);
 
-  // Hydrate canvas only when load key changes (workspace switch / marketplace import).
   useEffect(() => {
     const canvas = loadCanvasRef.current;
     if (!canvas) return;
@@ -75,6 +111,7 @@ export function WorkflowCanvas({
     skipCanvasSyncRef.current = true;
     setNodes(canvas.nodes);
     setEdges(canvas.edges);
+    setSelectedNodeId(null);
   }, [loadCanvas?.key, setNodes, setEdges]);
 
   useEffect(() => {
@@ -149,49 +186,53 @@ export function WorkflowCanvas({
   );
 
   return (
-    <div
-      ref={reactFlowWrapper}
-      className="playground-canvas"
-      onDrop={onDrop}
-      onDragOver={onDragOver}
-    >
-      <ReactFlow
+    <div className="playground-workspace">
+      <div
+        ref={reactFlowWrapper}
+        className="playground-canvas"
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+      >
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          colorMode="dark"
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          onSelectionChange={onSelectionChange}
+          deleteKeyCode={['Backspace', 'Delete']}
+          nodesFocusable
+          defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
+          snapToGrid
+          snapGrid={[16, 16]}
+          panOnScroll
+          defaultEdgeOptions={{
+            animated: true,
+            style: { stroke: 'rgba(91, 141, 239, 0.55)' },
+          }}
+          connectionRadius={36}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            bgColor="#000000"
+            color="#5c6578"
+            gap={24}
+            size={1.5}
+          />
+          <Controls position="bottom-left" showInteractive />
+        </ReactFlow>
+      </div>
+      <NodeInspectorPanel
+        node={selectedNode}
         nodes={nodes}
         edges={edges}
-        nodeTypes={nodeTypes}
-        colorMode="dark"
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        deleteKeyCode={['Backspace', 'Delete']}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
-        snapToGrid
-        snapGrid={[16, 16]}
-        panOnScroll
-        defaultEdgeOptions={{
-          animated: true,
-          style: { stroke: 'rgba(91, 141, 239, 0.55)' },
-        }}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background
-          variant={BackgroundVariant.Dots}
-          bgColor="#000000"
-          color="#5c6578"
-          gap={24}
-          size={1.5}
-        />
-        <Controls position="bottom-left" showInteractive />
-        <MiniMap
-          position="bottom-right"
-          className="playground-minimap"
-          nodeColor={minimapNodeColor}
-          maskColor="rgba(0, 0, 0, 0.82)"
-          pannable
-          zoomable
-          style={{ margin: 0 }}
-        />
-      </ReactFlow>
+        feedSignals={agentFeeds}
+      />
     </div>
   );
 }

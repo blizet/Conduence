@@ -18,9 +18,11 @@ SKILL_ALIASES: dict[str, str] = {
     "defillama": "defi_tvl",
     "clob": "orderbook_execute",
     "kalshi": "kalshi_execute",
+    "telegram": "telegram_notify",
     "cotBuilder": "cot_emit",
     "newsAgent": "news_feed",
     "arbitrageAgent": "arb_scan",
+    "riskAnalyzer": "risk_sizing",
 }
 
 

@@ -4,6 +4,7 @@ import { LlmNode } from './mindagents/LlmNode';
 import { SportsScannerNode } from './mindagents/SportsScannerNode';
 import { ArbitrageAgentNode } from './subagents/ArbitrageAgentNode';
 import { NewsAgentNode } from './subagents/NewsAgentNode';
+import { RiskAnalyzerNode } from './subagents/RiskAnalyzerNode';
 import { ClobToolNode } from './tools/ClobToolNode';
 import { CoinGeckoNode } from './tools/CoinGeckoNode';
 import { CoinMarketCapNode } from './tools/CoinMarketCapNode';
@@ -16,12 +17,14 @@ import { OutputNode } from './tools/OutputNode';
 import { PolymarketGammaNode } from './tools/PolymarketGammaNode';
 import { PolymarketWalletNode } from './tools/PolymarketWalletNode';
 import { TavilyNode } from './tools/TavilyNode';
+import { TelegramToolNode } from './tools/TelegramToolNode';
 
 export const nodeTypes: NodeTypes = {
   workflowOutput: OutputNode,
   output: OutputNode,
   clob: ClobToolNode,
   kalshi: KalshiToolNode,
+  telegram: TelegramToolNode,
   cotBuilder: CotBuilderNode,
   coinmarketcap: CoinMarketCapNode,
   defillama: DefiLlamaNode,
@@ -34,14 +37,25 @@ export const nodeTypes: NodeTypes = {
   llm: LlmNode,
   newsAgent: NewsAgentNode,
   arbitrageAgent: ArbitrageAgentNode,
+  riskAnalyzer: RiskAnalyzerNode,
   sportsScanner: SportsScannerNode,
 };
 
-export const PALETTE_TOOL_GROUPS: { id: PaletteToolGroup; title: string }[] = [
-  { id: 'venues', title: 'Prediction Markets' },
-  { id: 'market-data', title: 'Market Data' },
-  { id: 'helpers', title: 'Agent Helpers' },
-  { id: 'workflow', title: 'Workflow' },
+export type PaletteGroupConfig = {
+  id: PaletteToolGroup;
+  title: string;
+  headerVariant?: 'market-data' | 'helpers' | 'workflow' | 'execution';
+};
+
+export const PALETTE_TOOL_GROUPS: PaletteGroupConfig[] = [
+  { id: 'market-data', title: 'Market Data', headerVariant: 'market-data' },
+  { id: 'helpers', title: 'Agent Helpers', headerVariant: 'helpers' },
+  { id: 'workflow', title: 'Workflow', headerVariant: 'workflow' },
+];
+
+export const EXECUTION_TOOL_GROUPS: PaletteGroupConfig[] = [
+  { id: 'execution', title: 'Prediction Market', headerVariant: 'execution' },
+  { id: 'socials', title: 'Socials', headerVariant: 'execution' },
 ];
 
 export const PALETTE_ITEMS: PaletteItem[] = [
@@ -67,6 +81,13 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     accent: '#c084fc',
   },
   {
+    type: 'riskAnalyzer',
+    label: 'Risk Analyzer',
+    description: 'Size trades from portfolio limits — snap market/wallet tools',
+    category: 'subagent',
+    accent: '#fbbf24',
+  },
+  {
     type: 'sportsScanner',
     label: 'Kalshi Sports Scanner',
     description: 'External late-game soccer feed — publisher runs kalshiSports + HTTP wrapper',
@@ -85,18 +106,26 @@ export const PALETTE_ITEMS: PaletteItem[] = [
   {
     type: 'clob',
     label: 'Polymarket',
-    description: 'Polymarket orderbook quotes & trade execution',
+    description: 'Execute Polymarket trades from agent output',
     category: 'tool',
     accent: '#a78bfa',
-    toolGroup: 'venues',
+    toolGroup: 'execution',
   },
   {
     type: 'kalshi',
     label: 'Kalshi',
-    description: 'Kalshi orderbook quotes & trade execution',
+    description: 'Execute Kalshi trades from agent output',
     category: 'tool',
     accent: '#2dd4bf',
-    toolGroup: 'venues',
+    toolGroup: 'execution',
+  },
+  {
+    type: 'telegram',
+    label: 'Telegram',
+    description: 'Bot forwards agent signals to your Telegram username',
+    category: 'tool',
+    accent: '#38bdf8',
+    toolGroup: 'socials',
   },
   {
     type: 'coinmarketcap',
@@ -174,6 +203,13 @@ export const PALETTE_ITEMS: PaletteItem[] = [
 
 export function getPaletteItem(type: string): PaletteItem | undefined {
   return PALETTE_ITEMS.find((item) => item.type === type);
+}
+
+export function getExecutionGroupItems(
+  items: PaletteItem[],
+  groupId: PaletteToolGroup,
+): PaletteItem[] {
+  return items.filter((item) => item.toolGroup === groupId);
 }
 
 export function getToolGroupItems(

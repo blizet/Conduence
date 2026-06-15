@@ -5,24 +5,22 @@ import { GlassNode } from '../shared/GlassNode';
 import { executionToolHandles } from '../shared/toolHandles';
 import type { WorkflowNode } from '../types';
 
-function KalshiIcon() {
+function TelegramIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M3 4h10v8H3z" />
-      <path d="M6 7h4M6 9.5h2.5" />
-      <path d="M11 2.5v2M5 2.5v2" />
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M2.5 7.5L13 3.5 10.5 13.5 7.5 9.5 5.5 11.5 4.5 9.5 7.5 7.5 2.5 7.5z" />
     </svg>
   );
 }
 
-export function KalshiToolNode({ data, selected }: NodeProps<WorkflowNode>) {
+export function TelegramToolNode({ data, selected }: NodeProps<WorkflowNode>) {
   return (
     <GlassNode
       label={data.label}
       description={data.description}
       category="tool"
       accent={data.accent}
-      icon={<KalshiIcon />}
+      icon={<TelegramIcon />}
       selected={selected}
       shape="execution"
       handles={executionToolHandles()}

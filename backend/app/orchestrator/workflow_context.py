@@ -10,6 +10,8 @@ from app.orchestrator.tools_registry import build_tool_registry_payload
 
 ContextGraphChoice = Literal["correlation", "decision"]
 
+EXECUTION_TOOL_NODE_TYPES = frozenset({"clob", "kalshi", "telegram"})
+
 PURE_TOOL_NODE_TYPES = frozenset(
     {
         "coingecko",
@@ -25,7 +27,7 @@ PURE_TOOL_NODE_TYPES = frozenset(
         "cotBuilder",
     }
 )
-SUB_AGENT_NODE_TYPES = frozenset({"newsAgent", "arbitrageAgent"})
+SUB_AGENT_NODE_TYPES = frozenset({"newsAgent", "arbitrageAgent", "riskAnalyzer"})
 MIND_AGENT_NODE_TYPES = frozenset({"sportsScanner"})
 ORCHESTRATOR_NODE_TYPE = "llm"
 
@@ -69,7 +71,7 @@ def _snapped_tools_for_node(
         if not src:
             continue
         node_type = src.get("type") or ""
-        if node_type in PURE_TOOL_NODE_TYPES and node_type != "cotBuilder":
+        if node_type in PURE_TOOL_NODE_TYPES and node_type not in EXECUTION_TOOL_NODE_TYPES and node_type != "cotBuilder":
             if node_type not in tools:
                 tools.append(node_type)
     return tools
@@ -93,6 +95,28 @@ def _tool_configs_for_tools(
             configs[node_type] = {"apiKey": key}
         elif node_type not in configs:
             configs[node_type] = {}
+        if node_type == "polymarketWallet":
+            wallet = (data.get("pmWallet") or "").strip()
+            if wallet:
+                configs[node_type]["pmWallet"] = wallet
+                configs[node_type]["wallet"] = wallet
+            action = data.get("pmWalletAction")
+            if action:
+                configs[node_type]["pmWalletAction"] = action
+            limit = data.get("pmWalletLimit")
+            if limit:
+                configs[node_type]["pmWalletLimit"] = limit
+        elif node_type == "polymarketGamma":
+            for field, key_name in (
+                ("gammaKeywords", "keywords"),
+                ("gammaLimit", "limit"),
+                ("gammaMinVolume", "minVolume24h"),
+                ("gammaMinLiquidity", "minLiquidity"),
+                ("gammaMaxSpread", "maxSpread"),
+            ):
+                val = data.get(field)
+                if val not in (None, ""):
+                    configs[node_type][key_name] = val
     return configs
 
 
@@ -172,6 +196,18 @@ def compile_workflow_context(
             },
             "userPrompt": (data.get("userPrompt") or "").strip(),
             "simulate": bool(data.get("simulate")),
+            "portfolioUsd": data.get("portfolioUsd"),
+            "riskPctMin": data.get("riskPctMin"),
+            "riskPctMax": data.get("riskPctMax"),
+            "maxLiquidityFraction": data.get("maxLiquidityFraction"),
+            "minConfidence": data.get("minConfidence"),
+            "maxOpenRiskUsd": data.get("maxOpenRiskUsd"),
+            "tradeAction": data.get("tradeAction"),
+            "tradeMarketId": data.get("tradeMarketId"),
+            "tradeTitle": data.get("tradeTitle"),
+            "tradeConfidence": data.get("tradeConfidence"),
+            "tradePrice": data.get("tradePrice"),
+            "tradeVenue": data.get("tradeVenue"),
             "feeds_cot_directly": _subagent_feeds_cot_directly(node_id, by_id, edges, llm_id),
             "wired_to_orchestrator": bool(
                 llm_id and llm_id in _outgoing_targets(edges, node_id)
@@ -224,7 +260,7 @@ def compile_workflow_context(
                     or node_type
                 )
                 feed_sources.append(agent_id)
-            elif node_type in PURE_TOOL_NODE_TYPES and node_type not in ("cotBuilder",):
+            elif node_type in PURE_TOOL_NODE_TYPES and node_type not in EXECUTION_TOOL_NODE_TYPES and node_type not in ("cotBuilder",):
                 if node_type not in orchestrator_execution_tools:
                     orchestrator_execution_tools.append(node_type)
                 data = src.get("data") or {}

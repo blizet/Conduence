@@ -58,6 +58,17 @@ export const FALLBACK_CATALOG: MarketplaceAgent[] = [
     feedTopic: 'agent.feeds.arbitrageAgent.public',
   },
   {
+    id: 'riskAnalyzer',
+    nodeType: 'riskAnalyzer',
+    name: 'Risk Analyzer',
+    description: 'Position sizing from trade proposal + portfolio risk limits → agent.feeds.riskAnalyzer.public',
+    autonomous: true,
+    hosted: true,
+    source: 'hosted',
+    accent: '#fbbf24',
+    feedTopic: 'agent.feeds.riskAnalyzer.public',
+  },
+  {
     id: 'sportsScanner.user_demo',
     nodeType: 'sportsScanner',
     name: 'Kalshi Sports Scanner',

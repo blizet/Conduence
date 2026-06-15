@@ -55,6 +55,20 @@ _HOSTED_MARKETPLACE_CATALOG = [
         "eventType": "arbitrage.signal",
         "agentPath": "backend/app/subagents/arbitrage_subagent.py",
     },
+    {
+        "id": "riskAnalyzer",
+        "nodeType": "riskAnalyzer",
+        "name": "Risk Analyzer",
+        "description": "Position sizing from user trade proposal + portfolio risk limits — emits sized trade signals",
+        "autonomous": True,
+        "hosted": True,
+        "source": "hosted",
+        "category": "subagent",
+        "accent": "#fbbf24",
+        "feedTopic": agent_feed_topic("riskAnalyzer"),
+        "eventType": "risk.signal",
+        "agentPath": "backend/app/subagents/risk_analyzer_subagent.py",
+    },
 ]
 
 MARKETPLACE_CATALOG = [*_HOSTED_MARKETPLACE_CATALOG, *EXTERNAL_MARKETPLACE_ENTRIES]

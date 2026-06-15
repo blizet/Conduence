@@ -2,6 +2,12 @@
 
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode, WorkflowNodeData } from '@/nodes/types';
+import {
+  EXECUTION_TOOL_TYPES,
+  resolveAgentTradePayload,
+  runExecutionToolFromAgent,
+  upstreamAgentForExecutionTool,
+} from './execution-tools';
 import { RUNNABLE_TOOL_TYPES, executeToolNode, toolResultPatch } from './workflow-tools';
 import { downstreamNodes, findLlmNode, runOrchestrator } from './orchestrator-runner';
 
@@ -166,6 +172,14 @@ export async function runWorkflow({
         workflowDurationMs: undefined,
       });
     }
+    if (node.type && EXECUTION_TOOL_TYPES.has(node.type)) {
+      patchNode(node.id, {
+        workflowStatus: 'idle',
+        workflowError: '',
+        workflowResult: '',
+        workflowDurationMs: undefined,
+      });
+    }
   }
 
   for (const nodeId of order) {
@@ -209,47 +223,102 @@ export async function runWorkflow({
   }
 
   const llmNode = findLlmNode(nodes);
-  if (!llmNode) return;
+  let orch: Awaited<ReturnType<typeof runOrchestrator>> = { ok: false };
 
-  patchNode(llmNode.id, {
-    workflowStatus: 'running',
-    workflowError: '',
-    workflowResult: '',
-    workflowDurationMs: undefined,
-  });
-  const orch = await runOrchestrator({
-    nodes,
-    edges,
-    feedSignals,
-    backendUrl: llmNode.data.backendUrl,
-  });
-
-  patchNode(llmNode.id, {
-    workflowStatus: orch.ok ? 'success' : 'error',
-    workflowError: orch.error ?? (orch.errors ?? []).join('; '),
-    workflowResult: JSON.stringify(orch, null, 2),
-    workflowDurationMs: orch.durationMs,
-    decisionJson: orch.decision ? JSON.stringify(orch.decision, null, 2) : undefined,
-    correlatedJson: orch.correlated ? JSON.stringify(orch.correlated, null, 2) : undefined,
-  });
-
-  for (const cotNode of downstreamNodes(llmNode.id, nodes, edges, 'cotBuilder')) {
-    patchNode(cotNode.id, {
-      decisionJson: orch.decision ? JSON.stringify(orch.decision, null, 2) : cotNode.data.decisionJson,
-      correlatedJson: orch.correlated
-        ? JSON.stringify(orch.correlated, null, 2)
-        : cotNode.data.correlatedJson,
-      cotOutput: orch.cot ? JSON.stringify(orch.cot, null, 2) : '',
-      cotStatus: orch.cot ? 'success' : orch.ok ? 'skipped' : 'error',
+  if (llmNode) {
+    patchNode(llmNode.id, {
+      workflowStatus: 'running',
+      workflowError: '',
+      workflowResult: '',
+      workflowDurationMs: undefined,
     });
+    orch = await runOrchestrator({
+      nodes,
+      edges,
+      feedSignals,
+      backendUrl: llmNode.data.backendUrl,
+    });
+
+    patchNode(llmNode.id, {
+      workflowStatus: orch.ok ? 'success' : 'error',
+      workflowError: orch.error ?? (orch.errors ?? []).join('; '),
+      workflowResult: JSON.stringify(orch, null, 2),
+      workflowDurationMs: orch.durationMs,
+      decisionJson: orch.decision ? JSON.stringify(orch.decision, null, 2) : undefined,
+      correlatedJson: orch.correlated ? JSON.stringify(orch.correlated, null, 2) : undefined,
+    });
+
+    for (const cotNode of downstreamNodes(llmNode.id, nodes, edges, 'cotBuilder')) {
+      patchNode(cotNode.id, {
+        decisionJson: orch.decision ? JSON.stringify(orch.decision, null, 2) : cotNode.data.decisionJson,
+        correlatedJson: orch.correlated
+          ? JSON.stringify(orch.correlated, null, 2)
+          : cotNode.data.correlatedJson,
+        cotOutput: orch.cot ? JSON.stringify(orch.cot, null, 2) : '',
+        cotStatus: orch.cot ? 'success' : orch.ok ? 'skipped' : 'error',
+      });
+    }
+
+    for (const outNode of downstreamNodes(llmNode.id, nodes, edges, 'workflowOutput')) {
+      patchNode(outNode.id, {
+        outputStatus: orch.ok ? 'success' : 'error',
+        outputPayload: JSON.stringify(orch, null, 2),
+        outputSource: 'llm',
+        outputDurationMs: orch.durationMs,
+      });
+    }
   }
 
-  for (const outNode of downstreamNodes(llmNode.id, nodes, edges, 'workflowOutput')) {
-    patchNode(outNode.id, {
-      outputStatus: orch.ok ? 'success' : 'error',
-      outputPayload: JSON.stringify(orch, null, 2),
-      outputSource: 'llm',
-      outputDurationMs: orch.durationMs,
+  await runWiredExecutionTools({ nodes, edges, patchNode, orch, feedSignals });
+}
+
+async function runWiredExecutionTools({
+  nodes,
+  edges,
+  patchNode,
+  orch,
+  feedSignals,
+}: {
+  nodes: WorkflowNode[];
+  edges: Edge[];
+  patchNode: NodePatchFn;
+  orch: Awaited<ReturnType<typeof runOrchestrator>>;
+  feedSignals?: Record<string, { latest?: unknown }>;
+}): Promise<void> {
+  for (const node of nodes) {
+    if (!node.type || !EXECUTION_TOOL_TYPES.has(node.type)) continue;
+
+    const source = upstreamAgentForExecutionTool(node.id, nodes, edges);
+    if (!source) continue;
+
+    const payload = resolveAgentTradePayload(source, orch, feedSignals);
+    if (!payload) continue;
+
+    patchNode(node.id, {
+      workflowStatus: 'running',
+      workflowError: '',
+      workflowResult: '',
+      workflowDurationMs: undefined,
     });
+
+    let result;
+    try {
+      result = await runExecutionToolFromAgent(
+        node.type as 'clob' | 'kalshi' | 'telegram',
+        node.data,
+        payload,
+        node.data.backendUrl,
+      );
+    } catch (err) {
+      result = {
+        ok: false,
+        source: node.type,
+        request: {},
+        error: err instanceof Error ? err.message : 'Execution failed',
+      };
+    }
+
+    patchNode(node.id, toolResultPatch(result));
+    if (!result.ok) break;
   }
 }

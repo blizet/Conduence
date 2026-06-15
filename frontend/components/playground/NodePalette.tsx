@@ -11,6 +11,8 @@ import {
 import { useInstalledNodeTypes } from '@/lib/marketplace';
 import { DEFAULT_COT_USER_NODE_ID } from '@/nodes/constants';
 import {
+  EXECUTION_TOOL_GROUPS,
+  getExecutionGroupItems,
   getToolGroupItems,
   getUngroupedToolItems,
   PALETTE_ITEMS,
@@ -68,18 +70,23 @@ function PaletteToolGroup({
   items,
   collapsed,
   onToggle,
+  headerVariant,
 }: {
   title: string;
   items: PaletteItem[];
   collapsed: boolean;
   onToggle: () => void;
+  headerVariant?: string;
 }) {
   if (items.length === 0) return null;
+  const headerClass = headerVariant
+    ? `palette-tool-group__header palette-tool-group__header--${headerVariant}`
+    : 'palette-tool-group__header';
   return (
     <div className={`palette-tool-group${collapsed ? ' palette-tool-group--collapsed' : ''}`}>
       <button
         type="button"
-        className="palette-tool-group__header"
+        className={headerClass}
         onClick={onToggle}
         aria-expanded={!collapsed}
       >
@@ -262,8 +269,23 @@ export function NodePalette() {
     () => filtered.filter((item) => item.category === 'subagent'),
     [filtered],
   );
+  const executionToolItems = useMemo(
+    () =>
+      filtered.filter(
+        (item) =>
+          item.category === 'tool' &&
+          (item.toolGroup === 'execution' || item.toolGroup === 'socials'),
+      ),
+    [filtered],
+  );
   const toolItems = useMemo(
-    () => filtered.filter((item) => item.category === 'tool'),
+    () =>
+      filtered.filter(
+        (item) =>
+          item.category === 'tool' &&
+          item.toolGroup !== 'execution' &&
+          item.toolGroup !== 'socials',
+      ),
     [filtered],
   );
   const ungroupedToolItems = useMemo(() => getUngroupedToolItems(toolItems), [toolItems]);
@@ -341,6 +363,25 @@ export function NodePalette() {
               </div>
             )}
 
+            {executionToolItems.length > 0 && (
+              <div className="palette-section palette-section--execution">
+                <div className="palette-section-title palette-section-title--execution">
+                  <span className="palette-section-title__text">Execution Tools</span>
+                  <span className="palette-section-title__rule" aria-hidden />
+                </div>
+                {EXECUTION_TOOL_GROUPS.map(({ id, title, headerVariant }) => (
+                  <PaletteToolGroup
+                    key={id}
+                    title={title}
+                    items={getExecutionGroupItems(executionToolItems, id)}
+                    collapsed={!isSearching && Boolean(collapsedGroups[id])}
+                    onToggle={() => toggleGroup(id)}
+                    headerVariant={headerVariant}
+                  />
+                ))}
+              </div>
+            )}
+
             {toolItems.length > 0 && (
               <div className="palette-section">
                 <div className="palette-section-title palette-section-title--tools">
@@ -350,13 +391,14 @@ export function NodePalette() {
                 {ungroupedToolItems.map((item) => (
                   <PaletteEntry key={item.type} item={item} />
                 ))}
-                {PALETTE_TOOL_GROUPS.map(({ id, title }) => (
+                {PALETTE_TOOL_GROUPS.map(({ id, title, headerVariant }) => (
                   <PaletteToolGroup
                     key={id}
                     title={title}
                     items={getToolGroupItems(toolItems, id)}
                     collapsed={!isSearching && Boolean(collapsedGroups[id])}
                     onToggle={() => toggleGroup(id)}
+                    headerVariant={headerVariant}
                   />
                 ))}
               </div>
@@ -398,6 +440,13 @@ export function NodePalette() {
           {subagentItems.length > 0 && (
             <div className="palette-rail-group">
               {subagentItems.map((item) => (
+                <RailEntry key={item.type} item={item} />
+              ))}
+            </div>
+          )}
+          {executionToolItems.length > 0 && (
+            <div className="palette-rail-group">
+              {executionToolItems.map((item) => (
                 <RailEntry key={item.type} item={item} />
               ))}
             </div>

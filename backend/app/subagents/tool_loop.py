@@ -8,6 +8,7 @@ from app.orchestrator.tools_registry import ToolRegistry
 
 NEWS_FEED_TOOLS = frozenset({"cryptonews", "tavily"})
 ARB_SCAN_TOOLS = frozenset({"polymarketGamma", "kalshi"})
+RISK_TOOLS = frozenset({"polymarketGamma", "polymarketWallet", "kalshi"})
 
 
 async def invoke_execution_tools(
@@ -249,3 +250,144 @@ async def fetch_scan_markets_from_tools(
                 kalshi.append(norm)
 
     return poly, kalshi
+
+
+def _market_from_gamma(
+    gamma_result: dict[str, Any],
+    *,
+    market_id: str = "",
+    keywords: str = "",
+) -> dict[str, Any] | None:
+    if not gamma_result.get("ok"):
+        return None
+    markets = (gamma_result.get("data") or {}).get("markets") or []
+    if not markets:
+        return None
+    slug = market_id.lower().strip()
+    if slug:
+        for m in markets:
+            if not isinstance(m, dict):
+                continue
+            if (m.get("slug") or "").lower() == slug:
+                return m
+            if slug in (m.get("question") or "").lower():
+                return m
+    if keywords:
+        kw = keywords.lower()
+        for m in markets:
+            if kw in (m.get("question") or "").lower():
+                return m
+    return markets[0] if isinstance(markets[0], dict) else None
+
+
+def _open_exposure_from_wallet(wallet_result: dict[str, Any]) -> float:
+    if not wallet_result.get("ok"):
+        return 0.0
+    data = wallet_result.get("data") or {}
+    positions = data.get("positions") or data.get("data") or []
+    if not isinstance(positions, list):
+        return 0.0
+    total = 0.0
+    for pos in positions:
+        if not isinstance(pos, dict):
+            continue
+        for key in ("currentValue", "value", "size", "initialValue"):
+            try:
+                total += abs(float(pos.get(key) or 0))
+                break
+            except (TypeError, ValueError):
+                continue
+    return total
+
+
+async def fetch_risk_context_from_tools(
+    execution_tools: list[str],
+    tool_configs: dict[str, dict[str, Any]],
+    *,
+    market_id: str = "",
+    keywords: str = "",
+    venue: str = "polymarket",
+) -> dict[str, Any]:
+    """Fetch market liquidity and wallet exposure for risk sizing."""
+    planned: list[dict[str, Any]] = []
+    evidence: list[str] = []
+
+    if "polymarketGamma" in execution_tools and venue == "polymarket":
+        cfg = tool_configs.get("polymarketGamma") or {}
+        planned.append(
+            {
+                "tool_id": "polymarketGamma",
+                "params": {
+                    "endpoint": "markets_search",
+                    "keywords": keywords or market_id or "bitcoin",
+                    "limit": int(cfg.get("limit") or 8),
+                },
+            }
+        )
+    if "kalshi" in execution_tools and venue == "kalshi":
+        planned.append(
+            {
+                "tool_id": "kalshi",
+                "params": {"action": "list_markets", "limit": 50, "pages": 1},
+            }
+        )
+    if "polymarketWallet" in execution_tools:
+        cfg = tool_configs.get("polymarketWallet") or {}
+        wallet = (cfg.get("wallet") or cfg.get("pmWallet") or "").strip()
+        if wallet:
+            planned.append(
+                {
+                    "tool_id": "polymarketWallet",
+                    "params": {
+                        "endpoint": "wallet_positions",
+                        "wallet": wallet,
+                        "action": "positions",
+                        "limit": int(cfg.get("limit") or 50),
+                    },
+                }
+            )
+
+    if not planned:
+        return {"market": None, "open_exposure_usd": 0.0, "evidence": evidence}
+
+    results = await invoke_execution_tools(execution_tools, tool_configs, planned)
+    market: dict[str, Any] | None = None
+
+    gamma = results.get("polymarketGamma") or {}
+    if gamma:
+        market = _market_from_gamma(gamma, market_id=market_id, keywords=keywords)
+        if market:
+            liq = float(market.get("liquidity") or 0)
+            evidence.append(f"Gamma: liquidity ${liq:,.0f}, quality {market.get('quality', 'n/a')}")
+
+    if venue == "kalshi" and not market:
+        kal = results.get("kalshi") or {}
+        if kal.get("ok"):
+            for m in (kal.get("data") or {}).get("markets") or []:
+                if not isinstance(m, dict):
+                    continue
+                ticker = (m.get("ticker") or "").lower()
+                if market_id and ticker == market_id.lower():
+                    market = {
+                        "question": m.get("title") or "",
+                        "ticker": m.get("ticker") or "",
+                        "liquidity": float(m.get("liquidity") or 0),
+                        "yes_ask": m.get("yes_ask"),
+                        "no_ask": m.get("no_ask"),
+                        "bestAsk": float(m.get("yes_ask") or 0) / 100.0
+                        if float(m.get("yes_ask") or 0) > 1
+                        else float(m.get("yes_ask") or 0),
+                    }
+                    evidence.append(f"Kalshi: {market['question'][:60]} liquidity ${market['liquidity']:,.0f}")
+                    break
+
+    wallet = results.get("polymarketWallet") or {}
+    open_exposure = _open_exposure_from_wallet(wallet)
+    if open_exposure > 0:
+        evidence.append(f"Wallet open exposure ~${open_exposure:,.0f}")
+
+    return {
+        "market": market,
+        "open_exposure_usd": open_exposure,
+        "evidence": evidence,
+    }

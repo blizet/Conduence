@@ -58,6 +58,10 @@ function pickSignal(feeds: Record<string, { latest?: unknown }> | undefined): Re
   if (arb && typeof arb === 'object') {
     return { type: 'arbitrage', agent: 'arbitrageAgent', ...(arb as Record<string, unknown>) };
   }
+  const risk = feeds?.riskAnalyzer?.latest;
+  if (risk && typeof risk === 'object') {
+    return { type: 'risk', agent: 'riskAnalyzer', ...(risk as Record<string, unknown>) };
+  }
   const sports = feeds?.['sportsScanner.user_demo']?.latest;
   if (sports && typeof sports === 'object') {
     const payload = sports as Record<string, unknown>;

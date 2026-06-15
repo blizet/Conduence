@@ -76,6 +76,24 @@ def correlated_from_signal(signal: dict[str, Any]) -> dict[str, Any]:
     return {"polymarket": markets, "kalshi": [], "correlations": []}
 
 
+def decision_from_risk_signal(signal: dict[str, Any]) -> dict[str, Any]:
+    action = str(signal.get("action") or "HOLD").strip().upper()
+    market_id = signal.get("market_id") or signal.get("tokenId") or signal.get("ticker") or "NONE"
+    confidence = float(signal.get("confidence") or 0.0)
+    return {
+        "action": action,
+        "market_id": market_id if action != "HOLD" else "NONE",
+        "conviction_level": max(1, min(10, int(round(confidence * 10)))),
+        "thesis": signal.get("thesis") or signal.get("summary", ""),
+        "tags": ["#risk"],
+        "reasoning": "; ".join(signal.get("evidence") or [])[:500] or signal.get("thesis", ""),
+        "size_usd": signal.get("size_usd"),
+        "size": signal.get("size") or signal.get("count"),
+        "count": signal.get("count") or signal.get("size"),
+        "price": signal.get("price"),
+    }
+
+
 def build_cot_from_signal(
     signal: dict[str, Any],
     *,
@@ -87,6 +105,8 @@ def build_cot_from_signal(
         decision = decision_from_news_signal(signal)
     elif agent_id == "arbitrageAgent":
         decision = decision_from_arbitrage_signal(signal)
+    elif agent_id == "riskAnalyzer":
+        decision = decision_from_risk_signal(signal)
     else:
         decision = {
             "action": "HOLD",

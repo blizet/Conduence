@@ -14,7 +14,6 @@ export type ToolExecutionResult = {
 };
 
 export type RunnableToolType =
-  | 'clob'
   | 'cotBuilder'
   | 'coinmarketcap'
   | 'defillama'
@@ -23,11 +22,9 @@ export type RunnableToolType =
   | 'tavily'
   | 'coingecko'
   | 'polymarketGamma'
-  | 'polymarketWallet'
-  | 'kalshi';
+  | 'polymarketWallet';
 
 export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType>([
-  'clob',
   'cotBuilder',
   'coinmarketcap',
   'defillama',
@@ -37,7 +34,6 @@ export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType
   'coingecko',
   'polymarketGamma',
   'polymarketWallet',
-  'kalshi',
 ]);
 
 /** Minimal preview payloads when running workflow phase A — LLM fills params at orchestrate time. */
@@ -50,7 +46,6 @@ const PREVIEW_DEFAULTS: Record<string, Record<string, unknown>> = {
   tavily: { query: 'bitcoin market news', maxResults: 5 },
   polymarketGamma: { keywords: 'bitcoin', limit: 8 },
   polymarketWallet: { wallet: '', action: 'trades', limit: 10 },
-  kalshi: { ticker: 'KXBTC-25DEC31' },
 };
 
 async function postJson(path: string, body: Record<string, unknown>, backendUrl?: string) {
@@ -247,20 +242,6 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
     };
     const { response, payload, durationMs } = await postJson('/api/tools/cot/build', request, data.backendUrl);
     return normalizeResult('cotBuilder', payload, request, response.ok, durationMs);
-  }
-  if (type === 'clob') {
-    const request = {
-      tokenId: (data.tokenId ?? '').trim(),
-    };
-    const { response, payload, durationMs } = await postJson('/api/tools/clob/quote', request, data.backendUrl);
-    return normalizeResult('clob', payload, request, response.ok, durationMs);
-  }
-  if (type === 'kalshi') {
-    const request = {
-      ticker: (data.kalshiTicker ?? '').trim(),
-    };
-    const { response, payload, durationMs } = await postJson('/api/tools/kalshi/quote', request, data.backendUrl);
-    return normalizeResult('kalshi', payload, request, response.ok, durationMs);
   }
   return {
     ok: false,

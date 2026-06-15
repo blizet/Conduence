@@ -15,7 +15,7 @@ export const PURE_TOOL_NODE_TYPES = new Set([
   'cotBuilder',
 ]);
 
-export const SUB_AGENT_NODE_TYPES = new Set(['newsAgent', 'arbitrageAgent']);
+export const SUB_AGENT_NODE_TYPES = new Set(['newsAgent', 'arbitrageAgent', 'riskAnalyzer']);
 
 export const MIND_AGENT_NODE_TYPES = new Set(['sportsScanner']);
 

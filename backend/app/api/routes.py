@@ -28,6 +28,7 @@ from app.tools.defillama import fetch_defillama
 from app.tools.polymarket_gamma import fetch_gamma_markets
 from app.tools.polymarket_wallet import fetch_polymarket_wallet
 from app.tools.tavily import fetch_tavily
+from app.tools.telegram import send_telegram_message
 from app.orchestrator.graph_registry import GRAPH_CATALOG
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
 from app.services.workflow_marketplace import (
@@ -142,6 +143,11 @@ async def kalshi_execute(body: dict[str, Any]) -> dict[str, Any]:
     if not ticker:
         return {"error": "ticker is required"}
     return await execute_kalshi_trade(body)
+
+
+@tools_router.post("/telegram/send")
+async def telegram_send(body: dict[str, Any]) -> dict[str, Any]:
+    return await send_telegram_message(body)
 
 
 @tools_router.post("/cot/build")

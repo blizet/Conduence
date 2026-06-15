@@ -14,7 +14,7 @@ export type KalshiTradeSource = 'upstream' | 'manual';
 export type KalshiSide = 'yes' | 'no';
 export type KalshiAction = 'buy' | 'sell';
 
-export type PaletteToolGroup = 'venues' | 'market-data' | 'helpers' | 'workflow';
+export type PaletteToolGroup = 'execution' | 'socials' | 'market-data' | 'helpers' | 'workflow';
 
 export type WorkflowNodeData = {
   label: string;
@@ -113,6 +113,23 @@ export type WorkflowNodeData = {
   pmWalletAction?: 'trades' | 'positions';
   pmWalletLimit?: string;
   simulate?: boolean;
+  toolGroup?: PaletteToolGroup;
+  agentId?: string;
+  portfolioUsd?: string;
+  riskPctMin?: string;
+  riskPctMax?: string;
+  maxLiquidityFraction?: string;
+  minConfidence?: string;
+  maxOpenRiskUsd?: string;
+  tradeAction?: 'BUY_YES' | 'BUY_NO' | 'HOLD';
+  tradeMarketId?: string;
+  tradeTitle?: string;
+  tradeConfidence?: string;
+  tradeVenue?: 'polymarket' | 'kalshi';
+  telegramUsername?: string;
+  telegramChatId?: string;
+  telegramMessagePrefix?: string;
+  telegramStatus?: string;
 };
 
 export type WorkflowNode = Node<WorkflowNodeData>;

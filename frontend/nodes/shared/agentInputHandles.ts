@@ -1,22 +1,23 @@
 import type { HandleConfig } from '../types';
 
-/** Left-side Tools + Memory input ports (model selection stays inside the node). */
+/** Bottom Tools + Memory ports; main workflow input on the left (no chat-model port). */
 export function subagentInputHandles(outputId: string): HandleConfig[] {
   return [
+    { type: 'target', position: 'left', id: 'in-main' },
     {
       type: 'target',
-      position: 'left',
+      position: 'bottom',
       id: 'in-tools',
       label: 'Tools',
       multiConnect: true,
-      style: { top: '36%' },
+      style: { left: '38%' },
     },
     {
       type: 'target',
-      position: 'left',
+      position: 'bottom',
       id: 'in-memory',
       label: 'Memory',
-      style: { top: '58%' },
+      style: { left: '62%' },
     },
     { type: 'source', position: 'right', id: outputId },
   ];

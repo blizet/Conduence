@@ -10,6 +10,12 @@ from app.subagents.arbitrage_subagent import (
     validate_arbitrage_config,
 )
 from app.subagents.news_subagent import stream_news_signals, validate_news_config
+from app.subagents.risk_analyzer_subagent import stream_risk_signals, validate_risk_config
+
+
+async def _stream_risk(config: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    async for signal in stream_risk_signals(config):
+        yield signal
 
 
 async def _stream_news(config: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
@@ -40,6 +46,15 @@ SUB_AGENT_REGISTRY: dict[str, dict[str, Any]] = {
         "feedTopic": agent_feed_topic("arbitrageAgent"),
         "validateConfig": validate_arbitrage_config,
         "streamSignals": _stream_arbitrage,
+    },
+    "riskAnalyzer": {
+        "id": "riskAnalyzer",
+        "nodeType": "riskAnalyzer",
+        "category": "subagent",
+        "eventType": "risk.signal",
+        "feedTopic": agent_feed_topic("riskAnalyzer"),
+        "validateConfig": validate_risk_config,
+        "streamSignals": _stream_risk,
     },
 }
 
