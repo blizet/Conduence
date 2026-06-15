@@ -1,0 +1,31 @@
+{
+  "name": "supermemory-graph-chat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "tsx watch src/server/index.ts",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "tsx src/server/index.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "hono": "^4.7.4",
+    "@hono/node-server": "^1.14.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "supermemory": "^4.24.12",
+    "vis-data": "^7.1.9",
+    "vis-network": "^9.1.9"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2"
+  }
+}
