@@ -1,6 +1,8 @@
 # Full platform run guide
 
-End-to-end instructions for the CoT_kb playground: infrastructure, workflow Go Live, hosted sub-agents, external mind agents, marketplace publishing, orchestrator, and CoT graph.
+End-to-end instructions for running the playground **in real time**: infrastructure, saved workflows, wiring sub-agents → orchestrator → CoT graph, Go Live, verifying decisions, and optional LangSmith traces.
+
+**Start here after one-time setup:** [Real-time walkthrough](#real-time-walkthrough--orchestrator-tools--live-cot-graph) (Part 1).
 
 ---
 
@@ -53,6 +55,7 @@ flowchart TB
   end
   subgraph browser ["Browser — localStorage"]
     IA[cot-installed-mind-agents]
+    WF[cot-playground-workflows]
     CK[legacy cot-coindesk-api-key]
   end
   WL --> AS
@@ -73,8 +76,8 @@ flowchart TB
 | **Kafka topics** | Redpanda | `agent.feeds.*.public`, `market.signals.public` | Yes |
 | **CoT graph** | FalkorDB | Merged decision nodes/edges | Yes |
 | **Published workflows** | `data/workflows/marketplace.json` | Sanitized canvas templates | Yes |
+| **Playground drafts** | `localStorage` key `cot-playground-workflows` | Named workflows + canvas + node API keys (local only) | Yes (browser only) |
 | **Installed agents (UI)** | `localStorage` key `cot-installed-mind-agents` | Which marketplace nodes appear on palette | Yes (browser only) |
-| **Canvas wiring** | React Flow in browser | Nodes, edges, API keys on nodes — **not auto-saved** unless you publish | Until page refresh |
 
 ### Hosted sub-agent lifecycle (newsAgent / arbitrageAgent)
 
@@ -215,22 +218,52 @@ KAFKA_BROKERS=localhost:19092
 FALKORDB_HOST=localhost
 FALKORDB_PORT=6380
 
-# LLM orchestrator + sub-agents
-GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-2.5-flash-lite
-
-# CoT graph namespace (CoT Graph tab + CoT Builder default)
+# CoT graph namespace — must match CoT Builder + Orchestrator nodes + frontend
 MAIN_GRAPH_ID=user_771.main.v1
 MAIN_USER_NODE_ID=user_771
+COT_KAFKA_FROM_BEGINNING=1
+
+# LLM fallbacks (optional if keys are set on canvas nodes — recommended on nodes for Go Live)
+NEWS_LLM_API_KEY=your_gemini_or_openai_key_here
+NEWS_LLM_PROVIDER=gemini
+NEWS_LLM_MODEL=gemini-2.0-flash
+
+# Tool fallbacks (optional if keys are set on cryptonews/tavily tool nodes)
+CRYPTO_NEWS_API_KEY=
+TAVILY_API_KEY=
 
 # External wrapper auth (must match kalshiSports)
 COT_WRAPPER_API_KEY=cot-dev-wrapper-key
+
+# LangSmith — optional; attaches trace URLs to CoT provenance
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_pt_your_key_here
+LANGCHAIN_PROJECT=cot-workflows
 ```
 
-**Frontend:**
+**Where API keys are required for real-time runs:**
+
+| Key | Required? | Where to set |
+|-----|-----------|--------------|
+| **LLM** (Gemini/OpenAI/Claude) | **Yes** — sub-agents refuse to start without | **Canvas:** News/Arbitrage/Orchestrator node `llmApiKey` (preferred). Optional fallback: `NEWS_LLM_API_KEY` / `ARB_LLM_API_KEY` in `backend/.env` |
+| **cryptonews / tavily** | **Yes** for News Agent demo | **Canvas:** tool node `apiKey`. Optional fallback: `CRYPTO_NEWS_API_KEY`, `TAVILY_API_KEY` in `backend/.env` |
+| **LangSmith** | Optional | `backend/.env` only — `LANGCHAIN_*` |
+| **Kalshi / Polymarket / etc.** | Per workflow | Canvas tool nodes + venue credentials on execution nodes |
+| **External publisher** | For sports feed only | `COT_WRAPPER_API_KEY` in backend + `kalshiSports/.env` |
+
+**Frontend** — copy and edit:
 
 ```powershell
 copy frontend\.env.example frontend\.env.local
+```
+
+Minimum:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_WS_URL=ws://localhost:4000/ws
+NEXT_PUBLIC_MAIN_GRAPH_ID=user_771.main.v1
+NEXT_PUBLIC_MAIN_USER_ID=user_771
 ```
 
 **kalshiSports wrapper:**
@@ -253,7 +286,185 @@ For live Kalshi mode (not `--simulate`), also set `API_FOOTBALL_KEY` from [api-f
 
 ---
 
-## Part 1 — Start the platform
+## Part 1 — Real-time walkthrough: orchestrator, tools, and live CoT graph
+
+Use this section to run everything connected and verify orchestrator output plus the **live** FalkorDB graph (not the sample fallback).
+
+### Prerequisites
+
+```text
+□ docker compose up -d          (Kafka + FalkorDB healthy)
+□ backend/.env + frontend/.env.local configured (graph IDs aligned)
+□ npm run dev:backend           Terminal A
+□ npm run dev:frontend          Terminal B → http://localhost:3001
+```
+
+Confirm backend health:
+
+```powershell
+curl http://localhost:4000/api/health
+```
+
+Expect `"kafka": true` and `"falkordb": true`.
+
+### Step 1 — Save a named workflow (browser persistence)
+
+1. Open the playground header **Workflow** bar.
+2. Use **+ New** to create workflows; rename inline (autosaves to `localStorage`).
+3. Select a workflow from the dropdown — canvas restores after refresh.
+
+API keys on tool/LLM nodes are saved with the workflow locally. **Publish** still strips secrets from marketplace copies.
+
+### Step 2 — Install agents and build the canvas
+
+**Marketplace** → Install **News Agent** (minimum for a self-contained demo).
+
+Recommended wiring (hosted sub-agent → orchestrator → CoT → output):
+
+```text
+[cryptonews] ──► [newsAgent] ──► [llm / Orchestrator] ──► [cotBuilder]
+[tavily]     ──►              │                        └──► [workflowOutput]
+                              ▲
+                    (optional: polymarketGamma for extra orchestrator tools)
+```
+
+| Node | Required settings |
+|------|-------------------|
+| **cryptonews** | `apiKey` — [CryptoNews API](https://cryptonews-api.com/) or backend `CRYPTO_NEWS_API_KEY` |
+| **tavily** | `apiKey` — [Tavily](https://tavily.com/) or backend `TAVILY_API_KEY` |
+| **News Agent** | LLM provider + **API key** + model (required — sub-agent refuses to start without these) |
+| **Orchestrator (llm)** | Same LLM settings; **Graph ID** = `user_771.main.v1`; **User node ID** = `user_771` |
+| **CoT Builder** | Same graph/user IDs; **Auto emit** = ON (publishes to Kafka → FalkorDB) |
+| **Output** (optional) | Wire from orchestrator **right output** — see Step 6 for when it populates |
+
+**Graph ID alignment (critical for live graph):**
+
+| Place | Value |
+|-------|-------|
+| `backend/.env` → `MAIN_GRAPH_ID` | `user_771.main.v1` |
+| `frontend/.env.local` → `NEXT_PUBLIC_MAIN_GRAPH_ID` | `user_771.main.v1` |
+| Orchestrator node → Graph ID | `user_771.main.v1` |
+| CoT Builder node → Graph ID | `user_771.main.v1` |
+
+If these differ, decisions emit to one namespace but the CoT Graph tab reads another — you will see the **sample** chain instead of live data.
+
+### Step 3 — Go Live (continuous real-time loop)
+
+1. Confirm all API keys on wired nodes.
+2. Click **Go Live** in the header.
+
+Backend sequence:
+
+1. `POST /api/orchestrator/start` with your canvas.
+2. `compile_workflow_context()` — tools snapped to sub-agents, orchestrator registry built from edges.
+3. **News Agent** asyncio loop polls cryptonews/tavily every ~30s.
+4. Each signal → Kafka `agent.feeds.newsAgent.public` + WebSocket `agent.feed`.
+5. If orchestrator is wired → signal enqueued → LangGraph run → decision JSON.
+6. If **Auto emit** on CoT Builder → non-`HOLD` decisions → Kafka `market.signals.public` → FalkorDB worker merges into `user_771.main.v1`.
+
+**Stop Live** before single **Run Workflow** (button is disabled while live).
+
+### Step 4 — Verify sub-agent signals (feeds are live)
+
+| Where | What to look for |
+|-------|------------------|
+| **Playground** → select **News Agent** node → inspector | Latest signal JSON, feed count, “Managed by workflow Go Live” |
+| **Redpanda Console** http://localhost:8080 | Topic `agent.feeds.newsAgent.public` — new messages every poll |
+| **WebSocket** | Browser devtools → WS `ws://localhost:4000/ws` — `agent.feed` events |
+
+If no signals: check tool API keys, backend logs, or `GET /api/orchestrator/workflow/status` → `started_subagents`.
+
+### Step 5 — Verify orchestrator decisions (real time)
+
+While **Go Live** is active, the orchestrator runs in the background on each enqueued signal.
+
+**Option A — Backend status API (best for Go Live):**
+
+```powershell
+curl http://localhost:4000/api/orchestrator/status
+```
+
+Check:
+
+- `"running": true`
+- `"processed"` incrementing over time
+- `"lastResult"` — latest LangGraph output (`decision`, `steps`, `cot`)
+- `"recentSignals"` — last feed previews
+
+**Option B — WebSocket:**
+
+Listen for `orchestrator.result` events on `/ws` (decision + steps summary).
+
+**Option C — Single-shot with full UI (Run Workflow):**
+
+1. **Stop Live**
+2. Wait for at least one sub-agent signal (or run external publisher — Part 3)
+3. Click **Run Workflow**
+4. Select **Orchestrator (llm)** node → inspector shows `workflowResult` JSON (full orchestrator output)
+5. Select **CoT Builder** → `cotOutput` DecisionEvent JSON when action ≠ `HOLD`
+
+**Note:** Output nodes (`workflowOutput`) populate on **Run Workflow** only today — not continuously during Go Live. Use orchestrator status API or LLM inspector for live monitoring.
+
+### Step 6 — Verify the live CoT graph (not hardcoded sample)
+
+1. Ensure **Auto emit** is ON and orchestrator produced a non-`HOLD` decision (or sub-agent → cotBuilder direct path with auto-emit).
+2. **Redpanda Console** → topic `market.signals.public` — CoT delta messages.
+3. Playground → **CoT Graph** tab.
+4. Graph ID field = `user_771.main.v1` → press **Enter** to reload snapshot.
+
+**Live graph indicators:**
+
+- Sidebar does **not** say “showing sample CoT chain”
+- New `trade`, `market`, `outcome` nodes appear after emits
+- Click a **trade** node → sidebar shows **Decision analysis** + **LangSmith observability** (when tracing env is set)
+
+**FalkorDB Browser** http://localhost:3000 — graph name derived from `user_771.main.v1` (e.g. `user_771_main_v1`).
+
+**If you still see sample data:** FalkorDB empty, Kafka worker down, graph ID mismatch, or only `HOLD` decisions (nothing emitted). Fix IDs, confirm `/api/health`, trigger a bullish/bearish news signal with strength ≥ 0.55.
+
+### Step 7 — Optional: LangSmith traces
+
+With backend env:
+
+```env
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_pt_...
+LANGCHAIN_PROJECT=cot-workflows
+```
+
+Restart backend. After an orchestrator run:
+
+1. CoT Graph → click a **trade** node → **LangSmith observability** panel → **Open trace** link
+2. Or open https://smith.langchain.com → project `cot-workflows`
+
+Token/cost totals in the graph are summarized; full prompts/spans live in LangSmith. Sub-agent LLM calls may appear as separate traces until fully nested.
+
+### Step 8 — Publish vs Go Live (what changes)
+
+| Action | Runs tools/market live? | Updates CoT graph? | Persists canvas? |
+|--------|-------------------------|--------------------|------------------|
+| **Go Live** | Yes — hosted sub-agents + orchestrator loop | Yes — when auto-emit + non-HOLD | No (in-memory backend; browser draft in localStorage) |
+| **Publish** | No — template only | No | Yes — `data/workflows/marketplace.json` (keys stripped) |
+| **Run Workflow** | Once — tools + orchestrator + execution sinks | Only if CoT Builder wired and not HOLD | N/A |
+
+Publishing after Go Live does **not** stop live execution. Installing a published workflow loads the template; subscriber must re-enter API keys and click **Go Live** on their backend.
+
+### Real-time checklist
+
+```text
+□ Graph IDs aligned (backend, frontend, llm node, cotBuilder)
+□ Tool + LLM API keys on canvas nodes
+□ Auto emit ON on CoT Builder
+□ Go Live → workflow/status shows started sub-agents
+□ Redpanda: agent.feeds.* + market.signals.public receiving messages
+□ GET /api/orchestrator/status → processed > 0, lastResult populated
+□ CoT Graph tab → user_771.main.v1 → live nodes (no sample banner)
+□ Optional: LangSmith trace link on trade node
+```
+
+---
+
+## Part 2 — Start the platform
 
 Use **three terminals** for the full demo.
 
@@ -275,11 +486,11 @@ npm run dev:frontend
 
 Open **http://localhost:3001**.
 
-**Terminal C — kalshiSports publisher** (see Part 2)
+**Terminal C — kalshiSports publisher** (see Part 3)
 
 ---
 
-## Part 2 — Run kalshiSports autonomously (external publisher)
+## Part 3 — Run kalshiSports autonomously (external publisher)
 
 kalshiSports is an **external** mind agent: you run the process; the platform only ingests HTTP signals.
 
@@ -304,17 +515,17 @@ Keep `python main.py` running — that is the publisher's 24/7 process.
 
 ---
 
-## Part 3 — Marketplace: install mind agents
+## Part 4 — Marketplace: install mind agents
 
 1. Click **Marketplace** in the header.
 2. Install **Kalshi Sports Scanner**, **News Agent**, and/or **Arbitrage Agent** as needed.
 3. External agents show **Live** when the publisher process is sending signals (~45s window).
 
-**Note:** Per-agent **Start live feed** in the marketplace is legacy. Prefer **Go Live** on the workflow canvas (Part 5).
+**Note:** Per-agent **Start live feed** in the marketplace is legacy. Prefer **Go Live** on the workflow canvas (Part 1 / Part 6).
 
 ---
 
-## Part 4 — Build a workflow canvas
+## Part 5 — Build a workflow canvas
 
 ### News + orchestrator (hosted sub-agent)
 
@@ -347,7 +558,18 @@ Arbitrage requires LLM on the node for same-event verification.
 [sportsScanner] ──► [llm] ──► [cotBuilder]
 ```
 
-Install Kalshi Sports Scanner from marketplace; run kalshiSports publisher (Part 2).
+Install Kalshi Sports Scanner from marketplace; run kalshiSports publisher (Part 3).
+
+### Output node (inspect orchestrator / tool results)
+
+```text
+[llm] ──► [workflowOutput]
+[tool] ──► [workflowOutput]   (when tool is upstream in run order)
+```
+
+Wire the **right output handle** of the orchestrator or tool into the Output node. After **Run Workflow** (Stop Live first), select the Output node → inspector shows `outputPayload` as formatted JSON/text regardless of upstream shape.
+
+During **Go Live**, use `GET /api/orchestrator/status` or the Orchestrator node inspector after a manual **Run Workflow** — output nodes are not WS-patched yet.
 
 ### Sub-agent only → CoT (no orchestrator)
 
@@ -359,7 +581,7 @@ Go Live starts the sub-agent only; CoT auto-emits per signal.
 
 ---
 
-## Part 5 — Go Live (primary 24/7 control)
+## Part 6 — Go Live (primary 24/7 control)
 
 1. Configure all API keys on tool and LLM nodes.
 2. Click **Go Live** in the playground header.
@@ -386,7 +608,7 @@ Returns `running`, `started_subagents`, `topology`, per-subagent status.
 
 ---
 
-## Part 6 — Run Workflow once (debug / single decision)
+## Part 7 — Run Workflow once (debug / single decision)
 
 1. Ensure a feed has emitted at least one signal (Go Live running, or external publisher active).
 2. Click **Run Workflow**.
@@ -395,18 +617,20 @@ Phases:
 
 1. Runnable tool nodes on canvas (preview).
 2. `POST /api/orchestrator/run` — LangGraph with latest signal from installed feeds.
-3. Results on LLM Analyzer and CoT Builder nodes.
+3. Results on **Orchestrator (llm)**, **CoT Builder**, and **Output** nodes (select node → right inspector).
 
-If you see demo Bitcoin news, no live feed has arrived yet.
+If you see demo Bitcoin news, no live feed has arrived yet — use Go Live or start a publisher first.
 
 ---
 
-## Part 7 — View the CoT graph
+## Part 8 — View the CoT graph (live vs sample)
 
-### In-playground
+### In-playground (live data)
 
-1. **CoT Graph** tab → Graph ID `user_771.main.v1`.
-2. Inspect `user → protocol → market → trade` chains.
+1. **CoT Graph** tab → Graph ID `user_771.main.v1` (must match `MAIN_GRAPH_ID` and CoT Builder node).
+2. Press **Enter** in the Graph ID field after each emit to reload — there is no auto-poll yet.
+3. If sidebar says **“showing sample CoT chain”**, FalkorDB is empty or IDs mismatch — see Part 1 Step 6.
+4. Click nodes → **Decision analysis** + **LangSmith observability** in the right rail.
 
 ### FalkorDB Browser
 
@@ -419,7 +643,7 @@ If you see demo Bitcoin news, no live feed has arrived yet.
 
 ---
 
-## Part 8 — Publish a workflow
+## Part 9 — Publish a workflow
 
 1. Build canvas → **Publish**.
 2. Fill name, description, optional publisher handle.
@@ -431,7 +655,7 @@ Subscribers configure their own keys and use **Go Live** to run 24/7 on their ba
 
 ---
 
-## Part 9 — Adding a new agent
+## Part 10 — Adding a new agent
 
 ### External wrapper (kalshiSports pattern)
 
@@ -462,10 +686,13 @@ Reference: `backend/app/subagents/news_subagent.py`, `backend/app/services/auton
 
 | Endpoint | Purpose |
 |----------|---------|
+| `GET /api/health` | Kafka + FalkorDB readiness |
+| `GET /api/graphs/{graph_id}/snapshot` | Live CoT graph for playground tab |
+| `GET /api/graphs/{graph_id}/nodes/{node_id}` | Decision + LangSmith summary for selected node |
 | `POST /api/orchestrator/start` | Go Live — canvas + optional `config` |
 | `POST /api/orchestrator/stop` | Stop Live |
 | `GET /api/orchestrator/workflow/status` | Workflow + sub-agent live state |
-| `GET /api/orchestrator/status` | Orchestrator stream only |
+| `GET /api/orchestrator/status` | Orchestrator stream — `lastResult`, `processed`, `recentSignals` |
 | `POST /api/orchestrator/run` | Single LangGraph run |
 | `POST /api/marketplace/agents/{id}/start` | Legacy per-agent start |
 | `POST /api/marketplace/agents/{id}/stop` | Legacy per-agent stop |
@@ -477,19 +704,23 @@ Reference: `backend/app/subagents/news_subagent.py`, `backend/app/services/auton
 
 ## Quick checklist
 
+Follow **Part 1** for the full real-time path. Short form:
+
 ```text
 □ docker compose up -d
-□ backend\.env — GEMINI_API_KEY, COT_WRAPPER_API_KEY, graph IDs
-□ frontend\.env.local
-□ kalshiSports\.env — wrapper keys match backend
+□ backend\.env — MAIN_GRAPH_ID, LLM/tool fallbacks, optional LANGCHAIN_* keys
+□ frontend\.env.local — NEXT_PUBLIC_MAIN_GRAPH_ID matches backend
 □ npm run dev:backend + npm run dev:frontend
-□ Optional: python main.py --simulate (external publisher)
-□ Marketplace → Install agents
-□ Canvas: snap tools → sub-agents → LLM → CoT Builder
-□ Tool + LLM API keys on nodes
+□ Playground: name/save workflow (localStorage autosave)
+□ Marketplace → Install News Agent (or others)
+□ Canvas: tools → sub-agents → LLM → CoT Builder (+ Output optional)
+□ Graph IDs + Auto emit ON + all API keys on nodes
 □ Go Live
-□ CoT Graph → user_771.main.v1
-□ Optional: Publish workflow (mind agent checkbox)
+□ curl /api/orchestrator/status — processed > 0
+□ Redpanda: agent.feeds.* + market.signals.public
+□ CoT Graph → user_771.main.v1 → Enter to refresh (no sample banner)
+□ Optional: LangSmith trace on trade node
+□ Optional: Publish workflow (keys stripped)
 ```
 
 ---
@@ -504,9 +735,14 @@ Reference: `backend/app/subagents/news_subagent.py`, `backend/app/services/auton
 | External agent Offline | Publisher not running or wrapper disabled |
 | `401 Invalid publisher API key` | Keys mismatch between kalshiSports and backend `.env` |
 | Run Workflow uses demo signal | No live feed yet — Go Live or start publisher |
-| CoT Graph empty | HOLD decision or auto-emit off — use non-HOLD + auto-emit |
+| CoT Graph shows **sample** chain | Empty FalkorDB, graph ID mismatch, or only HOLD decisions — see Part 1 Step 6 |
+| CoT Graph not updating live | Press Enter in Graph ID field to reload; confirm `market.signals.public` in Redpanda |
+| Orchestrator `processed` stays 0 | Sub-agent not wired to LLM, or no signals — check feed topics |
+| Output node empty during Go Live | Expected — use Run Workflow or `GET /api/orchestrator/status` |
+| LangSmith panel empty | Set `LANGCHAIN_TRACING_V2` + `LANGCHAIN_API_KEY`; restart backend |
 | Kafka errors in `/api/health` | `docker compose up -d`, wait for redpanda healthy |
 | Publish fails | Backend running; canvas needs ≥1 node |
+| Workflow lost on refresh | Should autosave — check browser localStorage not blocked |
 
 ---
 
@@ -527,5 +763,11 @@ Reference: `backend/app/subagents/news_subagent.py`, `backend/app/services/auton
 | `frontend/lib/workflow-live.ts` | Go Live client |
 | `frontend/lib/agent-feed.tsx` | WebSocket + agent status |
 | `frontend/lib/marketplace.tsx` | Installed agents (localStorage) |
+| `frontend/lib/workflow-storage.ts` | Playground workflow drafts (localStorage) |
+| `frontend/lib/workflow-runner.ts` | Run Workflow + output node population |
+| `frontend/lib/cot-graph.ts` | CoT Graph API client + sample fallback |
+| `frontend/components/playground/CotGraphView.tsx` | Live graph UI |
+| `backend/app/observability/execution_provenance.py` | LangSmith + provenance bundle |
+| `backend/app/kafka/worker.py` | MainWorker — Kafka → FalkorDB |
 | `kalshiSports/cot_wrapper.py` | External publisher reference |
-| `ARCHITECTURE.md` | Design reference |
+| `ARCHITECTURE.md` | Design reference (LangSmith §8) |

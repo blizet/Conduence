@@ -6,15 +6,18 @@ import { Network } from 'vis-network';
 import 'vis-network/styles/vis-network.min.css';
 import {
   DEFAULT_GRAPH_ID,
+  NODE_TYPE_LABELS,
   SAMPLE_SNAPSHOT,
-  buildTypeLegend,
   computeDegrees,
+  fetchGraphNodeDetail,
   fetchGraphSnapshot,
   resolveNodeColor,
   shortLabel,
+  type GraphNodeDetail,
   type GraphSnapshot,
   type GraphSnapshotNode,
 } from '@/lib/cot-graph';
+import { CotGraphNodeDetail } from './CotGraphNodeDetail';
 
 type VisNode = {
   id: string;
@@ -41,17 +44,9 @@ type VisEdge = {
   arrows: { to: { enabled: boolean; scaleFactor: number } };
 };
 
-function snapshotToVis(snapshot: GraphSnapshot, hiddenTypes: Set<string>) {
+function snapshotToVis(snapshot: GraphSnapshot) {
   const degrees = computeDegrees(snapshot);
-  const nodes: VisNode[] = snapshot.nodes
-    .filter((node) => {
-      const typeKey =
-        node.type === 'market' && node.marketRole === 'correlated_peer'
-          ? 'correlated_market'
-          : node.type;
-      return !hiddenTypes.has(typeKey);
-    })
-    .map((node) => {
+  const nodes: VisNode[] = snapshot.nodes.map((node) => {
       const bg = resolveNodeColor(node);
       const degree = degrees.get(node.id) ?? 0;
       const typeKey =
@@ -92,11 +87,17 @@ function snapshotToVis(snapshot: GraphSnapshot, hiddenTypes: Set<string>) {
 
 type SelectedNode = {
   id: string;
-  type: string;
+  typeLabel: string;
   color: string;
   degree: number;
   neighbors: { id: string; label: string; color: string }[];
 };
+
+function typeKeyForNode(node: GraphSnapshotNode | undefined, fallback: string): string {
+  if (!node) return fallback;
+  if (node.type === 'market' && node.marketRole === 'correlated_peer') return 'correlated_market';
+  return node.type;
+}
 
 function GraphIcon() {
   return (
@@ -121,7 +122,8 @@ export function CotGraphView() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<SelectedNode | null>(null);
-  const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
+  const [nodeDetail, setNodeDetail] = useState<GraphNodeDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const loadSnapshot = useCallback(async (id: string) => {
     setLoading(true);
@@ -144,10 +146,26 @@ export function CotGraphView() {
     void loadSnapshot(graphId);
   }, [graphId, loadSnapshot]);
 
-  const legend = useMemo(
-    () => (snapshot ? buildTypeLegend(snapshot) : []),
-    [snapshot],
-  );
+  useEffect(() => {
+    if (!selected?.id) {
+      setNodeDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    setDetailLoading(true);
+    void fetchGraphNodeDetail(graphId, selected.id, { useSampleFallback: usingSample })
+      .then((detail) => {
+        if (!cancelled) setNodeDetail(detail);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [graphId, selected?.id, usingSample]);
 
   const searchResults = useMemo(() => {
     if (!snapshot || search.trim().length < 1) return [];
@@ -160,7 +178,7 @@ export function CotGraphView() {
   useEffect(() => {
     if (!snapshot || !containerRef.current) return;
 
-    const { nodes, edges } = snapshotToVis(snapshot, hiddenTypes);
+    const { nodes, edges } = snapshotToVis(snapshot);
     const nodesDS = new DataSet(nodes);
     const edgesDS = new DataSet(edges);
     nodesRef.current = nodesDS;
@@ -213,6 +231,7 @@ export function CotGraphView() {
       if (!visNode) return;
 
       const snapNode = snapshot.nodes.find((n) => n.id === nodeId);
+      const typeKey = typeKeyForNode(snapNode, visNode._nodeType);
       const neighborIds = network.getConnectedNodes(nodeId) as string[];
       const neighbors = neighborIds.map((nid) => {
         const nb = nodesDS.get(nid);
@@ -225,7 +244,7 @@ export function CotGraphView() {
 
       setSelected({
         id: nodeId,
-        type: snapNode?.type ?? visNode._nodeType,
+        typeLabel: NODE_TYPE_LABELS[typeKey] ?? typeKey,
         color: visNode.color.background,
         degree: neighborIds.length,
         neighbors,
@@ -239,7 +258,7 @@ export function CotGraphView() {
       networkRef.current = null;
       nodesRef.current = null;
     };
-  }, [snapshot, hiddenTypes]);
+  }, [snapshot]);
 
   const focusNode = useCallback(
     (nodeId: string) => {
@@ -254,6 +273,7 @@ export function CotGraphView() {
       if (!visNode) return;
 
       const snapNode = snapshot.nodes.find((n) => n.id === nodeId);
+      const typeKey = typeKeyForNode(snapNode, visNode._nodeType);
       const neighborIds = network.getConnectedNodes(nodeId) as string[];
       const neighbors = neighborIds.map((nid) => {
         const nb = nodesDS.get(nid);
@@ -266,7 +286,7 @@ export function CotGraphView() {
 
       setSelected({
         id: nodeId,
-        type: snapNode?.type ?? visNode._nodeType,
+        typeLabel: NODE_TYPE_LABELS[typeKey] ?? typeKey,
         color: visNode.color.background,
         degree: neighborIds.length,
         neighbors,
@@ -274,23 +294,6 @@ export function CotGraphView() {
     },
     [snapshot],
   );
-
-  const toggleType = (type: string) => {
-    setHiddenTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
-  };
-
-  const toggleAllTypes = (hide: boolean) => {
-    if (hide) setHiddenTypes(new Set(legend.map((l) => l.type)));
-    else setHiddenTypes(new Set());
-  };
-
-  const allVisible = hiddenTypes.size === 0;
-  const allHidden = legend.length > 0 && hiddenTypes.size === legend.length;
 
   return (
     <div className="cot-graph-view">
@@ -358,8 +361,16 @@ export function CotGraphView() {
               <div className="cot-graph-field">
                 <b>ID</b> {selected.id}
               </div>
-              <div className="cot-graph-field">
-                <b>Type</b> {selected.type}
+              <div className="cot-graph-field cot-graph-field--type">
+                <b>Type</b>
+                <span className="cot-graph-type-badge">
+                  <span
+                    className="cot-graph-legend-dot"
+                    style={{ background: selected.color }}
+                    aria-hidden
+                  />
+                  {selected.typeLabel}
+                </span>
               </div>
               <div className="cot-graph-field">
                 <b>Degree</b> {selected.degree}
@@ -390,36 +401,11 @@ export function CotGraphView() {
           )}
         </div>
 
-        <div className="cot-graph-sidebar__legend dark-scroll">
-          <h3>Node types</h3>
-          <label className="cot-graph-legend-control">
-            <input
-              type="checkbox"
-              checked={allVisible}
-              ref={(el) => {
-                if (el) el.indeterminate = !allVisible && !allHidden;
-              }}
-              onChange={(e) => toggleAllTypes(!e.target.checked)}
-            />
-            Select all
-          </label>
-          {legend.map((item) => (
-            <label
-              key={item.type}
-              className={`cot-graph-legend-item${hiddenTypes.has(item.type) ? ' cot-graph-legend-item--dimmed' : ''}`}
-            >
-              <input
-                type="checkbox"
-                className="cot-graph-legend-cb"
-                checked={!hiddenTypes.has(item.type)}
-                onChange={() => toggleType(item.type)}
-              />
-              <span className="cot-graph-legend-dot" style={{ background: item.color }} />
-              <span className="cot-graph-legend-label">{item.label}</span>
-              <span className="cot-graph-legend-count">{item.count}</span>
-            </label>
-          ))}
-        </div>
+        <CotGraphNodeDetail
+          detail={nodeDetail}
+          loading={detailLoading}
+          nodeId={selected?.id ?? null}
+        />
 
         {snapshot && (
           <div className="cot-graph-sidebar__stats">

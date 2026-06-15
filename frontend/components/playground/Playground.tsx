@@ -18,6 +18,16 @@ import {
   startWorkflowLive,
   stopWorkflowLive,
 } from '@/lib/workflow-live';
+import {
+  addSavedWorkflow,
+  deleteSavedWorkflow,
+  ensureDefaultWorkflows,
+  getWorkflowById,
+  renameWorkflow,
+  setActiveWorkflowId,
+  upsertWorkflowCanvas,
+  type SavedWorkflow,
+} from '@/lib/workflow-storage';
 
 const CotGraphView = dynamic(
   () => import('./CotGraphView').then((mod) => mod.CotGraphView),
@@ -52,8 +62,18 @@ type PlaygroundInnerProps = {
   canvasSnapshot: { nodes: WorkflowNode[]; edges: Edge[] };
   onInstallWorkflow: (canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => void;
   loadCanvas: { key: number; nodes: WorkflowNode[]; edges: Edge[] } | null;
+  canvasBootKey: string;
+  storageReady: boolean;
   workflowRefreshSignal: number;
   onWorkflowPublished: () => void;
+  savedWorkflows: SavedWorkflow[];
+  activeWorkflowId: string;
+  activeWorkflowName: string;
+  onSelectWorkflow: (id: string) => void;
+  onRenameWorkflow: (name: string) => void;
+  onNewWorkflow: () => void;
+  onDeleteWorkflow: (id: string) => void;
+  onCanvasHydrated: () => void;
 };
 
 function PlaygroundInner({
@@ -81,8 +101,18 @@ function PlaygroundInner({
   canvasSnapshot,
   onInstallWorkflow,
   loadCanvas,
+  canvasBootKey,
+  storageReady,
   workflowRefreshSignal,
   onWorkflowPublished,
+  savedWorkflows,
+  activeWorkflowId,
+  activeWorkflowName,
+  onSelectWorkflow,
+  onRenameWorkflow,
+  onNewWorkflow,
+  onDeleteWorkflow,
+  onCanvasHydrated,
 }: PlaygroundInnerProps) {
   return (
     <div className="playground-shell">
@@ -107,6 +137,54 @@ function PlaygroundInner({
           className="playground-header__logo"
           priority
         />
+        <div className="playground-header__workflows">
+          <label className="playground-workflow-bar__label" htmlFor="playground-workflow-select">
+            Workflow
+          </label>
+          <select
+            id="playground-workflow-select"
+            className="playground-workflow-bar__select"
+            value={activeWorkflowId}
+            onChange={(e) => onSelectWorkflow(e.target.value)}
+            disabled={workflowLive}
+            title={workflowLive ? 'Stop Live before switching workflows' : 'Select a saved workflow'}
+          >
+            {savedWorkflows.map((wf) => (
+              <option key={wf.id} value={wf.id}>
+                {wf.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            className="playground-workflow-bar__name"
+            value={activeWorkflowName}
+            onChange={(e) => onRenameWorkflow(e.target.value)}
+            disabled={workflowLive}
+            aria-label="Workflow name"
+            placeholder="Workflow name"
+          />
+          <button
+            type="button"
+            className="graph-view-toggle playground-workflow-bar__new"
+            onClick={onNewWorkflow}
+            disabled={workflowLive}
+            title="Create a new workflow"
+          >
+            + New
+          </button>
+          {savedWorkflows.length > 1 ? (
+            <button
+              type="button"
+              className="graph-view-toggle playground-workflow-bar__delete"
+              onClick={() => onDeleteWorkflow(activeWorkflowId)}
+              disabled={workflowLive}
+              title="Delete this workflow"
+            >
+              Delete
+            </button>
+          ) : null}
+        </div>
         <div className="playground-header__actions">
           <span className="playground-header__stats">
             {nodeCount} nodes · {edgeCount} edges
@@ -181,15 +259,21 @@ function PlaygroundInner({
         </div>
       </header>
       <div className="playground-body">
-        {!showGraph && <NodePalette />}
-        {showGraph ? (
+        {!showGraph && storageReady && <NodePalette />}
+        {!storageReady ? (
+          <div className="playground-canvas playground-canvas--loading">Loading saved workflow…</div>
+        ) : showGraph ? (
           <CotGraphView />
         ) : (
           <WorkflowCanvas
+            key={canvasBootKey}
             onCountsChange={onCountsChange}
             runSignal={runSignal}
             onRunStateChange={onRunStateChange}
             onCanvasChange={onCanvasChange}
+            onCanvasHydrated={onCanvasHydrated}
+            initialNodes={loadCanvas?.nodes ?? []}
+            initialEdges={loadCanvas?.edges ?? []}
             loadCanvas={
               loadCanvas
                 ? { key: loadCanvas.key, nodes: loadCanvas.nodes, edges: loadCanvas.edges }
@@ -214,31 +298,179 @@ function PlaygroundWithState() {
   const [liveError, setLiveError] = useState<string | null>(null);
   const [runSignal, setRunSignal] = useState(0);
   const [workflowRefreshSignal, setWorkflowRefreshSignal] = useState(0);
+  const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflow[]>([]);
+  const [activeWorkflowId, setActiveWorkflowIdState] = useState('');
+  const [activeWorkflowName, setActiveWorkflowName] = useState('Untitled workflow');
   const [loadCanvas, setLoadCanvas] = useState<{
     key: number;
     nodes: WorkflowNode[];
     edges: Edge[];
   } | null>(null);
+  const [canvasBootKey, setCanvasBootKey] = useState('boot');
+  const [storageReady, setStorageReady] = useState(false);
   const canvasSnapshotRef = useRef<{ nodes: WorkflowNode[]; edges: Edge[] }>({
     nodes: [],
     edges: [],
   });
+  const activeWorkflowIdRef = useRef('');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressPersistRef = useRef(true);
+  const pendingCanvasRef = useRef<{ nodes: WorkflowNode[]; edges: Edge[] } | null>(null);
   const [, bumpCanvasSnapshot] = useState(0);
+
+  const flushPersist = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const id = activeWorkflowIdRef.current;
+    const pending = pendingCanvasRef.current;
+    if (!id || !pending || suppressPersistRef.current) return;
+    const next = upsertWorkflowCanvas(id, pending);
+    setSavedWorkflows(next);
+    pendingCanvasRef.current = null;
+  }, []);
+
+  const loadWorkflowIntoCanvas = useCallback((workflow: SavedWorkflow) => {
+    suppressPersistRef.current = true;
+    setActiveWorkflowName(workflow.name);
+    canvasSnapshotRef.current = {
+      nodes: workflow.canvas.nodes,
+      edges: workflow.canvas.edges,
+    };
+    setNodeCount(workflow.canvas.nodes.length);
+    setEdgeCount(workflow.canvas.edges.length);
+    setLoadCanvas({
+      key: Date.now(),
+      nodes: workflow.canvas.nodes,
+      edges: workflow.canvas.edges,
+    });
+    setCanvasBootKey(workflow.id);
+  }, []);
+
+  useEffect(() => {
+    const { workflows, activeId } = ensureDefaultWorkflows();
+    const active = getWorkflowById(activeId);
+    setSavedWorkflows(workflows);
+    setActiveWorkflowIdState(activeId);
+    activeWorkflowIdRef.current = activeId;
+    if (active) {
+      loadWorkflowIntoCanvas(active);
+    }
+    setStorageReady(true);
+  }, [loadWorkflowIntoCanvas]);
+
+  useEffect(() => {
+    const onPageHide = () => flushPersist();
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      flushPersist();
+    };
+  }, [flushPersist]);
+
+  const onCanvasHydrated = useCallback(() => {
+    suppressPersistRef.current = false;
+  }, []);
+
+  const persistActiveCanvas = useCallback((nodes: WorkflowNode[], edges: Edge[]) => {
+    pendingCanvasRef.current = { nodes, edges };
+    const id = activeWorkflowIdRef.current;
+    if (!id) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (suppressPersistRef.current) return;
+      const pending = pendingCanvasRef.current;
+      if (!pending) return;
+      const next = upsertWorkflowCanvas(id, pending);
+      setSavedWorkflows(next);
+      pendingCanvasRef.current = null;
+    }, 250);
+  }, []);
 
   const onCountsChange = useCallback((nodes: number, edges: number) => {
     setNodeCount(nodes);
     setEdgeCount(edges);
   }, []);
 
-  const onCanvasChange = useCallback((nodes: WorkflowNode[], edges: Edge[]) => {
-    canvasSnapshotRef.current = { nodes, edges };
-    bumpCanvasSnapshot((v) => v + 1);
+  const onCanvasChange = useCallback(
+    (nodes: WorkflowNode[], edges: Edge[]) => {
+      canvasSnapshotRef.current = { nodes, edges };
+      bumpCanvasSnapshot((v) => v + 1);
+      if (!storageReady || !activeWorkflowIdRef.current) return;
+      persistActiveCanvas(nodes, edges);
+    },
+    [persistActiveCanvas, storageReady],
+  );
+
+  const onSelectWorkflow = useCallback(
+    (id: string) => {
+      if (id === activeWorkflowIdRef.current) return;
+      flushPersist();
+      const { nodes, edges } = canvasSnapshotRef.current;
+      persistActiveCanvas(nodes, edges);
+      flushPersist();
+      setActiveWorkflowId(id);
+      activeWorkflowIdRef.current = id;
+      setActiveWorkflowIdState(id);
+      const next = getWorkflowById(id);
+      if (next) loadWorkflowIntoCanvas(next);
+    },
+    [flushPersist, loadWorkflowIntoCanvas, persistActiveCanvas],
+  );
+
+  const onRenameWorkflow = useCallback((name: string) => {
+    setActiveWorkflowName(name);
+    const id = activeWorkflowIdRef.current;
+    if (!id) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      setSavedWorkflows(renameWorkflow(id, name));
+    }, 300);
   }, []);
+
+  const onNewWorkflow = useCallback(() => {
+    flushPersist();
+    const { nodes, edges } = canvasSnapshotRef.current;
+    persistActiveCanvas(nodes, edges);
+    flushPersist();
+    const { workflows, workflow } = addSavedWorkflow();
+    setSavedWorkflows(workflows);
+    setActiveWorkflowIdState(workflow.id);
+    activeWorkflowIdRef.current = workflow.id;
+    loadWorkflowIntoCanvas(workflow);
+  }, [flushPersist, loadWorkflowIntoCanvas, persistActiveCanvas]);
+
+  const onDeleteWorkflow = useCallback(
+    (id: string) => {
+      flushPersist();
+      const { nodes, edges } = canvasSnapshotRef.current;
+      persistActiveCanvas(nodes, edges);
+      flushPersist();
+      const { workflows, activeId } = deleteSavedWorkflow(id);
+      setSavedWorkflows(workflows);
+      setActiveWorkflowIdState(activeId);
+      activeWorkflowIdRef.current = activeId;
+      const next = getWorkflowById(activeId);
+      if (next) loadWorkflowIntoCanvas(next);
+    },
+    [flushPersist, loadWorkflowIntoCanvas, persistActiveCanvas],
+  );
 
   const onInstallWorkflow = useCallback((canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => {
     setShowGraph(false);
     setShowMarketplace(false);
+    suppressPersistRef.current = true;
+    canvasSnapshotRef.current = canvas;
+    setNodeCount(canvas.nodes.length);
+    setEdgeCount(canvas.edges.length);
     setLoadCanvas({ key: Date.now(), ...canvas });
+    const id = activeWorkflowIdRef.current;
+    if (id) {
+      const next = upsertWorkflowCanvas(id, canvas);
+      setSavedWorkflows(next);
+    }
+    suppressPersistRef.current = false;
   }, []);
 
   const onWorkflowPublished = useCallback(() => {
@@ -330,8 +562,18 @@ function PlaygroundWithState() {
       canvasSnapshot={canvasSnapshotRef.current}
       onInstallWorkflow={onInstallWorkflow}
       loadCanvas={loadCanvas}
+      canvasBootKey={canvasBootKey}
+      storageReady={storageReady}
       workflowRefreshSignal={workflowRefreshSignal}
       onWorkflowPublished={onWorkflowPublished}
+      savedWorkflows={savedWorkflows}
+      activeWorkflowId={activeWorkflowId}
+      activeWorkflowName={activeWorkflowName}
+      onSelectWorkflow={onSelectWorkflow}
+      onRenameWorkflow={onRenameWorkflow}
+      onNewWorkflow={onNewWorkflow}
+      onDeleteWorkflow={onDeleteWorkflow}
+      onCanvasHydrated={onCanvasHydrated}
     />
   );
 }

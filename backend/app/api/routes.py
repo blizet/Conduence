@@ -76,6 +76,14 @@ async def snapshot(graph_id: str, request: Request) -> dict[str, Any]:
     return await request.app.state.falkordb.get_graph_snapshot(graph_id)
 
 
+@router.get("/graphs/{graph_id}/nodes/{node_id}")
+async def graph_node_detail(graph_id: str, node_id: str, request: Request) -> dict[str, Any]:
+    detail = await request.app.state.falkordb.get_node_detail(graph_id, node_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Node not found")
+    return detail
+
+
 @router.post("/signals/cot")
 async def publish_cot_signal(
     request: Request,

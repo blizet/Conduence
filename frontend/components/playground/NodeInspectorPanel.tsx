@@ -27,7 +27,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 export function NodeInspectorPanel({ node, nodes, edges, feedSignals }: NodeInspectorPanelProps) {
   if (!node?.type) {
     return (
-      <aside className="inspector-panel">
+      <aside className="inspector-panel inspector-panel--empty">
         <div className="inspector-panel__empty">
           <p className="inspector-panel__empty-title">Node inspector</p>
           <p className="inspector-panel__empty-text">

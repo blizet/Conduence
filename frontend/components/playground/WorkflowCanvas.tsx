@@ -20,12 +20,16 @@ import { getPaletteItem, nodeTypes as registeredNodeTypes } from '@/nodes';
 import type { WorkflowNode } from '@/nodes/types';
 import { useAgentFeed } from '@/lib/agent-feed';
 import { NodeInspectorPanel } from './NodeInspectorPanel';
+import { PlaygroundMinimap } from './PlaygroundMinimap';
 
 export type WorkflowCanvasProps = {
   onCountsChange?: (nodes: number, edges: number) => void;
   runSignal?: number;
   onRunStateChange?: (running: boolean) => void;
   onCanvasChange?: (nodes: WorkflowNode[], edges: Edge[]) => void;
+  onCanvasHydrated?: () => void;
+  initialNodes?: WorkflowNode[];
+  initialEdges?: Edge[];
   loadCanvas?: { key: string | number; nodes: WorkflowNode[]; edges: Edge[] } | null;
 };
 
@@ -34,13 +38,16 @@ export function WorkflowCanvas({
   runSignal = 0,
   onRunStateChange,
   onCanvasChange,
+  onCanvasHydrated,
+  initialNodes = [],
+  initialEdges = [],
   loadCanvas,
 }: WorkflowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const { agentFeeds } = useAgentFeed();
-  const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const nodesRef = useRef<WorkflowNode[]>([]);
   const edgesRef = useRef<Edge[]>([]);
@@ -104,6 +111,10 @@ export function WorkflowCanvas({
   }, [nodes.length, edges.length, onCountsChange]);
 
   useEffect(() => {
+    onCanvasHydrated?.();
+  }, [onCanvasHydrated]);
+
+  useEffect(() => {
     const canvas = loadCanvasRef.current;
     if (!canvas) return;
     if (loadedKeyRef.current === canvas.key) return;
@@ -112,7 +123,8 @@ export function WorkflowCanvas({
     setNodes(canvas.nodes);
     setEdges(canvas.edges);
     setSelectedNodeId(null);
-  }, [loadCanvas?.key, setNodes, setEdges]);
+    onCanvasHydrated?.();
+  }, [loadCanvas?.key, onCanvasHydrated, setNodes, setEdges]);
 
   useEffect(() => {
     if (skipCanvasSyncRef.current) {
@@ -225,14 +237,15 @@ export function WorkflowCanvas({
             size={1.5}
           />
           <Controls position="bottom-left" showInteractive />
+          <PlaygroundMinimap />
         </ReactFlow>
+        <NodeInspectorPanel
+          node={selectedNode}
+          nodes={nodes}
+          edges={edges}
+          feedSignals={agentFeeds}
+        />
       </div>
-      <NodeInspectorPanel
-        node={selectedNode}
-        nodes={nodes}
-        edges={edges}
-        feedSignals={agentFeeds}
-      />
     </div>
   );
 }

@@ -82,7 +82,7 @@ function PaperTradingSidebar({
   const positions = workspace.portfolio.positions;
 
   return (
-    <aside className="cot-graph-view__sidebar simulate-paper-sidebar">
+    <aside className="cot-graph-view__sidebar simulate-paper-sidebar dark-scroll">
       <div className="cot-graph-sidebar__section">
         <div className="cot-graph-sidebar__label">Workspace</div>
         <input

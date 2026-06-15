@@ -28,6 +28,8 @@ def build_cot_decision(
     decision: dict[str, Any],
     correlated: dict[str, Any],
     options: dict[str, Any] | None = None,
+    *,
+    provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     options = options or {}
     if decision.get("action") == "HOLD" or decision.get("market_id") == "NONE":
@@ -36,6 +38,7 @@ def build_cot_decision(
     graph_id = options.get("graphId", DEFAULT_GRAPH_ID)
     user_node_id = options.get("userNodeId", DEFAULT_USER_NODE_ID)
     trade_id = options.get("tradeId", _next_trade_id())
+    decision_id = options.get("decisionId") or f"dec-{trade_id.lower()}-open"
     market_id = decision["market_id"]
     now = datetime.now(timezone.utc).isoformat()
     action = _action_label(decision["action"])
@@ -87,6 +90,7 @@ def build_cot_decision(
                 "source_url": pm_url,
                 "confidence_score": decision["conviction_level"] / 10,
                 "timestamp": now,
+                "decision_id": decision_id,
             },
         },
         {
@@ -106,13 +110,17 @@ def build_cot_decision(
             }
         )
 
+    base_provenance = provenance or {"raw_sources": [pm_url]}
+    if "raw_sources" not in base_provenance:
+        base_provenance = {**base_provenance, "raw_sources": [pm_url]}
+
     return {
         "schema_version": "1.0",
         "operation": "assert",
         "graph_id": graph_id,
-        "decision_id": f"dec-{trade_id.lower()}-open",
+        "decision_id": decision_id,
         "updated_at": now,
         "nodes": nodes,
         "edges": edges,
-        "provenance": {"raw_sources": [pm_url]},
+        "provenance": base_provenance,
     }

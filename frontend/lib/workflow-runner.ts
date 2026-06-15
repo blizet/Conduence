@@ -13,6 +13,16 @@ import { downstreamNodes, findLlmNode, runOrchestrator } from './orchestrator-ru
 
 type NodePatchFn = (nodeId: string, patch: Partial<WorkflowNodeData>) => void;
 
+export function formatOutputPayload(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 function buildAdjacency(edges: Edge[]): Map<string, string[]> {
   const map = new Map<string, string[]>();
   for (const edge of edges) {
@@ -207,7 +217,7 @@ export async function runWorkflow({
     patchNode(nodeId, toolResultPatch(result));
 
     const outputs = downstreamOutputIds(nodeId, nodes, edges);
-    const outputPayload = JSON.stringify(result, null, 2);
+    const outputPayload = formatOutputPayload(result);
     for (const outputId of outputs) {
       patchNode(outputId, {
         outputStatus: result.ok ? 'success' : 'error',
@@ -262,7 +272,7 @@ export async function runWorkflow({
     for (const outNode of downstreamNodes(llmNode.id, nodes, edges, 'workflowOutput')) {
       patchNode(outNode.id, {
         outputStatus: orch.ok ? 'success' : 'error',
-        outputPayload: JSON.stringify(orch, null, 2),
+        outputPayload: formatOutputPayload(orch),
         outputSource: 'llm',
         outputDurationMs: orch.durationMs,
       });

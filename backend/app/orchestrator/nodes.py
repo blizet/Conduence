@@ -14,6 +14,7 @@ from app.orchestrator.planner import plan_tool_calls
 from app.orchestrator.state import OrchestratorState
 from app.orchestrator.tools_registry import ToolRegistry
 from app.schemas.decision import DecisionEvent
+from app.observability.execution_provenance import build_execution_provenance, merge_provenance
 from app.tools.cot_builder import build_cot_decision
 
 
@@ -248,6 +249,15 @@ async def publish_outputs(state: OrchestratorState) -> dict[str, Any]:
     cot = None
 
     if "cotBuilder" in (state.get("output_nodes") or []) and decision.get("action") != "HOLD":
+        topology = state.get("workflow_topology") or {}
+        execution = build_execution_provenance(
+            steps=state.get("steps") or [],
+            tool_results=state.get("tool_results"),
+            signal=state.get("signal"),
+            workflow_id=topology.get("workflow_id"),
+            path="orchestrator",
+        )
+        provenance = merge_provenance(None, execution=execution)
         draft = build_cot_decision(
             decision,
             correlated,
@@ -255,6 +265,7 @@ async def publish_outputs(state: OrchestratorState) -> dict[str, Any]:
                 "graphId": config.get("graphId"),
                 "userNodeId": config.get("userNodeId"),
             },
+            provenance=provenance,
         )
         if draft:
             event = DecisionEvent.model_validate(draft)

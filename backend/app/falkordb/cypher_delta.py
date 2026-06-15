@@ -1,4 +1,5 @@
 from typing import Any, Callable
+import json
 
 from app.falkordb.graph_delta import EdgeOperation, expand_edge_operations
 from app.schemas.decision import DecisionEvent, GraphEdge
@@ -39,23 +40,38 @@ async def execute_cypher_delta(
     timestamp = payload.updated_at
     edges_before = await _count_query(query, "MATCH ()-[r]->() RETURN count(r) AS c")
 
+    provenance_json = json.dumps(payload.provenance) if payload.provenance else None
+    decision_id = payload.decision_id or ""
+
     for node in payload.nodes:
         props = node.properties or {}
         anchor = 1 if props.get("anchor") is True else 0
         correlated_peer = 1 if props.get("correlated_peer") is True else 0
+        is_trade = node.node_type == "trade"
+        params: dict[str, Any] = {
+            "node_id": node.node_id,
+            "timestamp": timestamp,
+            "node_type": node.node_type,
+            "anchor": anchor,
+            "correlated_peer": correlated_peer,
+        }
+        trade_sets = ""
+        if is_trade:
+            trade_sets = (
+                ", n.decision_id = $decision_id, n.provenance_json = $provenance_json "
+            )
+            params["decision_id"] = decision_id
+            params["provenance_json"] = provenance_json or ""
+
         await query(
             f"MERGE (n:{cypher_node_label(node.node_type)} {{node_id: $node_id}}) "
             "ON CREATE SET n.created_at = $timestamp, n.node_type = $node_type, "
-            "              n.anchor = $anchor, n.correlated_peer = $correlated_peer "
+            "              n.anchor = $anchor, n.correlated_peer = $correlated_peer"
+            f"{trade_sets} "
             "ON MATCH SET n.last_seen_at = $timestamp, n.node_type = $node_type, "
-            "             n.anchor = ($anchor > 0), n.correlated_peer = ($correlated_peer > 0)",
-            {
-                "node_id": node.node_id,
-                "timestamp": timestamp,
-                "node_type": node.node_type,
-                "anchor": anchor,
-                "correlated_peer": correlated_peer,
-            },
+            "             n.anchor = ($anchor > 0), n.correlated_peer = ($correlated_peer > 0)"
+            f"{trade_sets}",
+            params,
         )
 
     ops = edge_ops if edge_ops is not None else expand_edge_operations(payload.edges)
@@ -76,6 +92,8 @@ async def execute_cypher_delta(
             "conviction": float(meta.get("conviction_level", 0)),
             "tags": tags,
             "timestamp": edge_timestamp,
+            "reasoning": str(meta.get("reasoning", "")),
+            "decision_id": str(meta.get("decision_id", decision_id)),
         }
 
         if op.is_reverse:
@@ -94,8 +112,10 @@ async def execute_cypher_delta(
             f"MATCH (t) WHERE t.node_id = $target_id "
             f"MERGE (s)-[r:{rel_type}]->(t) "
             "ON CREATE SET r.thesis = $thesis, r.conviction = $conviction, "
-            "              r.tags = $tags, r.timestamp = $timestamp "
-            "ON MATCH SET r.last_updated = $timestamp",
+            "              r.tags = $tags, r.timestamp = $timestamp, "
+            "              r.reasoning = $reasoning, r.decision_id = $decision_id "
+            "ON MATCH SET r.last_updated = $timestamp, "
+            "             r.reasoning = $reasoning, r.decision_id = $decision_id",
             params,
         )
 

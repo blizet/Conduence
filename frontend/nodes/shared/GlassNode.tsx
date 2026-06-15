@@ -60,6 +60,7 @@ export function GlassNode({
           ? 'agent'
           : 'card');
 
+  const isOrchestrator = category === 'orchestrator';
   const isCircle = resolvedShape === 'circle';
   const isExecution = resolvedShape === 'execution';
   const isCompact = isCircle || isExecution;
@@ -91,6 +92,7 @@ export function GlassNode({
         isCompact ? 'glass-node--compact' : '',
         isExecution ? 'glass-node--execution' : '',
         isSubagentCard ? 'glass-node--subagent-card' : '',
+        isOrchestrator ? 'glass-node--orchestrator' : '',
         bottomPorts.length > 0 ? 'glass-node--has-bottom-ports' : '',
         topPorts.length > 0 ? 'glass-node--has-top-ports' : '',
         selected ? 'selected' : '',

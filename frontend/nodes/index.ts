@@ -62,7 +62,7 @@ export const PALETTE_ITEMS: PaletteItem[] = [
   {
     type: 'llm',
     label: 'Orchestrator',
-    description: 'Main agent — prompts + multi I/O',
+    description: 'Combines sub-agent feeds, tool data, and prompts into a trade decision.',
     category: 'orchestrator',
     accent: '#f472b6',
   },

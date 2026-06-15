@@ -106,10 +106,11 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
   },
   llm: {
     summary:
-      'Main orchestrator — combines wired tool outputs, sub-agent feeds, and prompts into decisions.',
+      'Central router — ingests sub-agent feeds, plans parallel tool calls, runs the decision engine, and LLM-synthesizes a trade thesis for downstream CoT or execution.',
     helpsWith: [
-      'Route signals across multiple inputs and outputs.',
-      'Drive tool selection and trade thesis generation.',
+      'Wire Tools (left), Memory, and Feed inputs from sub-agents.',
+      'Route outputs to CoT Builder, execution tools, or Telegram.',
+      'Go Live to run continuously with LangGraph + observability.',
     ],
   },
   newsAgent: {

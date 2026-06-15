@@ -7,6 +7,7 @@ from typing import Any
 
 from app.lib.normalize import normalize_decision
 from app.schemas.decision import DecisionEvent
+from app.observability.execution_provenance import build_execution_provenance, merge_provenance
 from app.tools.cot_builder import build_cot_decision
 
 logger = logging.getLogger(__name__)
@@ -99,6 +100,7 @@ def build_cot_from_signal(
     *,
     agent_id: str,
     output_node_data: dict[str, Any] | None = None,
+    workflow_context: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     output_node_data = output_node_data or {}
     if agent_id == "newsAgent":
@@ -123,6 +125,23 @@ def build_cot_from_signal(
         "correlations": [],
     }
 
+    workflow_context = workflow_context or {}
+    topology = workflow_context.get("topology") or {}
+    passthrough = signal.get("_execution") if isinstance(signal.get("_execution"), dict) else {}
+    execution = build_execution_provenance(
+        steps=passthrough.get("steps") or signal.get("steps") or [],
+        tool_results=passthrough.get("tool_results") or signal.get("tool_results"),
+        signal=signal,
+        workflow_id=topology.get("workflow_id"),
+        path="subagent_direct",
+        langsmith=passthrough.get("langsmith"),
+        llm_usage=passthrough.get("llm_usage"),
+        started_at=passthrough.get("started_at"),
+        finished_at=passthrough.get("finished_at"),
+        duration_ms=passthrough.get("duration_ms"),
+    )
+    provenance = merge_provenance(None, execution=execution)
+
     draft = build_cot_decision(
         decision,
         correlated,
@@ -130,6 +149,7 @@ def build_cot_from_signal(
             "graphId": output_node_data.get("graphId"),
             "userNodeId": output_node_data.get("userNodeId"),
         },
+        provenance=provenance,
     )
     return draft
 
@@ -157,7 +177,12 @@ async def maybe_emit_cot_for_subagent(
     if not cot_data.get("autoEmit") and not topology.get("publish_as_mind_agent"):
         return None
 
-    draft = build_cot_from_signal(signal, agent_id=agent_id, output_node_data=cot_data)
+    draft = build_cot_from_signal(
+        signal,
+        agent_id=agent_id,
+        output_node_data=cot_data,
+        workflow_context=workflow_context,
+    )
     if not draft:
         return None
 

@@ -5,6 +5,15 @@ import { orchestratorInputHandles } from '../shared/agentInputHandles';
 import { GlassNode } from '../shared/GlassNode';
 import { LLM_OUTPUT_COUNT, type WorkflowNode } from '../types';
 
+const ORCHESTRATOR_DESCRIPTION =
+  'Combines sub-agent feeds, tool data, and prompts into a trade decision.';
+
+const ORCHESTRATOR_STEPS = [
+  'Ingest Feed + Memory signals',
+  'Plan & invoke wired Tools',
+  'Evaluate → LLM → decision JSON',
+] as const;
+
 function LlmIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -19,13 +28,23 @@ export function LlmNode({ data, selected }: NodeProps<WorkflowNode>) {
   return (
     <GlassNode
       label={data.label}
-      description={data.description}
+      description={ORCHESTRATOR_DESCRIPTION}
       category="orchestrator"
       accent={data.accent}
       icon={<LlmIcon />}
       selected={selected}
       shape="agent"
+      wide
       handles={orchestratorInputHandles(LLM_OUTPUT_COUNT)}
-    />
+    >
+      <ol className="glass-node__orchestrator-flow">
+        {ORCHESTRATOR_STEPS.map((step, index) => (
+          <li key={step} className="glass-node__orchestrator-step">
+            <span className="glass-node__orchestrator-step-num">{index + 1}.</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </GlassNode>
   );
 }

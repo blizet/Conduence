@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from typing import Any
 
@@ -123,6 +124,209 @@ class FalkorDbService:
 
         return {"graph_id": graph_id, "nodes": nodes, "edges": edges}
 
+    async def _node_type(self, graph_id: str, node_id: str) -> str:
+        result = await self._query(
+            graph_id,
+            "MATCH (n {node_id: $node_id}) "
+            "RETURN coalesce(n.node_type, toLower(labels(n)[0])) AS type LIMIT 1",
+            {"node_id": node_id},
+        )
+        rows = parse_falkor_rows(result)
+        if not rows:
+            return ""
+        return row_string(rows[0], "type") or ""
+
+    async def _load_trade_provenance(self, graph_id: str, trade_id: str) -> dict[str, Any] | None:
+        result = await self._query(
+            graph_id,
+            "MATCH (n {node_id: $node_id}) "
+            "RETURN coalesce(n.provenance_json, '') AS provenance_json LIMIT 1",
+            {"node_id": trade_id},
+        )
+        rows = parse_falkor_rows(result)
+        if not rows:
+            return None
+        raw = row_string(rows[0], "provenance_json")
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            return None
+
+    async def _load_trade_decision_edge(self, graph_id: str, trade_id: str) -> dict[str, Any] | None:
+        result = await self._query(
+            graph_id,
+            "MATCH (s)-[r]->(t {node_id: $trade_id}) "
+            "WHERE type(r) STARTS WITH 'OPEN_' OR type(r) STARTS WITH 'CLOSE_' "
+            "RETURN s.node_id AS source, t.node_id AS target, type(r) AS rel_type, "
+            "coalesce(r.thesis, '') AS thesis, coalesce(r.conviction, 0) AS conviction, "
+            "coalesce(r.reasoning, '') AS reasoning, coalesce(r.decision_id, '') AS decision_id, "
+            "coalesce(r.timestamp, '') AS timestamp, coalesce(r.tags, []) AS tags "
+            "LIMIT 1",
+            {"trade_id": trade_id},
+        )
+        rows = parse_falkor_rows(result)
+        if not rows:
+            return None
+        row = rows[0]
+        rel = row_string(row, "rel_type", "type(r)") or "REL"
+        tags = row.get("tags")
+        if not isinstance(tags, list):
+            tags = []
+        return {
+            "source": row_string(row, "source"),
+            "target": row_string(row, "target"),
+            "type": rel,
+            "action": _action_from_rel(rel),
+            "thesis": row_string(row, "thesis"),
+            "conviction": float(row.get("conviction") or 0),
+            "reasoning": row_string(row, "reasoning"),
+            "decision_id": row_string(row, "decision_id"),
+            "timestamp": row_string(row, "timestamp"),
+            "tags": tags,
+        }
+
+    async def get_node_detail(self, graph_id: str, node_id: str) -> dict[str, Any] | None:
+        node_result = await self._query(
+            graph_id,
+            "MATCH (n {node_id: $node_id}) "
+            "RETURN n.node_id AS id, coalesce(n.node_type, toLower(labels(n)[0])) AS type, "
+            "coalesce(n.anchor, false) AS anchor, coalesce(n.correlated_peer, false) AS correlated_peer, "
+            "coalesce(n.decision_id, '') AS decision_id, coalesce(n.provenance_json, '') AS provenance_json, "
+            "coalesce(n.created_at, '') AS created_at, coalesce(n.last_seen_at, '') AS last_seen_at "
+            "LIMIT 1",
+            {"node_id": node_id},
+        )
+        rows = parse_falkor_rows(node_result)
+        if not rows:
+            return None
+
+        row = rows[0]
+        node_type = row_string(row, "type") or "Entity"
+        anchor = row_flag(row, "anchor")
+        correlated_peer = row_flag(row, "correlated_peer")
+        market_role = None
+        if node_type == "market":
+            if anchor:
+                market_role = "anchor"
+            elif correlated_peer:
+                market_role = "correlated_peer"
+        elif node_type == "correlated_market":
+            market_role = "correlated_peer"
+
+        provenance_raw = row_string(row, "provenance_json")
+        provenance: dict[str, Any] | None = None
+        if provenance_raw:
+            try:
+                parsed = json.loads(provenance_raw)
+                provenance = parsed if isinstance(parsed, dict) else None
+            except json.JSONDecodeError:
+                provenance = None
+
+        in_edges_result = await self._query(
+            graph_id,
+            "MATCH (s)-[r]->(t {node_id: $node_id}) "
+            "RETURN s.node_id AS source, t.node_id AS target, type(r) AS rel_type, "
+            "coalesce(r.thesis, '') AS thesis, coalesce(r.conviction, 0) AS conviction, "
+            "coalesce(r.reasoning, '') AS reasoning, coalesce(r.decision_id, '') AS decision_id, "
+            "coalesce(r.timestamp, '') AS timestamp, coalesce(r.tags, []) AS tags "
+            "LIMIT 50",
+            {"node_id": node_id},
+        )
+        out_edges_result = await self._query(
+            graph_id,
+            "MATCH (s {node_id: $node_id})-[r]->(t) "
+            "RETURN s.node_id AS source, t.node_id AS target, type(r) AS rel_type, "
+            "coalesce(r.thesis, '') AS thesis, coalesce(r.conviction, 0) AS conviction, "
+            "coalesce(r.reasoning, '') AS reasoning, coalesce(r.decision_id, '') AS decision_id, "
+            "coalesce(r.timestamp, '') AS timestamp, coalesce(r.tags, []) AS tags "
+            "LIMIT 50",
+            {"node_id": node_id},
+        )
+
+        def _edge_entry(edge_row: dict[str, Any]) -> dict[str, Any]:
+            rel = row_string(edge_row, "rel_type", "type(r)") or "REL"
+            tags = edge_row.get("tags")
+            if not isinstance(tags, list):
+                tags = []
+            return {
+                "source": row_string(edge_row, "source"),
+                "target": row_string(edge_row, "target"),
+                "type": rel,
+                "action": _action_from_rel(rel),
+                "thesis": row_string(edge_row, "thesis"),
+                "conviction": float(edge_row.get("conviction") or 0),
+                "reasoning": row_string(edge_row, "reasoning"),
+                "decision_id": row_string(edge_row, "decision_id"),
+                "timestamp": row_string(edge_row, "timestamp"),
+                "tags": tags,
+            }
+
+        incoming = [_edge_entry(r) for r in parse_falkor_rows(in_edges_result)]
+        outgoing = [_edge_entry(r) for r in parse_falkor_rows(out_edges_result)]
+
+        linked_trade_id: str | None = None
+        if node_type == "market":
+            linked_trade_id = next(
+                (
+                    e["target"]
+                    for e in outgoing
+                    if e["type"].startswith("OPEN_") or e["type"].startswith("CLOSE_")
+                ),
+                None,
+            )
+        else:
+            for edge in incoming:
+                src = edge["source"]
+                if await self._node_type(graph_id, src) == "trade":
+                    linked_trade_id = src
+                    break
+
+        if node_type == "market":
+            decision_edge = next(
+                (
+                    e
+                    for e in outgoing
+                    if e["type"].startswith("OPEN_") or e["type"].startswith("CLOSE_")
+                ),
+                None,
+            )
+        else:
+            decision_edge = next(
+                (e for e in incoming if e["type"].startswith("OPEN_") or e["type"].startswith("CLOSE_")),
+                None,
+            )
+
+        if linked_trade_id and not decision_edge:
+            decision_edge = await self._load_trade_decision_edge(graph_id, linked_trade_id)
+
+        if not provenance and linked_trade_id:
+            provenance = await self._load_trade_provenance(graph_id, linked_trade_id)
+
+        node_entry: dict[str, Any] = {
+            "id": row_string(row, "id", "n.node_id"),
+            "type": node_type,
+            "decision_id": row_string(row, "decision_id") or None,
+            "created_at": row_string(row, "created_at") or None,
+            "last_seen_at": row_string(row, "last_seen_at") or None,
+            "provenance": provenance,
+        }
+        if market_role:
+            node_entry["marketRole"] = market_role
+
+        return {
+            "graph_id": graph_id,
+            "node": node_entry,
+            "decision": _decision_summary(
+                node_type, decision_edge, node_entry, provenance, linked_trade_id=linked_trade_id
+            ),
+            "observability": _observability_summary(provenance),
+            "incoming_edges": incoming,
+            "outgoing_edges": outgoing,
+        }
+
     async def list_graphs(self) -> list[str]:
         if not self._client:
             return []
@@ -131,3 +335,74 @@ class FalkorDbService:
             return self._client.list()
 
         return await asyncio.to_thread(run)
+
+
+def _action_from_rel(rel_type: str) -> str | None:
+    mapping = {
+        "OPEN_YES": "Buy YES",
+        "OPEN_NO": "Buy NO",
+        "CLOSE_YES": "Close YES",
+        "CLOSE_NO": "Close NO",
+    }
+    return mapping.get(rel_type)
+
+
+def _decision_summary(
+    node_type: str,
+    decision_edge: dict[str, Any] | None,
+    node: dict[str, Any],
+    provenance: dict[str, Any] | None,
+    *,
+    linked_trade_id: str | None = None,
+) -> dict[str, Any] | None:
+    if node_type == "trade" and decision_edge:
+        return {
+            "decision_id": decision_edge.get("decision_id") or node.get("decision_id"),
+            "action": decision_edge.get("action"),
+            "thesis": decision_edge.get("thesis"),
+            "reasoning": decision_edge.get("reasoning"),
+            "conviction_level": decision_edge.get("conviction"),
+            "tags": decision_edge.get("tags") or [],
+            "timestamp": decision_edge.get("timestamp"),
+            "market_id": decision_edge.get("source"),
+        }
+    if node_type == "market" and decision_edge:
+        return {
+            "decision_id": decision_edge.get("decision_id"),
+            "linked_trade_id": decision_edge.get("target"),
+            "action": decision_edge.get("action"),
+            "thesis": decision_edge.get("thesis"),
+            "reasoning": decision_edge.get("reasoning"),
+            "conviction_level": decision_edge.get("conviction"),
+            "timestamp": decision_edge.get("timestamp"),
+        }
+    if node_type in ("outcome", "feedback") and decision_edge:
+        return {
+            "decision_id": decision_edge.get("decision_id") or node.get("decision_id"),
+            "linked_trade_id": linked_trade_id or decision_edge.get("target"),
+            "action": decision_edge.get("action"),
+            "thesis": decision_edge.get("thesis"),
+            "reasoning": decision_edge.get("reasoning"),
+            "conviction_level": decision_edge.get("conviction"),
+            "tags": decision_edge.get("tags") or [],
+            "timestamp": decision_edge.get("timestamp"),
+            "market_id": decision_edge.get("source"),
+        }
+    if provenance and node_type in ("trade", "market", "agent", "outcome", "feedback"):
+        execution = provenance.get("execution") if isinstance(provenance.get("execution"), dict) else None
+        if execution:
+            return {
+                "decision_id": node.get("decision_id"),
+                "linked_trade_id": linked_trade_id,
+                "summary": "Decision metadata available under observability.",
+            }
+    return None
+
+
+def _observability_summary(provenance: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not provenance:
+        return None
+    execution = provenance.get("execution")
+    if not isinstance(execution, dict):
+        return None
+    return execution
