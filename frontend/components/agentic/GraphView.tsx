@@ -4,8 +4,17 @@ import { Network } from "vis-network";
 import "vis-network/styles/vis-network.min.css";
 
 import type { GraphEdge, WeightedGraph } from "@/lib/agentic/types";
-import { clampWeight, formatWeight, formatWeightShort, proportionalityLabel } from "@/lib/agentic/weight";
-import { NODE_TYPE_LABELS, buildTypeLegend, graphToVis } from "./graph-viz";
+import { clampWeight, edgeColor, formatWeightShort } from "@/lib/agentic/weight";
+import {
+  NODE_TYPE_LABELS,
+  buildGroupColorMap,
+  collectGroupIds,
+  computeDegrees,
+  filterGraphByNodeIds,
+  graphToVis,
+  groupColorForNode,
+  nodeIdPrefix,
+} from "./graph-viz";
 
 type SelectedNode = {
   id: string;
@@ -18,12 +27,45 @@ type SelectedNode = {
 
 type SelectedEdge = {
   id: string;
-  label: string;
   sourceLabel: string;
   targetLabel: string;
   weight: number | null;
   expectedSign: 1 | -1;
 };
+
+type IdGroup = {
+  id: string;
+  count: number;
+  color: string;
+  nodeIds: string[];
+};
+
+function buildIdGroups(graph: WeightedGraph, groupColorMap: Map<string, string>): IdGroup[] {
+  const groups = new Map<string, string[]>();
+
+  for (const node of graph.nodes) {
+    const groupId = nodeIdPrefix(node.id);
+    const existing = groups.get(groupId);
+    if (existing) {
+      existing.push(node.id);
+    } else {
+      groups.set(groupId, [node.id]);
+    }
+  }
+
+  return [...groups.entries()]
+    .map(([id, nodeIds]) => ({
+      id,
+      count: nodeIds.length,
+      color: groupColorMap.get(id) ?? "#9ca3af",
+      nodeIds,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function graphSignature(graph: WeightedGraph): string {
+  return `${graph.nodes.length}|${graph.edges.length}|${graph.nodes.map((node) => node.id).join(",")}`;
+}
 
 export function GraphView({
   graph,
@@ -34,14 +76,55 @@ export function GraphView({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
+  const graphRef = useRef(graph);
+  const visibleNodeIdsRef = useRef<Set<string>>(new Set());
   const selectedEdgeIdRef = useRef<string | null>(null);
+
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [visibleGroupIds, setVisibleGroupIds] = useState<Set<string> | null>(null);
   const [draftWeight, setDraftWeight] = useState(0);
   const [savingWeight, setSavingWeight] = useState(false);
 
-  const legend = useMemo(() => buildTypeLegend(graph), [graph]);
   const hasGraph = graph.nodes.length > 0;
+  const groupColorMap = useMemo(() => buildGroupColorMap(collectGroupIds(graph)), [graph]);
+  const idGroups = useMemo(() => buildIdGroups(graph, groupColorMap), [graph, groupColorMap]);
+  const allGroupIds = useMemo(() => idGroups.map((group) => group.id), [idGroups]);
+  const allGroupIdSet = useMemo(() => new Set(allGroupIds), [allGroupIds]);
+  const degrees = useMemo(() => computeDegrees(graph), [graph]);
+  const signature = useMemo(() => graphSignature(graph), [graph]);
+
+  const activeVisibleGroups = visibleGroupIds ?? allGroupIdSet;
+
+  useEffect(() => {
+    graphRef.current = graph;
+  }, [graph]);
+
+  useEffect(() => {
+    setVisibleGroupIds(null);
+  }, [signature]);
+
+  const visibleNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const group of idGroups) {
+      if (!activeVisibleGroups.has(group.id)) continue;
+      for (const nodeId of group.nodeIds) ids.add(nodeId);
+    }
+    return ids;
+  }, [activeVisibleGroups, idGroups]);
+
+  useEffect(() => {
+    visibleNodeIdsRef.current = visibleNodeIds;
+  }, [visibleNodeIds]);
+
+  const filteredGraph = useMemo(
+    () => filterGraphByNodeIds(graph, visibleNodeIds),
+    [graph, visibleNodeIds],
+  );
+
+  const allGroupsVisible =
+    idGroups.length > 0 && idGroups.every((group) => activeVisibleGroups.has(group.id));
+  const someGroupsVisible = idGroups.some((group) => activeVisibleGroups.has(group.id));
 
   const selectedEdge = useMemo((): SelectedEdge | null => {
     if (!selectedEdgeId) return null;
@@ -50,7 +133,6 @@ export function GraphView({
     const labelById = new Map(graph.nodes.map((n) => [n.id, n.label]));
     return {
       id: edge.id,
-      label: edge.label,
       sourceLabel: labelById.get(edge.source) ?? edge.source,
       targetLabel: labelById.get(edge.target) ?? edge.target,
       weight: edge.weight,
@@ -59,13 +141,42 @@ export function GraphView({
   }, [graph, selectedEdgeId]);
 
   useEffect(() => {
-    selectedEdgeIdRef.current = selectedEdgeId;
-  }, [selectedEdgeId]);
-
-  useEffect(() => {
     if (!selectedEdge) return;
     setDraftWeight(selectedEdge.weight ?? (selectedEdge.expectedSign === -1 ? -0.5 : 0.5));
   }, [selectedEdge?.id, selectedEdge?.weight, selectedEdge?.expectedSign]);
+
+  useEffect(() => {
+    selectedEdgeIdRef.current = selectedEdgeId;
+  }, [selectedEdgeId]);
+
+  const buildSelectedNode = useCallback((nodeId: string, network: Network): SelectedNode | null => {
+    const visible = visibleNodeIdsRef.current;
+    const neighborIds = (network.getConnectedNodes(nodeId) as string[]).filter((nid) =>
+      visible.has(nid),
+    );
+
+    const nodeMeta = graphRef.current.nodes.find((n) => n.id === nodeId);
+    const color = groupColorForNode(nodeId, groupColorMap);
+
+    const labelById = new Map(graphRef.current.nodes.map((n) => [n.id, n.label]));
+    const neighbors = neighborIds.map((nid) => {
+      const snap = graphRef.current.nodes.find((n) => n.id === nid);
+      return {
+        id: nid,
+        label: snap?.label ?? labelById.get(nid) ?? nid,
+        color: groupColorForNode(nid, groupColorMap),
+      };
+    });
+
+    return {
+      id: nodeId,
+      label: nodeMeta?.label ?? nodeId,
+      typeLabel: NODE_TYPE_LABELS[nodeMeta?.type ?? ""] ?? nodeMeta?.type ?? "Node",
+      color,
+      degree: neighborIds.length,
+      neighbors,
+    };
+  }, [groupColorMap]);
 
   const selectEdge = useCallback((edge: GraphEdge, network: Network) => {
     setSelectedNode(null);
@@ -74,24 +185,100 @@ export function GraphView({
     network.selectNodes([]);
   }, []);
 
+  const selectNodeById = useCallback(
+    (nodeId: string, options?: { focus?: boolean }) => {
+      const network = networkRef.current;
+      if (!network || !visibleNodeIdsRef.current.has(nodeId)) return;
+
+      setSelectedEdgeId(null);
+      network.selectEdges([]);
+      network.selectNodes([nodeId]);
+      setSelectedNode(buildSelectedNode(nodeId, network));
+
+      if (options?.focus !== false) {
+        network.focus(nodeId, { scale: 1.15, animation: { duration: 450, easingFunction: "easeInOutQuad" } });
+      }
+    },
+    [buildSelectedNode],
+  );
+
+  const setGroupFilter = useCallback((next: Set<string>) => {
+    setVisibleGroupIds(new Set(next));
+    setSelectedNode(null);
+    setSelectedEdgeId(null);
+  }, []);
+
+  const toggleGroupVisibility = useCallback(
+    (groupId: string) => {
+      setVisibleGroupIds((prev) => {
+        const base = prev ?? allGroupIdSet;
+        const next = new Set(base);
+        if (next.has(groupId)) next.delete(groupId);
+        else next.add(groupId);
+        return next;
+      });
+    },
+    [allGroupIdSet],
+  );
+
+  const selectOnlyGroup = useCallback(
+    (groupId: string) => {
+      setGroupFilter(new Set([groupId]));
+    },
+    [setGroupFilter],
+  );
+
+  const toggleSelectAllGroups = useCallback(() => {
+    setGroupFilter(allGroupsVisible ? new Set() : new Set(allGroupIds));
+  }, [allGroupIds, allGroupsVisible, setGroupFilter]);
+
   const fitGraph = useCallback(() => {
     networkRef.current?.fit({ animation: { duration: 400, easingFunction: "easeInOutQuad" } });
   }, []);
 
-  const applyWeight = useCallback(async () => {
-    if (!selectedEdge || !onWeightChange) return;
-    setSavingWeight(true);
-    try {
-      await onWeightChange(selectedEdge.id, clampWeight(draftWeight));
-    } finally {
-      setSavingWeight(false);
+  const applyWeight = useCallback(
+    async (value: number) => {
+      if (!selectedEdge || !onWeightChange) return;
+      const weight = clampWeight(value);
+      setDraftWeight(weight);
+      setSavingWeight(true);
+      try {
+        await onWeightChange(selectedEdge.id, weight);
+      } finally {
+        setSavingWeight(false);
+      }
+    },
+    [onWeightChange, selectedEdge],
+  );
+
+  useEffect(() => {
+    if (selectedNode && !visibleNodeIds.has(selectedNode.id)) {
+      setSelectedNode(null);
     }
-  }, [draftWeight, onWeightChange, selectedEdge]);
+    if (selectedEdgeId) {
+      const edge = graph.edges.find((e) => e.id === selectedEdgeId);
+      if (
+        !edge ||
+        !visibleNodeIds.has(edge.source) ||
+        !visibleNodeIds.has(edge.target)
+      ) {
+        setSelectedEdgeId(null);
+      }
+    }
+  }, [graph.edges, selectedEdgeId, selectedNode, visibleNodeIds]);
 
   useEffect(() => {
     if (!hasGraph || !containerRef.current) return;
 
-    const { nodes, edges } = graphToVis(graph);
+    const { nodes, edges } = graphToVis(filteredGraph);
+
+    for (const edge of edges) {
+      if (edge.id === selectedEdgeIdRef.current) {
+        const fullEdge = graphRef.current.edges.find((item) => item.id === edge.id);
+        edge.label = formatWeightShort(fullEdge?.weight ?? null);
+      }
+    }
+
     const nodesDS = new DataSet(nodes);
     const edgesDS = new DataSet(edges);
 
@@ -104,90 +291,80 @@ export function GraphView({
       containerRef.current,
       { nodes: nodesDS, edges: edgesDS },
       {
-        layout: { improvedLayout: true },
+        layout: { improvedLayout: false },
         physics: {
           enabled: true,
           solver: "forceAtlas2Based",
           forceAtlas2Based: {
-            gravitationalConstant: -80,
-            centralGravity: 0.01,
-            springLength: 160,
-            springConstant: 0.06,
-            damping: 0.5,
-            avoidOverlap: 1,
+            gravitationalConstant: -38,
+            centralGravity: 0.004,
+            springLength: 72,
+            springConstant: 0.085,
+            damping: 0.62,
+            avoidOverlap: 0.55,
           },
-          stabilization: { iterations: 250, fit: true },
+          stabilization: { iterations: 220, fit: true },
         },
         interaction: {
           hover: true,
-          tooltipDelay: 80,
+          tooltipDelay: 120,
           navigationButtons: false,
           keyboard: { enabled: false },
           selectConnectedEdges: false,
+          zoomView: true,
+          dragView: true,
         },
         nodes: {
           shape: "dot",
-          borderWidth: 2,
-          shadow: { enabled: true, size: 8, x: 0, y: 0, color: "rgba(0,0,0,0.35)" },
+          borderWidth: 2.5,
+          borderWidthSelected: 4,
+          shadow: {
+            enabled: true,
+            size: 12,
+            x: 0,
+            y: 2,
+            color: "rgba(0, 0, 0, 0.45)",
+          },
         },
         edges: {
-          smooth: { enabled: true, type: "continuous", roundness: 0.25 },
-          selectionWidth: 2,
+          smooth: { enabled: true, type: "dynamic", roundness: 0.35 },
+          selectionWidth: 3,
+          hoverWidth: 2,
         },
       },
     );
 
     network.once("stabilizationIterationsDone", () => {
       network.setOptions({ physics: { enabled: false } });
-      network.fit({ animation: { duration: 500, easingFunction: "easeInOutQuad" } });
+      network.fit({ animation: { duration: 600, easingFunction: "easeInOutQuad" } });
     });
 
     network.on("click", (params) => {
       if (params.edges.length) {
         const edgeId = String(params.edges[0]);
-        const edge = graph.edges.find((e) => e.id === edgeId);
+        const edge = graphRef.current.edges.find((e) => e.id === edgeId);
         if (edge) selectEdge(edge, network);
         return;
       }
 
       if (params.nodes.length) {
+        const nodeId = String(params.nodes[0]);
         setSelectedEdgeId(null);
         network.selectEdges([]);
-
-        const nodeId = String(params.nodes[0]);
-        const visNode = nodesDS.get(nodeId);
-        if (!visNode) return;
-
-        const snapNode = graph.nodes.find((n) => n.id === nodeId);
-        const neighborIds = network.getConnectedNodes(nodeId) as string[];
-        const neighbors = neighborIds.map((nid) => {
-          const nb = nodesDS.get(nid);
-          return {
-            id: nid,
-            label: (nb?.label as string) ?? nid,
-            color: nb?.color?.background ?? "#555",
-          };
-        });
-
-        setSelectedNode({
-          id: nodeId,
-          label: snapNode?.label ?? nodeId,
-          typeLabel: NODE_TYPE_LABELS[snapNode?.type ?? ""] ?? snapNode?.type ?? "Node",
-          color: visNode.color.background,
-          degree: neighborIds.length,
-          neighbors,
-        });
+        network.selectNodes([nodeId]);
+        setSelectedNode(buildSelectedNode(nodeId, network));
         return;
       }
 
       setSelectedNode(null);
       setSelectedEdgeId(null);
       network.selectEdges([]);
+      network.selectNodes([]);
     });
 
     if (selectedEdgeIdRef.current) {
-      const stillExists = graph.edges.some((e) => e.id === selectedEdgeIdRef.current);
-      if (stillExists) {
+      const stillVisible = filteredGraph.edges.some((e) => e.id === selectedEdgeIdRef.current);
+      if (stillVisible) {
         network.selectEdges([selectedEdgeIdRef.current]);
       }
     }
@@ -198,7 +375,7 @@ export function GraphView({
       network.destroy();
       networkRef.current = null;
     };
-  }, [graph, hasGraph, selectEdge]);
+  }, [filteredGraph, hasGraph, selectEdge, buildSelectedNode]);
 
   if (!hasGraph) {
     return (
@@ -211,160 +388,162 @@ export function GraphView({
     );
   }
 
+  const visibleNodeCount = filteredGraph.nodes.length;
+  const visibleEdgeCount = filteredGraph.edges.length;
+
   return (
     <div className="cot-graph-view">
-      <div ref={containerRef} className="cot-graph-view__canvas" />
+      <div ref={containerRef} className="cot-graph-view__canvas cot-graph-view__canvas--agentic" />
       <aside className="cot-graph-view__sidebar">
-        <div className="cot-graph-sidebar__section">
-          <div className="cot-graph-sidebar__label">Graph</div>
-          <div className="cot-graph-stats">
-            <span>{graph.nodes.length} nodes</span>
-            <span>{graph.edges.length} edges</span>
-          </div>
-          <button type="button" className="cot-graph-fit-btn" onClick={fitGraph}>
-            Fit to view
-          </button>
-        </div>
-
         <div className="cot-graph-sidebar__section cot-graph-sidebar__info">
-          <h3>Edge weight</h3>
-          {selectedEdge ? (
-            <div className="cot-graph-edge-editor">
-              <div className="cot-graph-field">
-                <b>Relationship</b>
-                <span>
-                  {selectedEdge.sourceLabel} → {selectedEdge.targetLabel}
-                </span>
-              </div>
-              <div className="cot-graph-field">
-                <b>Current</b> {formatWeight(selectedEdge.weight)}
-              </div>
-              <p className="cot-graph-edge-hint muted">
-                {proportionalityLabel(selectedEdge.expectedSign)}
-              </p>
-              <label className="cot-graph-weight-label" htmlFor="edge-weight-slider">
-                New weight ({formatWeightShort(clampWeight(draftWeight))})
-              </label>
-              <input
-                id="edge-weight-slider"
-                type="range"
-                className="cot-graph-weight-slider"
-                min={-1}
-                max={1}
-                step={0.05}
-                value={draftWeight}
-                onChange={(e) => setDraftWeight(Number(e.target.value))}
-              />
-              <div className="cot-graph-weight-input-row">
+          <h3>Node info</h3>
+          {selectedNode ? (
+            <div className="cot-graph-info-panel">
+              <div className="cot-graph-info-panel__title">{selectedNode.label}</div>
+              <dl className="cot-graph-info-meta">
+                <div className="cot-graph-info-meta__row">
+                  <dt>Type</dt>
+                  <dd>{selectedNode.typeLabel}</dd>
+                </div>
+                <div className="cot-graph-info-meta__row">
+                  <dt>ID</dt>
+                  <dd><code>{selectedNode.id}</code></dd>
+                </div>
+                <div className="cot-graph-info-meta__row">
+                  <dt>Group</dt>
+                  <dd><code>{nodeIdPrefix(selectedNode.id)}</code></dd>
+                </div>
+                <div className="cot-graph-info-meta__row">
+                  <dt>Degree</dt>
+                  <dd>{degrees.get(selectedNode.id) ?? selectedNode.degree}</dd>
+                </div>
+              </dl>
+              {selectedNode.neighbors.length > 0 && (
+                <div className="cot-graph-neighbors-block">
+                  <div className="cot-graph-neighbors-block__title">
+                    Neighbors ({selectedNode.neighbors.length})
+                  </div>
+                  <ul className="cot-graph-neighbors-list">
+                    {selectedNode.neighbors.map((nb) => (
+                      <li key={nb.id}>
+                        <button
+                          type="button"
+                          className="cot-graph-neighbor-row"
+                          style={{ borderLeftColor: nb.color }}
+                          onClick={() => selectNodeById(nb.id)}
+                        >
+                          {nb.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : selectedEdge ? (
+            <div className="cot-graph-info-panel">
+              <div className="cot-graph-info-panel__title">Edge</div>
+              <dl className="cot-graph-info-meta">
+                <div className="cot-graph-info-meta__row">
+                  <dt>From</dt>
+                  <dd>{selectedEdge.sourceLabel}</dd>
+                </div>
+                <div className="cot-graph-info-meta__row">
+                  <dt>To</dt>
+                  <dd>{selectedEdge.targetLabel}</dd>
+                </div>
+              </dl>
+              <div className="cot-graph-edge-editor">
+                <div className="cot-graph-weight-slider-row">
+                  <span className="cot-graph-weight-slider-row__label">Weight</span>
+                  <span
+                    className="cot-graph-weight-slider-row__value"
+                    style={{ color: edgeColor(clampWeight(draftWeight)) }}
+                  >
+                    {formatWeightShort(clampWeight(draftWeight))}
+                  </span>
+                </div>
                 <input
-                  type="number"
-                  className="cot-graph-weight-input"
+                  id="edge-weight-slider"
+                  type="range"
+                  className="cot-graph-weight-slider"
                   min={-1}
                   max={1}
                   step={0.05}
                   value={draftWeight}
-                  onChange={(e) => {
-                    const n = Number(e.target.value);
-                    if (!Number.isNaN(n)) setDraftWeight(clampWeight(n));
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn-primary cot-graph-weight-save"
                   disabled={savingWeight || !onWeightChange}
-                  onClick={() => void applyWeight()}
-                >
-                  {savingWeight ? "Saving…" : "Apply"}
-                </button>
+                  onChange={(e) => setDraftWeight(Number(e.target.value))}
+                  onMouseUp={(e) => void applyWeight(Number(e.currentTarget.value))}
+                  onTouchEnd={(e) => void applyWeight(Number(e.currentTarget.value))}
+                  style={{ accentColor: edgeColor(clampWeight(draftWeight)) }}
+                  aria-valuetext={formatWeightShort(clampWeight(draftWeight))}
+                />
               </div>
             </div>
+          ) : visibleNodeCount === 0 ? (
+            <p className="cot-graph-empty">Select at least one ID below to show nodes on the graph.</p>
           ) : (
-            <p className="cot-graph-empty">Click an edge to set its weight</p>
+            <p className="cot-graph-empty">Click a node or edge on the graph to inspect it.</p>
           )}
         </div>
 
-        <div className="cot-graph-sidebar__section cot-graph-sidebar__legend">
-          <h3>Node types</h3>
-          {legend.map((item) => (
-            <div key={item.type} className="cot-graph-legend-item">
-              <span className="cot-graph-legend-dot" style={{ background: item.color }} />
-              <span className="cot-graph-legend-label">{item.label}</span>
-              <span className="cot-graph-legend-count">{item.count}</span>
+        <div className="cot-graph-sidebar__section cot-graph-sidebar__filter">
+          <div className="cot-graph-sidebar__filter-header">
+            <h3>IDs</h3>
+            <div className="cot-graph-filter-meta">
+              <span>{visibleNodeCount} nodes · {visibleEdgeCount} edges</span>
+              <button type="button" className="cot-graph-fit-btn cot-graph-fit-btn--compact" onClick={fitGraph}>
+                Fit
+              </button>
             </div>
-          ))}
-        </div>
-
-        <div className="cot-graph-sidebar__section cot-graph-sidebar__legend">
-          <h3>Edge weights</h3>
-          <div className="cot-graph-edge-legend">
-            <span><i className="edge-sample edge-sample--pos" /> Direct (+)</span>
-            <span><i className="edge-sample edge-sample--neg" /> Inverse (−)</span>
-            <span><i className="edge-sample edge-sample--unset" /> Unset</span>
           </div>
-          <ul className="cot-graph-edge-list">
-            {graph.edges.map((e) => {
-              const src = graph.nodes.find((n) => n.id === e.source)?.label ?? e.source;
-              const tgt = graph.nodes.find((n) => n.id === e.target)?.label ?? e.target;
-              const pos = (e.weight ?? e.expectedSign ?? 1) >= 0;
-              const active = e.id === selectedEdgeId;
+
+          <label className="cot-graph-filter-row cot-graph-filter-row--select-all">
+            <input
+              type="checkbox"
+              checked={allGroupsVisible}
+              ref={(el) => {
+                if (el) el.indeterminate = someGroupsVisible && !allGroupsVisible;
+              }}
+              onChange={toggleSelectAllGroups}
+            />
+            <span className="cot-graph-filter-row__label">Select All</span>
+          </label>
+
+          <ul className="cot-graph-filter-list">
+            {idGroups.map((group) => {
+              const checked = activeVisibleGroups.has(group.id);
+              const solo = checked && activeVisibleGroups.size === 1;
               return (
-                <li key={e.id} className={`${pos ? "pos" : "neg"}${active ? " active" : ""}`}>
-                  <button
-                    type="button"
-                    className="cot-graph-edge-list-btn"
-                    onClick={() => {
-                      setSelectedEdgeId(e.id);
-                      networkRef.current?.selectEdges([e.id]);
-                      networkRef.current?.selectNodes([]);
-                      setSelectedNode(null);
-                    }}
-                  >
-                    {short(src)} → {short(tgt)}: <strong>{formatWeightShort(e.weight)}</strong>
-                  </button>
+                <li key={group.id} className={solo ? "active" : undefined}>
+                  <div className="cot-graph-filter-row">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleGroupVisibility(group.id)}
+                      aria-label={`Toggle ${group.id}`}
+                    />
+                    <button
+                      type="button"
+                      className="cot-graph-filter-row__body"
+                      onClick={() => selectOnlyGroup(group.id)}
+                      title={`Show only ${group.id}`}
+                    >
+                      <span
+                        className="cot-graph-filter-row__dot"
+                        style={{ background: group.color }}
+                        aria-hidden
+                      />
+                      <span className="cot-graph-filter-row__label">{group.id}</span>
+                      <span className="cot-graph-filter-row__count">{group.count}</span>
+                    </button>
+                  </div>
                 </li>
               );
             })}
           </ul>
         </div>
-
-        <div className="cot-graph-sidebar__section cot-graph-sidebar__info">
-          <h3>Node info</h3>
-          {selectedNode ? (
-            <div className="cot-graph-sidebar__info-body">
-              <div className="cot-graph-field"><b>Label</b> {selectedNode.label}</div>
-              <div className="cot-graph-field cot-graph-field--type">
-                <b>Type</b>
-                <span className="cot-graph-type-badge">
-                  <span className="cot-graph-legend-dot" style={{ background: selectedNode.color }} />
-                  {selectedNode.typeLabel}
-                </span>
-              </div>
-              <div className="cot-graph-field"><b>Connections</b> {selectedNode.degree}</div>
-              {selectedNode.neighbors.length > 0 && (
-                <div className="cot-graph-neighbors">
-                  {selectedNode.neighbors.map((nb) => (
-                    <button
-                      key={nb.id}
-                      type="button"
-                      className="cot-graph-neighbor"
-                      style={{ borderLeftColor: nb.color }}
-                      onClick={() => networkRef.current?.focus(nb.id, { scale: 1.2, animation: true })}
-                    >
-                      {nb.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="cot-graph-empty">Click a node to inspect</p>
-          )}
-        </div>
       </aside>
     </div>
   );
-}
-
-function short(text: string): string {
-  return text.length > 18 ? `${text.slice(0, 17)}…` : text;
 }

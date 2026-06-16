@@ -26,8 +26,14 @@ def _get_client() -> Any | None:
     if not is_supermemory_configured():
         return None
     if _client is None:
-        from supermemory import Supermemory
-
+        try:
+            from supermemory import Supermemory
+        except ImportError:
+            logger.warning(
+                "SUPERMEMORY_API_KEY is set but the supermemory package is not installed. "
+                "Run: pip install supermemory — falling back to local agentic seed graph."
+            )
+            return None
         _client = Supermemory()
     return _client
 

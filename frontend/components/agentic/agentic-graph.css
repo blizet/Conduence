@@ -23,7 +23,7 @@
   --playground-rail-inset: 12px;
   --graph-sidebar-width: 300px;
   --chat-panel-width: 380px;
-  --side-panel-bg: linear-gradient(180deg, rgba(36, 36, 36, 0.98) 0%, rgba(20, 20, 20, 0.99) 100%);
+  --side-panel-bg: linear-gradient(180deg, #161618 0%, #101012 52%, #0a0a0c 100%);
   --side-panel-divider: rgba(255, 255, 255, 0.1);
   --chat-fab-size: 56px;
 }
@@ -189,11 +189,11 @@
 
 /* ── Workspace ───────────────────────────────────────── */
 
-.agentic-graph-toolbar {
+.agentic-graph-canvas-actions {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 30;
+  top: 14px;
+  right: 14px;
+  z-index: 15;
   pointer-events: auto;
 }
 
@@ -218,7 +218,33 @@
   min-width: 0;
   min-height: 0;
   display: flex;
+  position: relative;
   background: var(--canvas-bg);
+}
+
+/* Agentic right panel — detached at top only, full height to bottom edge */
+.agentic-graph-view {
+  --graph-sidebar-top-gap: 16px;
+  --graph-sidebar-radius: 14px;
+}
+
+.agentic-graph-view .cot-graph-view__sidebar {
+  margin: var(--graph-sidebar-top-gap) 0 0;
+  height: calc(100% - var(--graph-sidebar-top-gap));
+  min-height: 0;
+  align-self: stretch;
+  background: var(--side-panel-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: none;
+  border-bottom: none;
+  border-radius: var(--graph-sidebar-radius) 0 0 0;
+  box-shadow:
+    -10px 0 36px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.agentic-graph-view .cot-graph-view__sidebar::before {
+  display: none;
 }
 
 /* ── Chat widget (Mac-style expand from bottom-left) ───── */
@@ -681,6 +707,22 @@
   background: var(--canvas-bg);
 }
 
+.cot-graph-view__canvas--agentic {
+  background-color: #050508;
+  background-image:
+    radial-gradient(ellipse 90% 70% at 50% 45%, rgba(56, 189, 248, 0.04), transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 100% 100%, 22px 22px;
+}
+
+.cot-graph-view__canvas--agentic::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.55);
+}
+
 .cot-graph-view__canvas .vis-navigation,
 .cot-graph-view__canvas .vis-button {
   display: none !important;
@@ -695,7 +737,7 @@
   background: var(--side-panel-bg);
   border-left: 1px solid var(--side-panel-divider);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .cot-graph-view__sidebar::before {
@@ -712,6 +754,7 @@
 .cot-graph-sidebar__section {
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
 .cot-graph-sidebar__label {
@@ -752,7 +795,8 @@
 }
 
 .cot-graph-sidebar__legend h3,
-.cot-graph-sidebar__info h3 {
+.cot-graph-sidebar__info h3,
+.cot-graph-sidebar__filter h3 {
   margin: 0 0 8px;
   font-size: 11px;
   font-weight: 600;
@@ -862,6 +906,29 @@
   color: var(--text-secondary);
 }
 
+.cot-graph-weight-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.cot-graph-weight-slider-row__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cot-graph-weight-slider-row__value {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
 .cot-graph-weight-slider {
   width: 100%;
   accent-color: #a0a0a0;
@@ -950,6 +1017,419 @@
   color: #64748b;
   margin: 0;
   font-style: italic;
+  line-height: 1.5;
+}
+
+.cot-graph-sidebar__info {
+  flex-shrink: 0;
+  max-height: 45%;
+  overflow-y: auto;
+}
+
+.cot-graph-sidebar__filter {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+.cot-graph-sidebar__filter-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cot-graph-sidebar__filter-header h3 {
+  margin: 0;
+}
+
+.cot-graph-filter-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cot-graph-fit-btn--compact {
+  width: auto;
+  padding: 4px 10px;
+  font-size: 10px;
+}
+
+/* ── Node info panel (reference style) ───────────────── */
+
+.cot-graph-info-panel__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 12px;
+  line-height: 1.35;
+}
+
+.cot-graph-info-meta {
+  margin: 0 0 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.cot-graph-info-meta__row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  font-size: 12px;
+  align-items: baseline;
+}
+
+.cot-graph-info-meta__row dt {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.9);
+  font-weight: 500;
+}
+
+.cot-graph-info-meta__row dd {
+  margin: 0;
+  color: #e2e8f0;
+}
+
+.cot-graph-info-meta__row dd code {
+  font-size: 11px;
+  color: #cbd5e1;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.cot-graph-neighbors-block__title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(170, 170, 170, 0.85);
+  margin-bottom: 8px;
+}
+
+.cot-graph-neighbors-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.cot-graph-neighbor-row {
+  width: 100%;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.25);
+  border: none;
+  border-left: 3px solid #64748b;
+  color: #e2e8f0;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 0 4px 4px 0;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.cot-graph-neighbor-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ── ID filter list (reference communities style) ─────── */
+
+.cot-graph-filter-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cot-graph-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  user-select: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.cot-graph-filter-row--select-all {
+  padding: 8px 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.cot-graph-filter-list li.active {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.cot-graph-filter-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cot-graph-filter-row__body:hover .cot-graph-filter-row__label {
+  color: #f8fafc;
+}
+
+.cot-graph-filter-row input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+.cot-graph-filter-row__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cot-graph-filter-row__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.cot-graph-filter-row__count {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.75);
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5rem;
+  text-align: right;
+}
+
+.cot-graph-detail-card {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.cot-graph-detail-card--muted {
+  border-style: dashed;
+}
+
+.cot-graph-detail-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cot-graph-detail-card__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.cot-graph-detail-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+  line-height: 1.35;
+}
+
+.cot-graph-detail-card__id {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.cot-graph-detail-card__summary {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+.cot-graph-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cot-graph-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #e2e8f0;
+}
+
+.cot-graph-detail-field__label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cot-graph-neighbors .cot-graph-detail-field__label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.cot-graph-neighbor code {
+  font-size: 9px;
+  color: #7dd3fc;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-right: 6px;
+}
+
+.cot-graph-neighbor span {
+  color: #cbd5e1;
+}
+
+/* ── Edge weight detail ───────────────────────────────── */
+
+.cot-graph-edge-route {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.cot-graph-edge-route__node {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.cot-graph-edge-route__arrow {
+  color: rgba(148, 163, 184, 0.8);
+  font-size: 14px;
+}
+
+.cot-graph-edge-route__ids {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.cot-graph-edge-relationship {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.cot-graph-weight-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.cot-graph-weight-display__value {
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--weight-color, #94a3b8);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.cot-graph-weight-display__desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.cot-graph-weight-meter {
+  margin-bottom: 8px;
+}
+
+.cot-graph-weight-meter__track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(248, 113, 113, 0.55) 0%,
+    rgba(148, 163, 184, 0.35) 50%,
+    rgba(52, 211, 153, 0.55) 100%
+  );
+  margin-bottom: 4px;
+}
+
+.cot-graph-weight-meter__marker {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+  transition: left 0.1s ease, background 0.1s ease;
+}
+
+.cot-graph-weight-meter__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cot-graph-weight-label strong {
+  color: #f1f5f9;
+  font-variant-numeric: tabular-nums;
 }
 
 .graph-empty {
@@ -1136,6 +1616,17 @@
     max-height: 35vh;
     border-left: none;
     border-top: 1px solid var(--side-panel-divider);
+  }
+
+  .agentic-graph-view .cot-graph-view__sidebar {
+    margin: 0;
+    height: auto;
+    max-height: 35vh;
+    align-self: stretch;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    border-radius: var(--graph-sidebar-radius) var(--graph-sidebar-radius) 0 0;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
   }
 
   .cot-graph-view__sidebar::before {

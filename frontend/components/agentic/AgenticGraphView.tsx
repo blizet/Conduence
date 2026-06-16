@@ -384,20 +384,20 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
             <code>AGENTIC_LLM_API_KEY</code> in <code>backend/.env</code> as a server fallback.
           </div>
         ) : null}
-        {health?.supermemoryConfigured ? (
-          <div className="agentic-graph-toolbar">
-            <button
-              type="button"
-              className="graph-view-toggle graph-view-toggle--active"
-              onClick={() => reset({ fresh: false })}
-              title="New chat session — reload shared graph from Supermemory"
-            >
-              Restore graph
-            </button>
-          </div>
-        ) : null}
         <main className="app-workspace">
           <div className="graph-stage">
+            {health?.supermemoryConfigured && graph.nodes.length === 0 ? (
+              <div className="agentic-graph-canvas-actions">
+                <button
+                  type="button"
+                  className="graph-view-toggle graph-view-toggle--active"
+                  onClick={() => reset({ fresh: false })}
+                  title="Reload shared graph from Supermemory"
+                >
+                  Restore graph
+                </button>
+              </div>
+            ) : null}
             <GraphView graph={graph} onWeightChange={setEdgeWeight} />
           </div>
           <ChatPanel
