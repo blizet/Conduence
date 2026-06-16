@@ -1,15 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+'use client';
 
-import type { ChatApiResponse, ChatMessage, ConversationTokenUsage, WeightedGraph } from "../shared/types";
-import { emptyConversationUsage } from "../shared/tokens";
-import { GraphView } from "./GraphView";
-import { LlmSettingsPanel, useLlmSettings, type ProviderOption } from "./LlmSettings";
-import { TokenUsagePanel } from "./TokenUsage";
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import type { ChatApiResponse, ChatMessage, ConversationTokenUsage, WeightedGraph } from '@/lib/agentic/types';
+import { emptyConversationUsage } from '@/lib/agentic/tokens';
+import { agenticFetch } from '@/lib/agentic/api';
+import { GraphView } from './GraphView';
+import { LlmSettingsPanel, useLlmSettings, type ProviderOption } from './LlmSettings';
+import { TokenUsagePanel } from './TokenUsage';
+import './agentic-graph.css';
 
 function MessageIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" strokeLinejoin="round" />
+      <path
+        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -45,8 +52,10 @@ function ChatPanel({
   open: boolean;
   onToggleOpen: () => void;
 }) {
-  const [input, setInput] = useState("");
-  const [sessionOpen, setSessionOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [sessionOpen, setSessionOpen] = useState(
+    () => !llmSettings.apiKey?.trim() && !envFallbackConfigured,
+  );
   const messagesRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -66,14 +75,14 @@ function ChatPanel({
   const submit = useCallback(() => {
     const text = input.trim();
     if (!text || loading) return;
-    setInput("");
+    setInput('');
     onSend(text);
   }, [input, loading, onSend]);
 
   return (
     <div className="chat-widget">
       <div
-        className={`chat-window glass-panel${open ? " chat-window--open" : ""}`}
+        className={`chat-window glass-panel${open ? ' chat-window--open' : ''}`}
         aria-hidden={!open}
       >
         <div className="chat-window__header">
@@ -98,16 +107,32 @@ function ChatPanel({
         </div>
 
         <div className="chat-window__status">
+          {!envFallbackConfigured && !llmSettings.apiKey?.trim() && (
+            <span className="status-pill status-pill--warn">LLM API key required</span>
+          )}
           {pendingCount > 0 && (
             <span className="status-pill status-pill--warn">{pendingCount} need weight</span>
           )}
           {supermemoryConfigured && (
             <span className="status-pill status-pill--ok">
-              Supermemory {supermemoryLoaded ? "· restored" : "· connected"}
+              Supermemory {supermemoryLoaded ? '· restored' : '· connected'}
             </span>
           )}
           {graphComplete && <span className="status-pill status-pill--ok">Graph complete</span>}
         </div>
+
+        {!envFallbackConfigured && !llmSettings.apiKey?.trim() && (
+          <div className="chat-window__llm-setup">
+            <p className="chat-window__llm-setup-title">Connect an LLM to start chatting</p>
+            <LlmSettingsPanel
+              settings={llmSettings}
+              onChange={onLlmSettingsChange}
+              providers={providers}
+              envFallbackConfigured={envFallbackConfigured}
+              defaultOpen
+            />
+          </div>
+        )}
 
         <div className="chat-window__messages" ref={messagesRef}>
           {messages.length === 0 && !loading && (
@@ -120,7 +145,7 @@ function ChatPanel({
           )}
           {messages.map((m, i) => (
             <div key={i} className={`chat-bubble chat-bubble--${m.role}`}>
-              {m.content.split("\n").map((line, j) => (
+              {m.content.split('\n').map((line, j) => (
                 <p key={j}>{line}</p>
               ))}
             </div>
@@ -138,11 +163,11 @@ function ChatPanel({
           <textarea
             ref={textareaRef}
             rows={3}
-            placeholder="Describe causal links or set weights: 1:0.8 2:-0.7"
+            placeholder="Describe relationships, answer follow-ups, or give weights in your own words…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 submit();
               }
@@ -161,7 +186,7 @@ function ChatPanel({
             aria-expanded={sessionOpen}
           >
             <svg
-              className={`session-drawer__chevron${sessionOpen ? " session-drawer__chevron--open" : ""}`}
+              className={`session-drawer__chevron${sessionOpen ? ' session-drawer__chevron--open' : ''}`}
               width="10"
               height="10"
               viewBox="0 0 10 10"
@@ -202,7 +227,7 @@ function ChatPanel({
           </span>
           {pendingCount > 0 && (
             <span className="chat-fab__badge" aria-label={`${pendingCount} pending weights`}>
-              {pendingCount > 9 ? "9+" : pendingCount}
+              {pendingCount > 9 ? '9+' : pendingCount}
             </span>
           )}
         </button>
@@ -211,7 +236,11 @@ function ChatPanel({
   );
 }
 
-export function App() {
+type AgenticGraphViewProps = {
+  userSlug: string;
+};
+
+export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [graph, setGraph] = useState<WeightedGraph>({ nodes: [], edges: [] });
@@ -227,24 +256,35 @@ export function App() {
     providers: ProviderOption[];
   } | null>(null);
   const [supermemoryLoaded, setSupermemoryLoaded] = useState(false);
+  const [serviceError, setServiceError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/health")
+    agenticFetch('/health')
       .then((r) => r.json())
-      .then((data) =>
+      .then((data) => {
+        setServiceError(null);
         setHealth({
           envFallbackConfigured: Boolean(data.envFallbackConfigured),
           supermemoryConfigured: Boolean(data.supermemoryConfigured),
           providers: data.providers ?? [],
-        }),
-      )
-      .catch(() =>
-        setHealth({ envFallbackConfigured: false, supermemoryConfigured: false, providers: [] }),
-      );
+        });
+      })
+      .catch(() => {
+        setHealth({ envFallbackConfigured: false, supermemoryConfigured: false, providers: [] });
+        setServiceError('Agentic graph service unavailable. Ensure the backend is running on port 4000.');
+      });
 
-    fetch("/api/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+    agenticFetch('/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userSlug }),
+    })
       .then((r) => r.json())
       .then((data) => {
+        if (data.error) {
+          setServiceError(data.error);
+          return;
+        }
         setSessionId(data.sessionId);
         setMessages(data.messages ?? []);
         setGraph(data.graph ?? { nodes: [], edges: [] });
@@ -252,22 +292,22 @@ export function App() {
         setSupermemoryLoaded(Boolean(data.supermemoryLoaded));
       })
       .catch(() => undefined);
-  }, []);
+  }, [userSlug]);
 
   const send = useCallback(
     async (text: string) => {
       setLoading(true);
-      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      setMessages((prev) => [...prev, { role: 'user', content: text }]);
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, message: text, llm: llmSettings }),
+        const res = await agenticFetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, message: text, llm: llmSettings, userSlug }),
         });
         const data = (await res.json()) as ChatApiResponse & { error?: string };
-        if (!res.ok) throw new Error(data.error ?? "Chat failed");
+        if (!res.ok) throw new Error(data.error ?? 'Chat failed');
         setSessionId(data.sessionId);
-        setMessages((prev) => [...prev, { role: "assistant", content: data.message }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: data.message }]);
         setGraph(data.graph);
         setPendingCount(data.pendingWeights.length);
         setGraphComplete(data.graphComplete);
@@ -277,23 +317,23 @@ export function App() {
         setMessages((prev) => [
           ...prev,
           {
-            role: "assistant",
-            content: err instanceof Error ? err.message : "Something went wrong.",
+            role: 'assistant',
+            content: err instanceof Error ? err.message : 'Something went wrong.',
           },
         ]);
       } finally {
         setLoading(false);
       }
     },
-    [sessionId, llmSettings],
+    [sessionId, llmSettings, userSlug],
   );
 
   const reset = useCallback(
     async (options?: { fresh?: boolean }) => {
-      const res = await fetch("/api/reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, fresh: options?.fresh ?? false }),
+      const res = await agenticFetch('/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, fresh: options?.fresh ?? false, userSlug }),
       });
       const data = await res.json();
       setSessionId(data.sessionId);
@@ -304,16 +344,16 @@ export function App() {
       setTokenUsage(data.tokenUsage ?? emptyConversationUsage());
       setSupermemoryLoaded(Boolean(data.supermemoryLoaded));
     },
-    [sessionId],
+    [sessionId, userSlug],
   );
 
   const setEdgeWeight = useCallback(
     async (edgeId: string, weight: number) => {
       if (!sessionId) return;
-      const res = await fetch("/api/edge-weight", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, edgeId, weight }),
+      const res = await agenticFetch('/edge-weight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, edgeId, weight, userSlug }),
       });
       if (!res.ok) return;
       const data = (await res.json()) as ChatApiResponse;
@@ -321,42 +361,39 @@ export function App() {
       setPendingCount(data.pendingWeights.length);
       setGraphComplete(data.graphComplete);
     },
-    [sessionId],
+    [sessionId, userSlug],
   );
 
   const hasLlmKey = Boolean(llmSettings.apiKey?.trim()) || Boolean(health?.envFallbackConfigured);
 
-  return (
-    <div className="playground-root">
-      {!hasLlmKey && (
-        <div className="app-banner">
-          Choose a provider in <strong>Session &amp; LLM</strong> and paste your API key, or set{" "}
-          <code>LLM_API_KEY</code> in <code>supermemory/.env</code> as a server fallback.
-        </div>
-      )}
-      <div className="playground-shell">
-        <header className="playground-header">
-          <img
-            src="/conduence-logo.png"
-            alt="Conduence"
-            className="playground-header__logo"
-            width={250}
-            height={50}
-          />
-          <div className="playground-header__actions">
-            {health?.supermemoryConfigured && (
-              <button
-                type="button"
-                className="graph-view-toggle graph-view-toggle--active"
-                onClick={() => reset({ fresh: false })}
-                title="New session and restore graph from Supermemory"
-              >
-                Restore
-              </button>
-            )}
-          </div>
-        </header>
+  useEffect(() => {
+    if (!hasLlmKey) setChatOpen(true);
+  }, [hasLlmKey]);
 
+  return (
+    <div className="cot-graph-view agentic-graph-view">
+      <div className="agentic-graph-root">
+        {serviceError ? (
+          <div className="app-banner">{serviceError}</div>
+        ) : null}
+        {!hasLlmKey && !serviceError ? (
+          <div className="app-banner">
+            Choose a provider in <strong>Session &amp; LLM</strong> and paste your API key, or set{' '}
+            <code>AGENTIC_LLM_API_KEY</code> in <code>backend/.env</code> as a server fallback.
+          </div>
+        ) : null}
+        {health?.supermemoryConfigured ? (
+          <div className="agentic-graph-toolbar">
+            <button
+              type="button"
+              className="graph-view-toggle graph-view-toggle--active"
+              onClick={() => reset({ fresh: false })}
+              title="New session and restore graph from Supermemory"
+            >
+              Restore
+            </button>
+          </div>
+        ) : null}
         <main className="app-workspace">
           <div className="graph-stage">
             <GraphView graph={graph} onWeightChange={setEdgeWeight} />

@@ -1,5 +1,5 @@
-import type { WeightedGraph } from "../shared/types";
-import { formatWeightShort } from "../shared/weight";
+import type { WeightedGraph } from "@/lib/agentic/types";
+import { formatWeightShort } from "@/lib/agentic/weight";
 
 /** CoT graph palette (from frontend/lib/cot-graph.ts) */
 export const NODE_TYPE_COLORS: Record<string, string> = {

@@ -8,7 +8,7 @@ import {
   saveStoredLlmSettings,
   type LlmProvider,
   type LlmSettingsInput,
-} from "../shared/llm";
+} from "@/lib/agentic/llm";
 
 export interface ProviderOption {
   id: LlmProvider;
@@ -22,6 +22,8 @@ interface LlmSettingsPanelProps {
   onChange: (settings: LlmSettingsInput) => void;
   providers: ProviderOption[];
   envFallbackConfigured: boolean;
+  /** Force the settings form open (e.g. when no API key is set). */
+  defaultOpen?: boolean;
 }
 
 export function LlmSettingsPanel({
@@ -29,8 +31,11 @@ export function LlmSettingsPanel({
   onChange,
   providers,
   envFallbackConfigured,
+  defaultOpen = false,
 }: LlmSettingsPanelProps) {
-  const [open, setOpen] = useState(() => !settings.apiKey?.trim() && !envFallbackConfigured);
+  const [open, setOpen] = useState(
+    () => defaultOpen || (!settings.apiKey?.trim() && !envFallbackConfigured),
+  );
   const provider = normalizeProvider(settings.provider);
   const providerMeta =
     LLM_PROVIDERS.find((p) => p.id === provider) ??
@@ -99,7 +104,7 @@ export function LlmSettingsPanel({
 
           {envFallbackConfigured && !settings.apiKey?.trim() && (
             <p className="muted small">
-              No key entered — using <code>LLM_API_KEY</code> from <code>supermemory/.env</code> as
+              No key entered — using <code>AGENTIC_LLM_API_KEY</code> from <code>backend/.env</code> as
               fallback.
             </p>
           )}

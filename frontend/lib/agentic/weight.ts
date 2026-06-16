@@ -82,8 +82,9 @@ export function parseBatchWeightAnswers(
     if (updates.length) return updates;
   }
 
-  if (pending.length === 1) {
-    const weight = parseWeightInput(raw, pending[0].expectedSign);
+  // Single value (e.g. "-0.5" on its own line) → next unset edge in order
+  if (pending.length >= 1) {
+    const weight = parseWeightInput(raw.trim(), pending[0].expectedSign);
     if (weight != null) return [{ edge_id: pending[0].edgeId, weight }];
   }
 

@@ -28,28 +28,13 @@
   --chat-fab-size: 56px;
 }
 
-*,
-*::before,
-*::after {
+.agentic-graph-root *,
+.agentic-graph-root *::before,
+.agentic-graph-root *::after {
   box-sizing: border-box;
 }
 
-html,
-body,
-#root {
-  height: 100%;
-  overflow: hidden;
-}
-
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  background: var(--bg-base);
-  color: var(--text-primary);
-  letter-spacing: 0.01em;
-}
-
-code {
+.agentic-graph-root code {
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid var(--panel-border);
   padding: 0.1rem 0.35rem;
@@ -59,24 +44,20 @@ code {
 
 /* ── Shell ─────────────────────────────────────────────── */
 
-.playground-root {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 100vh;
-}
-
-.playground-shell {
+.agentic-graph-root {
   flex: 1;
   min-height: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
+  position: relative;
   background:
     radial-gradient(ellipse 80% 60% at 20% 10%, var(--bg-mesh-1), transparent),
     radial-gradient(ellipse 70% 50% at 80% 90%, var(--bg-mesh-2), transparent),
     radial-gradient(ellipse 50% 40% at 60% 40%, var(--bg-mesh-3), transparent),
     var(--bg-base);
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
 }
 
 .app-banner {
@@ -207,6 +188,22 @@ code {
 }
 
 /* ── Workspace ───────────────────────────────────────── */
+
+.agentic-graph-toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.agentic-graph-view .app-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+}
 
 .app-workspace {
   flex: 1;
@@ -408,6 +405,22 @@ code {
 .chat-window__hint strong {
   color: #d8d8d8;
   font-weight: 600;
+}
+
+.chat-window__llm-setup {
+  flex-shrink: 0;
+  margin: 0 14px 10px;
+  padding: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(120, 53, 15, 0.25);
+  border-radius: 8px;
+}
+
+.chat-window__llm-setup-title {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fde68a;
 }
 
 .chat-window__status {

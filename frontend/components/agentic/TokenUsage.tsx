@@ -1,6 +1,6 @@
-import type { ConversationTokenUsage, TurnTokenUsage } from "../shared/tokens";
-import { formatTokenCount } from "../shared/tokens";
-import { formatUsd } from "../shared/pricing";
+import type { ConversationTokenUsage, TurnTokenUsage } from "@/lib/agentic/tokens";
+import { formatTokenCount } from "@/lib/agentic/tokens";
+import { formatUsd } from "@/lib/agentic/pricing";
 
 function TurnRow({ label, usage }: { label: string; usage: TurnTokenUsage }) {
   return (

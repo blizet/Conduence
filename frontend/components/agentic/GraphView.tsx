@@ -3,8 +3,8 @@ import { DataSet } from "vis-data";
 import { Network } from "vis-network";
 import "vis-network/styles/vis-network.min.css";
 
-import type { GraphEdge, WeightedGraph } from "../shared/types";
-import { clampWeight, formatWeight, formatWeightShort, proportionalityLabel } from "../shared/weight";
+import type { GraphEdge, WeightedGraph } from "@/lib/agentic/types";
+import { clampWeight, formatWeight, formatWeightShort, proportionalityLabel } from "@/lib/agentic/weight";
 import { NODE_TYPE_LABELS, buildTypeLegend, graphToVis } from "./graph-viz";
 
 type SelectedNode = {

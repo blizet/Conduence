@@ -12,6 +12,7 @@ from app.api.routes import (
     router,
     tools_router,
 )
+from app.agentic.routes import router as agentic_router
 from app.config import PORT
 from app.falkordb.service import FalkorDbService
 from app.kafka.producer import SignalProducerService
@@ -94,6 +95,7 @@ app.include_router(agents_router)
 app.include_router(marketplace_router)
 app.include_router(feeds_router)
 app.include_router(orchestrator_router)
+app.include_router(agentic_router)
 
 
 @app.websocket("/ws")

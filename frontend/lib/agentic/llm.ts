@@ -64,7 +64,7 @@ export function resolveLlmConfig(
   return { provider, apiKey, model };
 }
 
-export const LLM_SETTINGS_STORAGE_KEY = "supermemory-graph-llm-settings";
+export const LLM_SETTINGS_STORAGE_KEY = "agentic-graph-llm-settings";
 
 export function loadStoredLlmSettings(): LlmSettingsInput {
   try {
