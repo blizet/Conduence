@@ -18,6 +18,8 @@ import { PolymarketGammaNode } from './tools/PolymarketGammaNode';
 import { PolymarketWalletNode } from './tools/PolymarketWalletNode';
 import { TavilyNode } from './tools/TavilyNode';
 import { TelegramToolNode } from './tools/TelegramToolNode';
+import { WalletMonitorNode } from './tools/WalletMonitorNode';
+import { XMonitorNode } from './tools/XMonitorNode';
 
 export const nodeTypes: NodeTypes = {
   workflowOutput: OutputNode,
@@ -34,6 +36,8 @@ export const nodeTypes: NodeTypes = {
   coingecko: CoinGeckoNode,
   polymarketGamma: PolymarketGammaNode,
   polymarketWallet: PolymarketWalletNode,
+  xMonitor: XMonitorNode,
+  walletMonitor: WalletMonitorNode,
   llm: LlmNode,
   newsAgent: NewsAgentNode,
   arbitrageAgent: ArbitrageAgentNode,
@@ -172,6 +176,22 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Recent trades / open positions of a wallet',
     category: 'tool',
     accent: '#2dd4bf',
+    toolGroup: 'helpers',
+  },
+  {
+    type: 'xMonitor',
+    label: 'X Monitor',
+    description: 'Track X handles and alert on tweets matching criteria + topics',
+    category: 'tool',
+    accent: '#e5e7eb',
+    toolGroup: 'socials',
+  },
+  {
+    type: 'walletMonitor',
+    label: 'Wallet Monitor',
+    description: 'Monitor Polymarket or Kalshi wallet trades by category with keyword suppression',
+    category: 'tool',
+    accent: '#14b8a6',
     toolGroup: 'helpers',
   },
   {

@@ -94,6 +94,22 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
   coingecko: { apiKey: '' },
   polymarketGamma: {},
   polymarketWallet: {},
+  xMonitor: {
+    xMonitorUsernames: '',
+    xMonitorAlertCriteria: '',
+    xMonitorTopics: '',
+    xMonitorLimit: '10',
+    apiKey: '',
+  },
+  walletMonitor: {
+    walletMonitorPlatform: 'polymarket',
+    walletMonitorWallets: '',
+    walletMonitorCategories: '',
+    walletMonitorSuppressKeywords: '',
+    walletMonitorLimit: '20',
+    apiKey: '',
+    apiSecret: '',
+  },
 };
 
 export function createNodeData(item: PaletteItem): WorkflowNodeData {

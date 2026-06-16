@@ -16,6 +16,8 @@ from app.tools.defillama import fetch_defillama
 from app.tools.polymarket_gamma import fetch_gamma_markets
 from app.tools.polymarket_wallet import fetch_polymarket_wallet
 from app.tools.tavily import fetch_tavily
+from app.tools.wallet_monitor import fetch_wallet_monitor
+from app.tools.x_monitor import fetch_x_monitor
 
 MAX_ENRICHMENT_CALLS = 6
 
@@ -32,6 +34,8 @@ TOOL_CATEGORIES: dict[str, str] = {
     "defillama": "macro",
     "clob": "execution",
     "kalshi": "execution",
+    "xMonitor": "research",
+    "walletMonitor": "markets",
 }
 
 
@@ -58,6 +62,8 @@ TOOL_HANDLERS: dict[str, ToolFn] = {
     "defillama": fetch_defillama,
     "clob": _invoke_clob,
     "kalshi": _invoke_kalshi,
+    "xMonitor": fetch_x_monitor,
+    "walletMonitor": fetch_wallet_monitor,
 }
 
 

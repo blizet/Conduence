@@ -22,6 +22,7 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "").strip()
 DEFILLAMA_API_KEY = os.getenv("DEFILLAMA_API_KEY", "").strip()
 COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY", "").strip()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN", os.getenv("TWITTER_BEARER_TOKEN", "")).strip()
 TOOL_FETCH_TIMEOUT_MS = int(os.getenv("TOOL_FETCH_TIMEOUT_MS", "15000"))
 AGENT_FETCH_TIMEOUT_MS = int(os.getenv("AGENT_FETCH_TIMEOUT_MS", "15000"))
 

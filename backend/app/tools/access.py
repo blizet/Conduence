@@ -11,6 +11,7 @@ from app.config import (
     CRYPTOQUANT_API_KEY,
     DEFILLAMA_API_KEY,
     TAVILY_API_KEY,
+    X_BEARER_TOKEN,
 )
 
 AccessMode = Literal["public", "private"]
@@ -23,6 +24,7 @@ _ENV_KEYS: dict[str, str] = {
     "cryptoquant": CRYPTOQUANT_API_KEY,
     "tavily": TAVILY_API_KEY,
     "defillama": DEFILLAMA_API_KEY,
+    "xMonitor": X_BEARER_TOKEN,
 }
 
 _ENDPOINT_TIERS: dict[str, dict[str, EndpointTier]] = {
@@ -85,6 +87,14 @@ _ENDPOINT_TIERS: dict[str, dict[str, EndpointTier]] = {
         "tokenProtocols": "private",
         "inflows": "private",
         "chainAssets": "private",
+    },
+    "xMonitor": {
+        "configure": "public",
+        "poll": "private",
+    },
+    "walletMonitor": {
+        "configure": "public",
+        "poll": "public",
     },
 }
 

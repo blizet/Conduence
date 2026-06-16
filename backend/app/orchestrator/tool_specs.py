@@ -352,6 +352,138 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
         ),
         "example_call": {"operation": "search", "query": "bitcoin ETF outflows", "limit": 10},
     },
+    # -------------------------------------------------------------- monitors
+    "xMonitor": {
+        "name": "xMonitor",
+        "category": "research",
+        "cost": "metered (X API v2 bearer token, server-injected)",
+        "description": (
+            "Monitor X/Twitter handles and surface tweets matching user-defined alert "
+            "criteria and topics. Use configure to validate a watchlist; poll returns "
+            "recent matching tweets as structured alerts."
+        ),
+        "when_to_use": [
+            "A signal or workflow should track specific X accounts for breaking news or narrative shifts.",
+            "You need tweet alerts filtered by topic keywords (e.g. ETF, regulation) and alert style (breaking, price calls).",
+        ],
+        "when_not_to_use": [
+            "General web research without a specific handle list — use tavily.",
+            "Continuous high-frequency streaming — this tool polls on demand.",
+        ],
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "endpoint": {
+                    "type": "string",
+                    "enum": ["configure", "poll"],
+                    "default": "poll",
+                    "description": "configure validates watchlist; poll fetches matching tweets.",
+                },
+                "usernames": {
+                    "type": "string",
+                    "description": "Comma-separated X handles without @, e.g. 'elonmusk, cz_binance'.",
+                },
+                "alertCriteria": {
+                    "type": "string",
+                    "description": (
+                        "What kinds of tweets should trigger alerts — e.g. "
+                        "'breaking news, ETF approval, regulatory action, whale calls'."
+                    ),
+                },
+                "topics": {
+                    "type": "string",
+                    "description": "Related topics/keywords to match in tweet text, e.g. 'bitcoin, ethereum, solana'.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1,
+                    "maximum": 50,
+                    "description": "Max alerts returned per poll.",
+                },
+            },
+            "required": ["usernames"],
+        },
+        "returns": (
+            "poll: data.alerts = [{username, tweetId, text, createdAt, url, matchedTokens}]. "
+            "configure: data.configured=true with parsed tokens."
+        ),
+        "example_call": {
+            "endpoint": "poll",
+            "usernames": "elonmusk",
+            "alertCriteria": "breaking news, regulatory",
+            "topics": "bitcoin, crypto",
+            "limit": 10,
+        },
+    },
+    "walletMonitor": {
+        "name": "walletMonitor",
+        "category": "markets",
+        "cost": "free for Polymarket public wallet trades; Kalshi poll needs account API credentials",
+        "description": (
+            "Monitor prediction-market wallet activity on ONE platform (polymarket OR kalshi). "
+            "Filter trades by category (geopolitics, crypto, politics, …) and suppress keyword "
+            "phrases (e.g. include geopolitics but suppress 'russia-ukraine')."
+        ),
+        "when_to_use": [
+            "Track smart-money wallets on Polymarket for category-specific flow.",
+            "Alert on whale trades while excluding noisy sub-themes via suppress keywords.",
+            "Poll Kalshi fills for the authenticated account when API credentials are set.",
+        ],
+        "when_not_to_use": [
+            "One-off wallet snapshot without category/suppress rules — use polymarketWallet.",
+            "Monitoring both Polymarket and Kalshi in one call — pick one platform per node.",
+        ],
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "endpoint": {
+                    "type": "string",
+                    "enum": ["configure", "poll"],
+                    "default": "poll",
+                },
+                "platform": {
+                    "type": "string",
+                    "enum": ["polymarket", "kalshi"],
+                    "description": "Monitor one platform only.",
+                },
+                "wallets": {
+                    "type": "string",
+                    "description": "Comma-separated Polymarket wallet addresses (0x…). Required for polymarket.",
+                },
+                "categories": {
+                    "type": "string",
+                    "description": (
+                        "Comma-separated categories to include, e.g. 'geopolitics, crypto, politics'."
+                    ),
+                },
+                "suppressKeywords": {
+                    "type": "string",
+                    "description": (
+                        "Comma-separated phrases to exclude from alerts, e.g. 'russia-ukraine, israel-gaza'."
+                    ),
+                },
+                "limit": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "maximum": 100,
+                },
+            },
+            "required": ["platform", "categories"],
+        },
+        "returns": (
+            "poll: data.alerts = filtered trades; data.suppressedSample shows trades dropped by suppress rules."
+        ),
+        "example_call": {
+            "endpoint": "poll",
+            "platform": "polymarket",
+            "wallets": "0xabc…",
+            "categories": "geopolitics",
+            "suppressKeywords": "russia-ukraine",
+            "limit": 20,
+        },
+    },
 }
 
 

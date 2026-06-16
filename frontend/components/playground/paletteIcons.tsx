@@ -101,6 +101,18 @@ const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
       <path d="M2 6.5h12" />
     </Svg>
   ),
+  xMonitor: (p) => (
+    <Svg {...p}>
+      <path d="M3 3l10 10M13 3L3 13" />
+    </Svg>
+  ),
+  walletMonitor: (p) => (
+    <Svg {...p}>
+      <rect x="2" y="4.5" width="12" height="8" rx="2" />
+      <circle cx="6" cy="8.5" r="1.2" fill="currentColor" stroke="none" />
+      <path d="M10.5 8.5h2" />
+    </Svg>
+  ),
   newsAgent: (p) => (
     <Svg {...p}>
       <rect x="2.5" y="4" width="9" height="9" rx="1.5" />

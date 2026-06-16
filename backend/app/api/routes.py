@@ -29,6 +29,8 @@ from app.tools.polymarket_gamma import fetch_gamma_markets
 from app.tools.polymarket_wallet import fetch_polymarket_wallet
 from app.tools.tavily import fetch_tavily
 from app.tools.telegram import send_telegram_message
+from app.tools.wallet_monitor import fetch_wallet_monitor
+from app.tools.x_monitor import fetch_x_monitor
 from app.orchestrator.graph_registry import GRAPH_CATALOG
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
 from app.services.workflow_marketplace import (
@@ -215,6 +217,16 @@ async def gamma_markets(body: dict[str, Any]) -> dict[str, Any]:
 @tools_router.post("/polymarket/wallet")
 async def polymarket_wallet(body: dict[str, Any]) -> dict[str, Any]:
     return await fetch_polymarket_wallet(body)
+
+
+@tools_router.post("/x-monitor/poll")
+async def x_monitor_poll(body: dict[str, Any]) -> dict[str, Any]:
+    return await fetch_x_monitor(body)
+
+
+@tools_router.post("/wallet-monitor/poll")
+async def wallet_monitor_poll(body: dict[str, Any]) -> dict[str, Any]:
+    return await fetch_wallet_monitor(body)
 
 
 agents_router = APIRouter(prefix="/api/agents")

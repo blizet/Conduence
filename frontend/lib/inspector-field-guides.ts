@@ -578,6 +578,58 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
       },
     ],
   },
+
+  xMonitor: {
+    intro: 'Track X handles and surface tweets matching alert criteria and topics.',
+    fields: [
+      {
+        field: 'X usernames',
+        description: 'Comma-separated handles to watch (without @).',
+        howTo: 'Add influencers, news desks, or protocol founders relevant to your thesis.',
+      },
+      {
+        field: 'Alert criteria',
+        description: 'What tweet types should trigger alerts.',
+        howTo: 'Examples: breaking news, ETF approval, regulatory action, whale calls.',
+      },
+      {
+        field: 'Topics',
+        description: 'Keywords that must appear in tweet text.',
+        howTo: 'Pair with alert criteria — e.g. criteria “breaking news” + topics “bitcoin, ethereum”.',
+      },
+      {
+        field: 'X Bearer token',
+        description: 'Twitter API v2 bearer token for polling timelines.',
+        howTo: 'Set on the node or X_BEARER_TOKEN in backend/.env.',
+      },
+    ],
+  },
+
+  walletMonitor: {
+    intro: 'Monitor prediction-market wallet activity with category include + keyword suppress rules.',
+    fields: [
+      {
+        field: 'Platform',
+        description: 'Polymarket or Kalshi — one platform per node.',
+        howTo: 'Polymarket supports public third-party wallet tracking; Kalshi polls authenticated fills only.',
+      },
+      {
+        field: 'Wallet addresses',
+        description: 'Polymarket 0x addresses to watch.',
+        howTo: 'Comma-separate up to five wallets from polymarket.com profiles.',
+      },
+      {
+        field: 'Categories',
+        description: 'Trade themes to include (geopolitics, crypto, politics, …).',
+        howTo: 'Example: geopolitics to focus on macro conflict markets.',
+      },
+      {
+        field: 'Suppress keywords',
+        description: 'Phrases that drop otherwise matching trades.',
+        howTo: 'Example: include geopolitics but suppress “russia-ukraine”.',
+      },
+    ],
+  },
 };
 
 export const INSPECTOR_SETUP_GUIDES: Record<string, NodeSetupGuide> = {

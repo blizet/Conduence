@@ -22,7 +22,9 @@ export type RunnableToolType =
   | 'tavily'
   | 'coingecko'
   | 'polymarketGamma'
-  | 'polymarketWallet';
+  | 'polymarketWallet'
+  | 'xMonitor'
+  | 'walletMonitor';
 
 export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType>([
   'cotBuilder',
@@ -34,6 +36,8 @@ export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType
   'coingecko',
   'polymarketGamma',
   'polymarketWallet',
+  'xMonitor',
+  'walletMonitor',
 ]);
 
 /** Minimal preview payloads when running workflow phase A — LLM fills params at orchestrate time. */
@@ -46,6 +50,21 @@ const PREVIEW_DEFAULTS: Record<string, Record<string, unknown>> = {
   tavily: { query: 'bitcoin market news', maxResults: 5 },
   polymarketGamma: { keywords: 'bitcoin', limit: 8 },
   polymarketWallet: { wallet: '', action: 'trades', limit: 10 },
+  xMonitor: {
+    endpoint: 'poll',
+    usernames: '',
+    alertCriteria: '',
+    topics: '',
+    limit: 10,
+  },
+  walletMonitor: {
+    endpoint: 'poll',
+    platform: 'polymarket',
+    wallets: '',
+    categories: '',
+    suppressKeywords: '',
+    limit: 20,
+  },
 };
 
 async function postJson(path: string, body: Record<string, unknown>, backendUrl?: string) {
@@ -159,6 +178,33 @@ function normalizeResult(
 function toolRequest(type: string, data: WorkflowNodeData): Record<string, unknown> {
   const apiKey = (data.apiKey ?? '').trim();
   const base = PREVIEW_DEFAULTS[type] ?? {};
+
+  if (type === 'xMonitor') {
+    const request: Record<string, unknown> = {
+      endpoint: 'poll',
+      usernames: data.xMonitorUsernames ?? '',
+      alertCriteria: data.xMonitorAlertCriteria ?? '',
+      topics: data.xMonitorTopics ?? '',
+      limit: Number(data.xMonitorLimit || 10),
+    };
+    return apiKey ? { ...request, apiKey } : request;
+  }
+
+  if (type === 'walletMonitor') {
+    const request: Record<string, unknown> = {
+      endpoint: 'poll',
+      platform: data.walletMonitorPlatform ?? 'polymarket',
+      wallets: data.walletMonitorWallets ?? '',
+      categories: data.walletMonitorCategories ?? '',
+      suppressKeywords: data.walletMonitorSuppressKeywords ?? '',
+      limit: Number(data.walletMonitorLimit || 20),
+    };
+    const apiSecret = (data.apiSecret ?? '').trim();
+    if (apiKey) request.apiKey = apiKey;
+    if (apiSecret) request.apiSecret = apiSecret;
+    return request;
+  }
+
   return apiKey ? { ...base, apiKey } : { ...base };
 }
 
@@ -230,6 +276,24 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
       data.backendUrl,
     );
     return normalizeResult('polymarketWallet', payload, request, response.ok, durationMs);
+  }
+  if (type === 'xMonitor') {
+    const request = toolRequest(type, data);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/x-monitor/poll',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('xMonitor', payload, request, response.ok, durationMs);
+  }
+  if (type === 'walletMonitor') {
+    const request = toolRequest(type, data);
+    const { response, payload, durationMs } = await postJson(
+      '/api/tools/wallet-monitor/poll',
+      request,
+      data.backendUrl,
+    );
+    return normalizeResult('walletMonitor', payload, request, response.ok, durationMs);
   }
   if (type === 'cotBuilder') {
     const decision = JSON.parse(data.decisionJson ?? '{}');

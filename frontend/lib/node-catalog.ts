@@ -69,6 +69,22 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
       'Cross-check positioning against your thesis.',
     ],
   },
+  xMonitor: {
+    summary:
+      'Monitor X handles and alert on tweets that match your criteria (breaking news, price calls) and topic keywords.',
+    helpsWith: [
+      'Track specific accounts for narrative or regulatory shifts.',
+      'Filter tweet noise by topic before wiring into the orchestrator.',
+    ],
+  },
+  walletMonitor: {
+    summary:
+      'Monitor wallet trades on Polymarket or Kalshi with category filters and keyword suppression — one platform per node.',
+    helpsWith: [
+      'Alert on geopolitics trades while suppressing russia-ukraine noise.',
+      'Follow multiple Polymarket wallets for category-specific flow.',
+    ],
+  },
   clob: {
     summary:
       'Polymarket execution sink — receives a trade order from a wired agent and submits it to the CLOB.',

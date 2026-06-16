@@ -22,6 +22,8 @@ PURE_TOOL_NODE_TYPES = frozenset(
         "tavily",
         "polymarketGamma",
         "polymarketWallet",
+        "xMonitor",
+        "walletMonitor",
         "clob",
         "kalshi",
         "cotBuilder",
@@ -117,6 +119,31 @@ def _tool_configs_for_tools(
                 val = data.get(field)
                 if val not in (None, ""):
                     configs[node_type][key_name] = val
+        elif node_type == "xMonitor":
+            for field, key_name in (
+                ("xMonitorUsernames", "usernames"),
+                ("xMonitorAlertCriteria", "alertCriteria"),
+                ("xMonitorTopics", "topics"),
+                ("xMonitorLimit", "limit"),
+            ):
+                val = data.get(field)
+                if val not in (None, ""):
+                    configs[node_type][key_name] = val
+        elif node_type == "walletMonitor":
+            for field, key_name in (
+                ("walletMonitorPlatform", "platform"),
+                ("walletMonitorWallets", "wallets"),
+                ("walletMonitorCategories", "categories"),
+                ("walletMonitorSuppressKeywords", "suppressKeywords"),
+                ("walletMonitorLimit", "limit"),
+            ):
+                val = data.get(field)
+                if val not in (None, ""):
+                    configs[node_type][key_name] = val
+            if (data.get("apiKey") or "").strip():
+                configs[node_type]["apiKey"] = data["apiKey"].strip()
+            if (data.get("apiSecret") or "").strip():
+                configs[node_type]["apiSecret"] = data["apiSecret"].strip()
     return configs
 
 

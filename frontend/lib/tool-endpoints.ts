@@ -107,6 +107,22 @@ export const TOOL_ENDPOINT_CATALOGS: Record<string, ToolEndpointCatalog> = {
       { id: 'chainAssets', label: 'Chain assets (Pro)', tier: 'private' },
     ],
   },
+  xMonitor: {
+    defaultEndpoint: 'poll',
+    hasPublicEndpoints: false,
+    endpoints: [
+      { id: 'configure', label: 'Configure watchlist', tier: 'public' },
+      { id: 'poll', label: 'Poll matching tweets', tier: 'private' },
+    ],
+  },
+  walletMonitor: {
+    defaultEndpoint: 'poll',
+    hasPublicEndpoints: true,
+    endpoints: [
+      { id: 'configure', label: 'Configure monitor', tier: 'public' },
+      { id: 'poll', label: 'Poll wallet alerts', tier: 'public' },
+    ],
+  },
 };
 
 export function getToolCatalog(toolId: string): ToolEndpointCatalog | undefined {

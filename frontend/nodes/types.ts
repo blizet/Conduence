@@ -112,6 +112,15 @@ export type WorkflowNodeData = {
   pmWallet?: string;
   pmWalletAction?: 'trades' | 'positions';
   pmWalletLimit?: string;
+  xMonitorUsernames?: string;
+  xMonitorAlertCriteria?: string;
+  xMonitorTopics?: string;
+  xMonitorLimit?: string;
+  walletMonitorPlatform?: 'polymarket' | 'kalshi';
+  walletMonitorWallets?: string;
+  walletMonitorCategories?: string;
+  walletMonitorSuppressKeywords?: string;
+  walletMonitorLimit?: string;
   simulate?: boolean;
   toolGroup?: PaletteToolGroup;
   agentId?: string;

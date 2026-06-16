@@ -13,6 +13,7 @@ import {
   SportsScannerInspectorFields,
 } from './AgentInspectorFields';
 import { CatalogToolFields } from './CatalogToolFields';
+import { MonitorToolFields } from './MonitorToolFields';
 import { ClobInspectorFields, KalshiInspectorFields, TelegramInspectorFields } from './VenueToolFields';
 
 const CATALOG_TOOLS = new Set([
@@ -25,6 +26,8 @@ const CATALOG_TOOLS = new Set([
   'polymarketGamma',
   'polymarketWallet',
 ]);
+
+const MONITOR_TOOLS = new Set(['xMonitor', 'walletMonitor']);
 
 type NodeInspectorFieldsProps = {
   node: WorkflowNode;
@@ -41,6 +44,10 @@ export function NodeInspectorFields({ node, nodes, edges, feedSignals }: NodeIns
 
   if (CATALOG_TOOLS.has(type)) {
     return <CatalogToolFields toolId={type} data={data} onPatch={onPatch} />;
+  }
+
+  if (MONITOR_TOOLS.has(type)) {
+    return <MonitorToolFields toolId={type as 'xMonitor' | 'walletMonitor'} data={data} onPatch={onPatch} />;
   }
 
   switch (type) {
