@@ -14,6 +14,7 @@ import {
 } from './AgentInspectorFields';
 import { CatalogToolFields } from './CatalogToolFields';
 import { MonitorToolFields } from './MonitorToolFields';
+import { PaperTradingInspectorFields } from './PaperTradingInspectorFields';
 import { ClobInspectorFields, KalshiInspectorFields, TelegramInspectorFields } from './VenueToolFields';
 
 const CATALOG_TOOLS = new Set([
@@ -78,6 +79,18 @@ export function NodeInspectorFields({ node, nodes, edges, feedSignals }: NodeIns
     case 'telegram':
       return (
         <TelegramInspectorFields
+          nodeId={node.id}
+          data={data}
+          accent={accent}
+          nodes={nodes}
+          edges={edges}
+          feedSignals={feedSignals}
+          onPatch={onPatch}
+        />
+      );
+    case 'paperTrading':
+      return (
+        <PaperTradingInspectorFields
           nodeId={node.id}
           data={data}
           accent={accent}

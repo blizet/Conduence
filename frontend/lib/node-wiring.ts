@@ -14,6 +14,7 @@ export const PURE_TOOL_NODE_TYPES = new Set([
   'walletMonitor',
   'clob',
   'kalshi',
+  'paperTrading',
   'cotBuilder',
 ]);
 

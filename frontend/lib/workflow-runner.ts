@@ -323,7 +323,7 @@ async function runWiredExecutionTools({
     let result;
     try {
       result = await runExecutionToolFromAgent(
-        node.type as 'clob' | 'kalshi' | 'telegram',
+        node.type as 'clob' | 'kalshi' | 'telegram' | 'paperTrading',
         node.data,
         payload,
         node.data.backendUrl,

@@ -100,6 +100,14 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
       'Maps agent JSON (action, ticker, side, count, price) into Kalshi order format.',
     ],
   },
+  paperTrading: {
+    summary:
+      'Paper trading sink — simulates prediction market trades against a configured paper portfolio session.',
+    helpsWith: [
+      'Wire Orchestrator or sub-agent output → Input, then run workflow to paper-execute.',
+      'Pick a session from the Paper Trading page (capital, risk limits, linked workflow).',
+    ],
+  },
   telegram: {
     summary:
       'Telegram bot notifier — forwards agent signals (thesis, trade, news) to your Telegram username or chat ID.',

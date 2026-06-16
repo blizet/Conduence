@@ -63,6 +63,9 @@ export type WorkflowNodeData = {
   kalshiPrice?: string;
   kalshiStatus?: string;
   kalshiQuoteJson?: string;
+  paperSessionId?: string;
+  paperWorkflowId?: string;
+  paperTradingStatus?: string;
   walletAddresses?: string[];
   conditionId?: string;
   workflowStatus?: 'idle' | 'running' | 'success' | 'error';

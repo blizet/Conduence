@@ -4,8 +4,9 @@ import type { Edge } from '@xyflow/react';
 import type { WorkflowNode, WorkflowNodeData } from '@/nodes/types';
 import { API_BASE, type ToolExecutionResult } from './workflow-tools';
 import type { OrchestratorRunResult } from './orchestrator-runner';
+import { executePaperTradingForSession } from './paper-trading';
 
-export const EXECUTION_TOOL_TYPES = new Set(['clob', 'kalshi', 'telegram']);
+export const EXECUTION_TOOL_TYPES = new Set(['clob', 'kalshi', 'telegram', 'paperTrading']);
 
 const AGENT_SOURCE_TYPES = new Set(['llm', 'newsAgent', 'arbitrageAgent', 'riskAnalyzer', 'sportsScanner']);
 
@@ -78,13 +79,16 @@ export function upstreamAgentForExecutionTool(
       edge.target === execNodeId &&
       (edge.targetHandle === 'in' || edge.targetHandle == null || edge.targetHandle === ''),
   );
+  const candidates: WorkflowNode[] = [];
   for (const edge of incoming) {
     const source = byId.get(edge.source);
     if (source?.type && AGENT_SOURCE_TYPES.has(source.type)) {
-      return source;
+      candidates.push(source);
     }
   }
-  return null;
+  const orchestrator = candidates.find((n) => n.type === 'llm');
+  if (orchestrator) return orchestrator;
+  return candidates[0] ?? null;
 }
 
 export function resolveAgentTradePayload(
@@ -346,12 +350,42 @@ export async function executeTelegramFromAgent(
   };
 }
 
+export async function executePaperTradingFromAgent(
+  data: WorkflowNodeData,
+  payload: AgentTradeInput,
+): Promise<ToolExecutionResult> {
+  const sessionId = data.paperSessionId ?? '';
+  const result = executePaperTradingForSession(
+    sessionId,
+    payload as Record<string, unknown>,
+    data.paperWorkflowId,
+  );
+  if (!result.ok) {
+    return {
+      ok: false,
+      source: 'paperTrading',
+      request: { sessionId, workflowId: data.paperWorkflowId },
+      error: result.error ?? 'Paper trade failed',
+    };
+  }
+  const body = result.data ?? {};
+  return {
+    ok: true,
+    source: 'paperTrading',
+    request: { sessionId, workflowId: data.paperWorkflowId },
+    data: body,
+    error: null,
+    durationMs: 0,
+  };
+}
+
 export async function runExecutionToolFromAgent(
-  type: 'clob' | 'kalshi' | 'telegram',
+  type: 'clob' | 'kalshi' | 'telegram' | 'paperTrading',
   data: WorkflowNodeData,
   payload: AgentTradeInput,
   backendUrl?: string,
 ): Promise<ToolExecutionResult> {
+  if (type === 'paperTrading') return executePaperTradingFromAgent(data, payload);
   if (type === 'clob') return executeClobFromAgent(data, payload, backendUrl);
   if (type === 'telegram') return executeTelegramFromAgent(data, payload, backendUrl);
   return executeKalshiFromAgent(data, payload, backendUrl);

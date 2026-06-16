@@ -3,8 +3,16 @@
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
 import { runOrchestrator, type OrchestratorRunResult } from './orchestrator-runner';
+import {
+  ensureDefaultWorkflows,
+  getWorkflowById,
+  loadSavedWorkflows,
+  type SavedWorkflow,
+} from './workflow-storage';
 
 const STORAGE_KEY = 'cot-paper-trading-workspaces';
+
+export type SimulationPlatform = 'polymarket' | 'kalshi' | 'both';
 
 export type PaperSide = 'YES' | 'NO';
 
@@ -61,11 +69,14 @@ export type SimulationSettings = {
 export type PaperWorkspace = {
   id: string;
   name: string;
+  description?: string;
   createdAt: string;
   updatedAt: string;
-  workflowId?: string;
+  workflowId: string;
   workflowName?: string;
-  canvas: { nodes: WorkflowNode[]; edges: Edge[] };
+  platform: SimulationPlatform;
+  /** Legacy — canvas is loaded from workflow-storage when workflowId is set */
+  canvas?: { nodes: WorkflowNode[]; edges: Edge[] };
   portfolio: PaperPortfolio;
   settings: SimulationSettings;
   lastRunAt?: string;
@@ -73,6 +84,17 @@ export type PaperWorkspace = {
   lastRunError?: string;
   lastDecision?: Record<string, unknown>;
   runCount: number;
+  stressCycleCount?: number;
+};
+
+export type StressTestResult = {
+  cycles: number;
+  completed: number;
+  tradesExecuted: number;
+  startEquity: number;
+  endEquity: number;
+  pnl: number;
+  errors: string[];
 };
 
 export type SimulationCycleResult = {
@@ -112,17 +134,66 @@ function uid(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function createWorkspace(name: string, initialCapital = 10000): PaperWorkspace {
+export function createWorkspace(
+  name: string,
+  initialCapital = 10000,
+  workflow?: SavedWorkflow,
+  platform: SimulationPlatform = 'both',
+): PaperWorkspace {
   const now = new Date().toISOString();
+  const wf = workflow ?? ensureDefaultWorkflows().workflows[0];
   return {
     id: uid(),
     name,
     createdAt: now,
     updatedAt: now,
-    canvas: { nodes: [], edges: [] },
+    workflowId: wf.id,
+    workflowName: wf.name,
+    platform,
     portfolio: emptyPortfolio(initialCapital),
     settings: { ...DEFAULT_SETTINGS },
     runCount: 0,
+    stressCycleCount: 10,
+  };
+}
+
+export function resolveWorkspaceCanvas(workspace: PaperWorkspace): {
+  nodes: WorkflowNode[];
+  edges: Edge[];
+  workflowName: string;
+} {
+  const workflow = getWorkflowById(workspace.workflowId);
+  if (workflow) {
+    return {
+      nodes: workflow.canvas.nodes,
+      edges: workflow.canvas.edges,
+      workflowName: workflow.name,
+    };
+  }
+  const legacy = workspace.canvas;
+  return {
+    nodes: legacy?.nodes ?? [],
+    edges: legacy?.edges ?? [],
+    workflowName: workspace.workflowName ?? workspace.name,
+  };
+}
+
+export function listSimulatableWorkflows(): SavedWorkflow[] {
+  return loadSavedWorkflows();
+}
+
+function migrateWorkspace(raw: PaperWorkspace): PaperWorkspace {
+  const { workflows, activeId } = ensureDefaultWorkflows();
+  const workflowId = raw.workflowId ?? activeId ?? workflows[0]?.id ?? '';
+  const workflow = getWorkflowById(workflowId);
+  return {
+    ...raw,
+    workflowId,
+    workflowName: workflow?.name ?? raw.workflowName ?? raw.name,
+    platform: raw.platform ?? 'both',
+    description: raw.description ?? '',
+    stressCycleCount: raw.stressCycleCount ?? 10,
+    settings: { ...DEFAULT_SETTINGS, ...raw.settings },
   };
 }
 
@@ -132,7 +203,8 @@ export function loadWorkspaces(): PaperWorkspace[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as PaperWorkspace[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(migrateWorkspace);
   } catch {
     return [];
   }
@@ -363,20 +435,21 @@ export function applySimulationResult(
 
 export async function runSimulationCycle(workspace: PaperWorkspace): Promise<SimulationCycleResult> {
   const runId = uid();
-  if (workspace.canvas.nodes.length === 0) {
+  const { nodes, edges } = resolveWorkspaceCanvas(workspace);
+  if (nodes.length === 0) {
     return {
       ok: false,
       runId,
-      orchestrator: { ok: false, error: 'No workflow loaded — import a strategy from the marketplace.' },
+      orchestrator: {
+        ok: false,
+        error: 'No strategy workflow — build one on the Workflow canvas first.',
+      },
       tradesExecuted: [],
       error: 'No workflow loaded',
     };
   }
 
-  const orchestrator = await runOrchestrator({
-    nodes: workspace.canvas.nodes,
-    edges: workspace.canvas.edges,
-  });
+  const orchestrator = await runOrchestrator({ nodes, edges });
 
   return {
     ok: orchestrator.ok,
@@ -384,6 +457,59 @@ export async function runSimulationCycle(workspace: PaperWorkspace): Promise<Sim
     orchestrator,
     tradesExecuted: [],
     error: orchestrator.error,
+  };
+}
+
+export async function runStressTest(
+  workspace: PaperWorkspace,
+  cycles: number,
+  onProgress?: (completed: number, total: number) => void,
+): Promise<{ workspace: PaperWorkspace; result: StressTestResult }> {
+  const total = Math.max(1, Math.min(100, Math.floor(cycles)));
+  let current = workspace;
+  const startEquity = computeEquity(current.portfolio);
+  let tradesExecuted = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < total; i++) {
+    const cycle = await runSimulationCycle(current);
+    const beforeTrades = current.portfolio.trades.length;
+    current = applySimulationResult(current, { ...cycle, tradesExecuted: [] });
+    tradesExecuted += current.portfolio.trades.length - beforeTrades;
+    if (cycle.error) errors.push(cycle.error);
+    onProgress?.(i + 1, total);
+  }
+
+  const endEquity = computeEquity(current.portfolio);
+  return {
+    workspace: {
+      ...current,
+      stressCycleCount: total,
+      updatedAt: new Date().toISOString(),
+    },
+    result: {
+      cycles: total,
+      completed: total,
+      tradesExecuted,
+      startEquity,
+      endEquity,
+      pnl: endEquity - startEquity,
+      errors,
+    },
+  };
+}
+
+export function applyStartingCapital(workspace: PaperWorkspace, capital: number): PaperWorkspace {
+  const val = Math.max(100, Number.isFinite(capital) ? capital : workspace.portfolio.initialCapital);
+  return {
+    ...workspace,
+    portfolio: emptyPortfolio(val),
+    runCount: 0,
+    lastRunAt: undefined,
+    lastRunOk: undefined,
+    lastRunError: undefined,
+    lastDecision: undefined,
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -401,6 +527,127 @@ export function resetPortfolio(workspace: PaperWorkspace): PaperWorkspace {
   };
 }
 
+/** Apply an orchestrator/agent decision payload to a paper session portfolio. */
+export function applyAgentDecisionToWorkspace(
+  workspace: PaperWorkspace,
+  decision: Record<string, unknown>,
+): { workspace: PaperWorkspace; traded: boolean; message: string } {
+  const action = String(decision.action ?? '').toUpperCase();
+  if (action === 'HOLD' || !action) {
+    return {
+      workspace: {
+        ...workspace,
+        lastDecision: decision,
+        lastRunAt: new Date().toISOString(),
+        lastRunOk: true,
+        lastRunError: undefined,
+        updatedAt: new Date().toISOString(),
+      },
+      traded: false,
+      message: 'HOLD — no paper trade executed',
+    };
+  }
+
+  const beforeTrades = workspace.portfolio.trades.length;
+  const updated = applySimulationResult(workspace, {
+    ok: true,
+    runId: uid(),
+    orchestrator: { ok: true, decision },
+    tradesExecuted: [],
+  });
+  const traded = updated.portfolio.trades.length > beforeTrades;
+  return {
+    workspace: updated,
+    traded,
+    message: traded ? 'Paper trade executed' : 'Decision received but no trade met session rules',
+  };
+}
+
+export function executePaperTradingForSession(
+  sessionId: string,
+  payload: Record<string, unknown>,
+  workflowId?: string,
+): {
+  ok: boolean;
+  error?: string;
+  data?: Record<string, unknown>;
+} {
+  const workspaces = loadWorkspaces();
+  let idx = -1;
+
+  const sid = sessionId.trim();
+  if (sid) {
+    idx = workspaces.findIndex((w) => w.id === sid);
+  }
+
+  const wfId = workflowId?.trim();
+  if (idx === -1 && wfId) {
+    idx = workspaces.findIndex((w) => w.workflowId === wfId);
+  }
+
+  if (idx === -1) {
+    if (wfId) {
+      return {
+        ok: false,
+        error: 'No paper session for this workflow — create one on the Paper Trading page',
+      };
+    }
+    return { ok: false, error: 'Select a strategy workflow or paper session on the node' };
+  }
+
+  const { workspace, traded, message } = applyAgentDecisionToWorkspace(workspaces[idx], payload);
+  workspaces[idx] = workspace;
+  saveWorkspaces(workspaces);
+
+  const equity = computeEquity(workspace.portfolio);
+  const lastTrade = workspace.portfolio.trades[0];
+
+  return {
+    ok: true,
+    data: {
+      traded,
+      message,
+      sessionId: workspace.id,
+      sessionName: workspace.name,
+      equity,
+      cash: workspace.portfolio.cash,
+      runCount: workspace.runCount,
+      lastTrade,
+    },
+  };
+}
+
+export type PaperSessionOption = {
+  id: string;
+  name: string;
+  workflowId: string;
+  workflowName?: string;
+  platform: SimulationPlatform;
+  equity: number;
+};
+
+export function listPaperSessionOptions(): PaperSessionOption[] {
+  return loadWorkspaces().map((w) => ({
+    id: w.id,
+    name: w.name,
+    workflowId: w.workflowId,
+    workflowName: w.workflowName,
+    platform: w.platform,
+    equity: computeEquity(w.portfolio),
+  }));
+}
+
+export function persistPaperWorkspace(workspace: PaperWorkspace): void {
+  const workspaces = loadWorkspaces();
+  const idx = workspaces.findIndex((w) => w.id === workspace.id);
+  if (idx === -1) {
+    saveWorkspaces([...workspaces, workspace]);
+    return;
+  }
+  workspaces[idx] = workspace;
+  saveWorkspaces(workspaces);
+}
+
 export function formatUsd(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -412,3 +659,11 @@ export function formatUsd(value: number): string {
 export function formatPct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
+
+export const PLATFORM_LABELS: Record<SimulationPlatform, string> = {
+  polymarket: 'Polymarket',
+  kalshi: 'Kalshi',
+  both: 'Polymarket × Kalshi',
+};
+
+export const STRESS_CYCLE_PRESETS = [1, 5, 10, 25, 50] as const;

@@ -14,6 +14,7 @@ import { CryptoQuantNode } from './tools/CryptoQuantNode';
 import { DefiLlamaNode } from './tools/DefiLlamaNode';
 import { KalshiToolNode } from './tools/KalshiToolNode';
 import { OutputNode } from './tools/OutputNode';
+import { PaperTradingNode } from './tools/PaperTradingNode';
 import { PolymarketGammaNode } from './tools/PolymarketGammaNode';
 import { PolymarketWalletNode } from './tools/PolymarketWalletNode';
 import { TavilyNode } from './tools/TavilyNode';
@@ -26,6 +27,7 @@ export const nodeTypes: NodeTypes = {
   output: OutputNode,
   clob: ClobToolNode,
   kalshi: KalshiToolNode,
+  paperTrading: PaperTradingNode,
   telegram: TelegramToolNode,
   cotBuilder: CotBuilderNode,
   coinmarketcap: CoinMarketCapNode,
@@ -120,6 +122,14 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Execute Kalshi trades from agent output',
     category: 'tool',
     accent: '#2dd4bf',
+    toolGroup: 'execution',
+  },
+  {
+    type: 'paperTrading',
+    label: 'Paper Trading',
+    description: 'Simulate YES/NO trades against a paper portfolio session',
+    category: 'tool',
+    accent: '#d4d4d4',
     toolGroup: 'execution',
   },
   {

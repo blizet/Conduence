@@ -3,106 +3,458 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import type { Edge } from '@xyflow/react';
-import { ReactFlowProvider } from '@xyflow/react';
-import type { WorkflowNode } from '@/nodes/types';
-import { NodePalette } from '@/components/playground/NodePalette';
-import { WorkflowCanvas } from '@/components/playground/WorkflowCanvas';
-import { InstalledAgentsProvider } from '@/lib/marketplace';
-import { AgentFeedProvider } from '@/lib/agent-feed';
+import {
+  ensureDefaultWorkflows,
+  getWorkflowById,
+  loadSavedWorkflows,
+  type SavedWorkflow,
+} from '@/lib/workflow-storage';
 import {
   applySimulationResult,
+  applyStartingCapital,
   computeEquity,
   createWorkspace,
   formatPct,
   formatUsd,
+  listSimulatableWorkflows,
   loadWorkspaces,
+  PLATFORM_LABELS,
   resetPortfolio,
+  resolveWorkspaceCanvas,
   runSimulationCycle,
+  runStressTest,
   saveWorkspaces,
+  STRESS_CYCLE_PRESETS,
   type PaperWorkspace,
+  type SimulationPlatform,
+  type StressTestResult,
 } from '@/lib/paper-trading';
 
-function WorkspaceTab({
+function StrategySetupPanel({
   workspace,
-  active,
-  onSelect,
-  onClose,
+  savedWorkflows,
+  workflowReady,
+  workflowName,
+  nodeCount,
+  onUpdate,
+  onApplyCapital,
+  onRefreshWorkflows,
 }: {
   workspace: PaperWorkspace;
-  active: boolean;
-  onSelect: () => void;
-  onClose: () => void;
+  savedWorkflows: SavedWorkflow[];
+  workflowReady: boolean;
+  workflowName: string;
+  nodeCount: number;
+  onUpdate: (patch: Partial<PaperWorkspace>) => void;
+  onApplyCapital: (capital: number) => void;
+  onRefreshWorkflows: () => void;
 }) {
+  const [capitalInput, setCapitalInput] = useState(String(workspace.portfolio.initialCapital));
+
+  useEffect(() => {
+    setCapitalInput(String(workspace.portfolio.initialCapital));
+  }, [workspace.id, workspace.portfolio.initialCapital]);
+
+  const parsedCapital = Number(capitalInput);
+  const capitalValid = Number.isFinite(parsedCapital) && parsedCapital >= 100;
+  const capitalChanged =
+    capitalValid && parsedCapital !== workspace.portfolio.initialCapital;
+
   return (
-    <div className="simulate-workspace-tab">
-      <button
-        type="button"
-        className={`graph-view-toggle simulate-workspace-tab__btn${active ? ' graph-view-toggle--active' : ''}`}
-        onClick={onSelect}
-      >
-        {workspace.name}
-      </button>
-      <button
-        type="button"
-        className="simulate-workspace-tab__close"
-        onClick={onClose}
-        title="Remove workspace"
-        aria-label={`Remove ${workspace.name}`}
-      >
-        ×
-      </button>
-    </div>
+    <section className="paper-setup glass-panel">
+      <div className="paper-setup__head">
+        <h2 className="paper-section-title">Strategy setup</h2>
+        <p className="cot-graph-sidebar__hint">
+          Configure this paper session before running cycles.
+        </p>
+      </div>
+
+      <div className="paper-setup__grid">
+        <div className="paper-setup__col">
+          <h3 className="paper-setup__subtitle">Session</h3>
+          <label className="paper-field">
+            <span className="paper-field__label">Name</span>
+            <input
+              className="cot-graph-sidebar__input"
+              type="text"
+              value={workspace.name}
+              placeholder="e.g. Kalshi arb test"
+              onChange={(e) => onUpdate({ name: e.target.value })}
+            />
+          </label>
+          <label className="paper-field">
+            <span className="paper-field__label">Notes</span>
+            <textarea
+              className="cot-graph-sidebar__input paper-setup__textarea"
+              rows={3}
+              value={workspace.description ?? ''}
+              placeholder="Thesis, markets to watch, risk limits, edge assumptions…"
+              onChange={(e) => onUpdate({ description: e.target.value })}
+            />
+          </label>
+        </div>
+
+        <div className="paper-setup__col">
+          <h3 className="paper-setup__subtitle">Workflow</h3>
+          <label className="paper-field">
+            <span className="paper-field__label">Saved strategy</span>
+            <select
+              className="cot-graph-sidebar__input"
+              value={workspace.workflowId}
+              onChange={(e) => {
+                const wf = getWorkflowById(e.target.value);
+                if (!wf) return;
+                onUpdate({ workflowId: wf.id, workflowName: wf.name });
+                onRefreshWorkflows();
+              }}
+            >
+              {savedWorkflows.map((wf) => (
+                <option key={wf.id} value={wf.id}>
+                  {wf.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="paper-field__hint">
+            {workflowReady
+              ? `«${workflowName}» · ${nodeCount} nodes wired`
+              : 'This workflow has no nodes yet.'}
+          </p>
+          <div className="paper-setup__links">
+            <Link
+              href={`/?workflow=${workspace.workflowId}`}
+              className="graph-view-toggle"
+            >
+              Edit workflow graph
+            </Link>
+            <button type="button" className="graph-view-toggle" onClick={onRefreshWorkflows}>
+              Sync from builder
+            </button>
+          </div>
+          <label className="paper-field">
+            <span className="paper-field__label">Platform</span>
+            <select
+              className="cot-graph-sidebar__input"
+              value={workspace.platform}
+              onChange={(e) =>
+                onUpdate({ platform: e.target.value as SimulationPlatform })
+              }
+            >
+              {(Object.keys(PLATFORM_LABELS) as SimulationPlatform[]).map((key) => (
+                <option key={key} value={key}>
+                  {PLATFORM_LABELS[key]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="paper-setup__col">
+          <h3 className="paper-setup__subtitle">Capital</h3>
+          <label className="paper-field">
+            <span className="paper-field__label">Starting bankroll (USD)</span>
+            <input
+              className="cot-graph-sidebar__input"
+              type="number"
+              min={100}
+              step={100}
+              value={capitalInput}
+              onChange={(e) => setCapitalInput(e.target.value)}
+            />
+          </label>
+          <p className="paper-field__hint">
+            Current cash {formatUsd(workspace.portfolio.cash)} · configured start{' '}
+            {formatUsd(workspace.portfolio.initialCapital)}
+          </p>
+          <div className="paper-setup__links">
+            <button
+              type="button"
+              className="graph-view-toggle paper-actions__primary"
+              disabled={!capitalValid || !capitalChanged}
+              onClick={() => onApplyCapital(parsedCapital)}
+            >
+              Apply &amp; reset portfolio
+            </button>
+          </div>
+        </div>
+
+        <div className="paper-setup__col">
+          <h3 className="paper-setup__subtitle">Risk &amp; execution</h3>
+          <label className="paper-field">
+            <span className="paper-field__label">
+              Min confidence · {formatPct(workspace.settings.minConfidence)}
+            </span>
+            <input
+              className="simulate-range"
+              type="range"
+              min={0.3}
+              max={0.95}
+              step={0.05}
+              value={workspace.settings.minConfidence}
+              onChange={(e) =>
+                onUpdate({
+                  settings: {
+                    ...workspace.settings,
+                    minConfidence: Number(e.target.value),
+                  },
+                })
+              }
+            />
+          </label>
+          <label className="paper-field">
+            <span className="paper-field__label">
+              Max position size · {formatPct(workspace.settings.maxPositionPct)}
+            </span>
+            <input
+              className="simulate-range"
+              type="range"
+              min={0.02}
+              max={0.25}
+              step={0.01}
+              value={workspace.settings.maxPositionPct}
+              onChange={(e) =>
+                onUpdate({
+                  settings: {
+                    ...workspace.settings,
+                    maxPositionPct: Number(e.target.value),
+                  },
+                })
+              }
+            />
+          </label>
+          <label className="paper-field">
+            <span className="paper-field__label">Max open positions</span>
+            <input
+              className="cot-graph-sidebar__input"
+              type="number"
+              min={1}
+              max={20}
+              step={1}
+              value={workspace.settings.maxOpenPositions}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                if (!Number.isFinite(val)) return;
+                onUpdate({
+                  settings: {
+                    ...workspace.settings,
+                    maxOpenPositions: Math.max(1, Math.min(20, val)),
+                  },
+                });
+              }}
+            />
+          </label>
+          <label className="paper-field">
+            <span className="paper-field__label">Stress test cycles</span>
+            <select
+              className="cot-graph-sidebar__input"
+              value={workspace.stressCycleCount ?? 10}
+              onChange={(e) =>
+                onUpdate({ stressCycleCount: Number(e.target.value) })
+              }
+            >
+              {STRESS_CYCLE_PRESETS.map((n) => (
+                <option key={n} value={n}>
+                  {n} cycles
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="paper-setup__col">
+          <h3 className="paper-setup__subtitle">Automation</h3>
+          <label className="simulate-check paper-field">
+            <input
+              type="checkbox"
+              checked={workspace.settings.autoRun}
+              onChange={(e) =>
+                onUpdate({
+                  settings: { ...workspace.settings, autoRun: e.target.checked },
+                })
+              }
+            />
+            <span>Auto-run cycles</span>
+          </label>
+          <label className="paper-field">
+            <span className="paper-field__label">Interval (seconds)</span>
+            <input
+              className="cot-graph-sidebar__input"
+              type="number"
+              min={15}
+              max={600}
+              step={15}
+              value={workspace.settings.intervalSec}
+              disabled={!workspace.settings.autoRun}
+              onChange={(e) =>
+                onUpdate({
+                  settings: {
+                    ...workspace.settings,
+                    intervalSec: Number(e.target.value) || 60,
+                  },
+                })
+              }
+            />
+          </label>
+          <p className="paper-field__hint">
+            Paper trades execute when the orchestrator returns BUY YES/NO above your
+            confidence threshold.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
-function PaperTradingSidebar({
+function SessionList({
+  workspaces,
+  activeId,
+  onSelect,
+  onAdd,
+  onRemove,
+}: {
+  workspaces: PaperWorkspace[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <aside className="paper-sidebar glass-panel">
+      <div className="paper-sidebar__head">
+        <h2 className="paper-sidebar__title">Sessions</h2>
+        <button type="button" className="paper-sidebar__add" onClick={onAdd} title="New session">
+          +
+        </button>
+      </div>
+      <ul className="paper-session-list">
+        {workspaces.map((ws) => {
+          const equity = computeEquity(ws.portfolio);
+          const pnl = equity - ws.portfolio.initialCapital;
+          const active = ws.id === activeId;
+          return (
+            <li key={ws.id}>
+              <button
+                type="button"
+                className={`paper-session${active ? ' paper-session--active' : ''}`}
+                onClick={() => onSelect(ws.id)}
+              >
+                <span className="paper-session__name">{ws.name}</span>
+                <span className="paper-session__equity">{formatUsd(equity)}</span>
+                <span
+                  className={
+                    pnl >= 0 ? 'simulate-pnl simulate-pnl--up' : 'simulate-pnl simulate-pnl--down'
+                  }
+                >
+                  {formatUsd(pnl)}
+                </span>
+              </button>
+              {workspaces.length > 1 ? (
+                <button
+                  type="button"
+                  className="paper-session__remove"
+                  onClick={() => onRemove(ws.id)}
+                  aria-label={`Remove ${ws.name}`}
+                >
+                  ×
+                </button>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </aside>
+  );
+}
+
+function PaperDashboard({
   workspace,
-  onUpdate,
+  savedWorkflows,
+  workflowReady,
+  workflowName,
+  nodeCount,
   running,
-  onPaperRun,
+  stressProgress,
+  lastStressResult,
+  onUpdate,
+  onApplyCapital,
   onReset,
+  onRunCycle,
+  onStressTest,
+  onRefreshWorkflows,
 }: {
   workspace: PaperWorkspace;
-  onUpdate: (patch: Partial<PaperWorkspace>) => void;
+  savedWorkflows: SavedWorkflow[];
+  workflowReady: boolean;
+  workflowName: string;
+  nodeCount: number;
   running: boolean;
-  onPaperRun: () => void;
+  stressProgress: { completed: number; total: number } | null;
+  lastStressResult: StressTestResult | null;
+  onUpdate: (patch: Partial<PaperWorkspace>) => void;
+  onApplyCapital: (capital: number) => void;
   onReset: () => void;
+  onRunCycle: () => void;
+  onStressTest: () => void;
+  onRefreshWorkflows: () => void;
 }) {
-  const decision = workspace.lastDecision;
   const equity = computeEquity(workspace.portfolio);
   const initial = workspace.portfolio.initialCapital;
   const pnl = equity - initial;
+  const returnPct = initial > 0 ? pnl / initial : 0;
   const history = workspace.portfolio.equityHistory;
   const max = Math.max(...history.map((p) => p.equity), initial, equity);
   const min = Math.min(...history.map((p) => p.equity), initial, equity);
   const range = max - min || 1;
-  const trades = workspace.portfolio.trades;
   const positions = workspace.portfolio.positions;
+  const trades = workspace.portfolio.trades;
+  const decision = workspace.lastDecision;
 
   return (
-    <aside className="cot-graph-view__sidebar simulate-paper-sidebar dark-scroll">
-      <div className="cot-graph-sidebar__section">
-        <div className="cot-graph-sidebar__label">Workspace</div>
-        <input
-          className="cot-graph-sidebar__input"
-          type="text"
-          value={workspace.name}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-        />
-      </div>
+    <div className="paper-dashboard dark-scroll">
+      <StrategySetupPanel
+        workspace={workspace}
+        savedWorkflows={savedWorkflows}
+        workflowReady={workflowReady}
+        workflowName={workflowName}
+        nodeCount={nodeCount}
+        onUpdate={onUpdate}
+        onApplyCapital={onApplyCapital}
+        onRefreshWorkflows={onRefreshWorkflows}
+      />
 
-      <div className="cot-graph-sidebar__section">
-        <div className="cot-graph-sidebar__label">Portfolio</div>
-        <strong className="simulate-equity__value">{formatUsd(equity)}</strong>
-        <p
-          className={
-            pnl >= 0 ? 'simulate-pnl simulate-pnl--up' : 'simulate-pnl simulate-pnl--down'
-          }
-        >
-          {formatUsd(pnl)} ({formatPct(initial > 0 ? pnl / initial : 0)})
-        </p>
-        <div className="simulate-equity__chart simulate-equity__chart--compact" aria-hidden>
+      <section className="paper-stats">
+        <div className="paper-stat glass-panel">
+          <span className="paper-stat__label">Portfolio value</span>
+          <strong className="paper-stat__value">{formatUsd(equity)}</strong>
+        </div>
+        <div className="paper-stat glass-panel">
+          <span className="paper-stat__label">P&amp;L</span>
+          <strong
+            className={`paper-stat__value${pnl >= 0 ? ' paper-stat__value--up' : ' paper-stat__value--down'}`}
+          >
+            {formatUsd(pnl)}
+          </strong>
+          <span className="paper-stat__sub">{formatPct(returnPct)}</span>
+        </div>
+        <div className="paper-stat glass-panel">
+          <span className="paper-stat__label">Cash</span>
+          <strong className="paper-stat__value">{formatUsd(workspace.portfolio.cash)}</strong>
+        </div>
+        <div className="paper-stat glass-panel">
+          <span className="paper-stat__label">Cycles</span>
+          <strong className="paper-stat__value">{workspace.runCount}</strong>
+          <span className="paper-stat__sub">{positions.length} open</span>
+        </div>
+      </section>
+
+      <section className="paper-chart glass-panel">
+        <div className="paper-chart__head">
+          <h2 className="paper-section-title">Equity curve</h2>
+          <span className="cot-graph-sidebar__hint">
+            Started {formatUsd(initial)}
+          </span>
+        </div>
+        <div className="simulate-equity__chart paper-chart__bars" aria-hidden>
           {history.map((point, i) => {
             const height = ((point.equity - min) / range) * 100;
             return (
@@ -114,237 +466,164 @@ function PaperTradingSidebar({
             );
           })}
         </div>
-        <p className="cot-graph-sidebar__hint">
-          Cash {formatUsd(workspace.portfolio.cash)} · {workspace.runCount} cycles
-        </p>
-      </div>
+      </section>
 
-      <div className="cot-graph-sidebar__section">
-        <div className="cot-graph-sidebar__label">Starting capital</div>
-        <input
-          className="cot-graph-sidebar__input"
-          type="number"
-          min={100}
-          step={100}
-          value={workspace.portfolio.initialCapital}
-          onChange={(e) => {
-            const val = Number(e.target.value);
-            if (!Number.isFinite(val) || val < 0) return;
-            onUpdate({
-              portfolio: {
-                ...workspace.portfolio,
-                initialCapital: val,
-                cash: val,
-                positions: [],
-                trades: [],
-                equityHistory: [
-                  { timestamp: new Date().toISOString(), equity: val, cash: val },
-                ],
-                totalRealizedPnl: 0,
-              },
-              runCount: 0,
-            });
-          }}
-        />
-      </div>
-
-      <div className="cot-graph-sidebar__section">
-        <div className="cot-graph-sidebar__label">
-          Min confidence · {formatPct(workspace.settings.minConfidence)}
-        </div>
-        <input
-          className="simulate-range"
-          type="range"
-          min={0.3}
-          max={0.95}
-          step={0.05}
-          value={workspace.settings.minConfidence}
-          onChange={(e) =>
-            onUpdate({
-              settings: {
-                ...workspace.settings,
-                minConfidence: Number(e.target.value),
-              },
-            })
-          }
-        />
-      </div>
-
-      <div className="cot-graph-sidebar__section">
-        <div className="cot-graph-sidebar__label">
-          Max position · {formatPct(workspace.settings.maxPositionPct)}
-        </div>
-        <input
-          className="simulate-range"
-          type="range"
-          min={0.02}
-          max={0.25}
-          step={0.01}
-          value={workspace.settings.maxPositionPct}
-          onChange={(e) =>
-            onUpdate({
-              settings: {
-                ...workspace.settings,
-                maxPositionPct: Number(e.target.value),
-              },
-            })
-          }
-        />
-      </div>
-
-      <div className="cot-graph-sidebar__section">
-        <label className="simulate-check">
-          <input
-            type="checkbox"
-            checked={workspace.settings.autoRun}
-            onChange={(e) =>
-              onUpdate({
-                settings: { ...workspace.settings, autoRun: e.target.checked },
-              })
-            }
-          />
-          <span>Auto paper-run</span>
-        </label>
-        <input
-          className="cot-graph-sidebar__input"
-          type="number"
-          min={15}
-          max={600}
-          step={15}
-          value={workspace.settings.intervalSec}
-          disabled={!workspace.settings.autoRun}
-          onChange={(e) =>
-            onUpdate({
-              settings: {
-                ...workspace.settings,
-                intervalSec: Number(e.target.value) || 60,
-              },
-            })
-          }
-        />
-      </div>
-
-      <div className="cot-graph-sidebar__section">
-        <div className="simulate-run-actions">
+      <section className="paper-actions glass-panel">
+        <div className="paper-actions__buttons">
           <button
             type="button"
-            className="graph-view-toggle graph-view-toggle--active"
-            disabled={running}
-            onClick={onPaperRun}
+            className="graph-view-toggle paper-actions__primary"
+            disabled={running || !workflowReady}
+            onClick={onRunCycle}
           >
-            {running ? 'Running…' : 'Paper cycle'}
+            {running && !stressProgress ? 'Running…' : 'Run cycle'}
           </button>
-          <button type="button" className="graph-view-toggle" disabled={running} onClick={onReset}>
-            Reset
+          <button
+            type="button"
+            className="graph-view-toggle"
+            disabled={running || !workflowReady}
+            onClick={onStressTest}
+          >
+            {stressProgress
+              ? `Stress ${stressProgress.completed}/${stressProgress.total}`
+              : `Stress test (${workspace.stressCycleCount ?? 10})`}
+          </button>
+          <button type="button" className="graph-view-toggle" onClick={onReset} disabled={running}>
+            Reset to starting capital
           </button>
         </div>
-        {workspace.lastRunAt && (
-          <p className="cot-graph-sidebar__hint">
-            Last {new Date(workspace.lastRunAt).toLocaleString()}
+        {workspace.lastRunAt ? (
+          <p className="cot-graph-sidebar__hint paper-actions__status">
+            Last run {new Date(workspace.lastRunAt).toLocaleString()}
             {workspace.lastRunOk ? ' · OK' : ' · Failed'}
           </p>
-        )}
-        {workspace.lastRunError && <p className="simulate-error">{workspace.lastRunError}</p>}
-        {decision && (
+        ) : null}
+        {workspace.lastRunError ? (
+          <p className="simulate-error">{workspace.lastRunError}</p>
+        ) : null}
+        {lastStressResult ? (
+          <p className="cot-graph-sidebar__hint paper-actions__status">
+            Last stress: {lastStressResult.completed} cycles · {lastStressResult.tradesExecuted}{' '}
+            trades ·{' '}
+            <span
+              className={
+                lastStressResult.pnl >= 0
+                  ? 'simulate-pnl simulate-pnl--up'
+                  : 'simulate-pnl simulate-pnl--down'
+              }
+            >
+              {formatUsd(lastStressResult.pnl)}
+            </span>
+          </p>
+        ) : null}
+      </section>
+
+      <div className="paper-columns">
+        <section className="paper-panel glass-panel">
+          <h2 className="paper-section-title">Open positions ({positions.length})</h2>
+          {positions.length === 0 ? (
+            <p className="cot-graph-sidebar__hint">No open YES/NO positions.</p>
+          ) : (
+            <ul className="simulate-positions">
+              {positions.map((pos) => (
+                <li key={`${pos.slug}-${pos.side}`} className="simulate-position">
+                  <div className="simulate-position__head">
+                    <strong>{pos.market}</strong>
+                    <span className="simulate-badge">{pos.side}</span>
+                  </div>
+                  <div className="simulate-position__meta">
+                    <span>
+                      {pos.shares.toFixed(2)} sh @ {formatUsd(pos.avgEntryPrice)}
+                    </span>
+                    <span
+                      className={
+                        pos.unrealizedPnl >= 0
+                          ? 'simulate-pnl simulate-pnl--up'
+                          : 'simulate-pnl simulate-pnl--down'
+                      }
+                    >
+                      {formatUsd(pos.unrealizedPnl)}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="paper-panel glass-panel">
+          <h2 className="paper-section-title">Trade log ({trades.length})</h2>
+          {trades.length === 0 ? (
+            <p className="cot-graph-sidebar__hint">Paper trades appear after successful cycles.</p>
+          ) : (
+            <ul className="simulate-trades paper-trades">
+              {trades.slice(0, 20).map((trade) => (
+                <li key={trade.id} className="simulate-trade">
+                  <div className="simulate-trade__head">
+                    <span className="simulate-badge">
+                      {trade.action} {trade.side}
+                    </span>
+                    <time className="cot-graph-sidebar__hint">
+                      {new Date(trade.timestamp).toLocaleString()}
+                    </time>
+                  </div>
+                  <p className="simulate-trade__market">{trade.market}</p>
+                  <p className="cot-graph-sidebar__hint">
+                    {trade.shares.toFixed(2)} sh @ {formatUsd(trade.price)} · {formatUsd(trade.cost)}
+                  </p>
+                  {trade.thesis ? (
+                    <p className="cot-graph-field--muted">{trade.thesis}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <section className="paper-panel glass-panel">
+        <h2 className="paper-section-title">Last orchestrator decision</h2>
+        {decision ? (
           <div className="simulate-decision">
             <span className="simulate-decision__action">{String(decision.action ?? '—')}</span>
             {decision.thesis != null && decision.thesis !== '' && (
               <p>{String(decision.thesis)}</p>
             )}
           </div>
-        )}
-      </div>
-
-      <div className="cot-graph-sidebar__section">
-        <div className="cot-graph-sidebar__label">
-          Open positions ({positions.length})
-        </div>
-        {positions.length === 0 ? (
-          <p className="cot-graph-sidebar__hint">No open paper positions.</p>
         ) : (
-          <ul className="simulate-positions">
-            {positions.map((pos) => (
-              <li key={`${pos.slug}-${pos.side}`} className="simulate-position">
-                <div className="simulate-position__head">
-                  <strong>{pos.market}</strong>
-                  <span className="simulate-badge">{pos.side}</span>
-                </div>
-                <div className="simulate-position__meta">
-                  <span>{pos.shares.toFixed(2)} sh @ {formatUsd(pos.avgEntryPrice)}</span>
-                  <span
-                    className={
-                      pos.unrealizedPnl >= 0
-                        ? 'simulate-pnl simulate-pnl--up'
-                        : 'simulate-pnl simulate-pnl--down'
-                    }
-                  >
-                    {formatUsd(pos.unrealizedPnl)}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <p className="cot-graph-sidebar__hint">Run a cycle to see the latest trade thesis.</p>
         )}
-      </div>
-
-      <div className="simulate-paper-sidebar__scroll dark-scroll">
-        <div className="cot-graph-sidebar__section">
-          <div className="cot-graph-sidebar__label">
-            Trade log ({trades.length})
-          </div>
-        </div>
-        {trades.length === 0 ? (
-          <p className="cot-graph-sidebar__hint simulate-paper-sidebar__empty">
-            Paper buys appear here after a successful cycle.
-          </p>
-        ) : (
-          <ul className="simulate-trades">
-            {trades.map((trade) => (
-              <li key={trade.id} className="cot-graph-sidebar__section simulate-trade">
-                <div className="simulate-trade__head">
-                  <span className="simulate-badge">{trade.action} {trade.side}</span>
-                  <time className="cot-graph-sidebar__hint">
-                    {new Date(trade.timestamp).toLocaleTimeString()}
-                  </time>
-                </div>
-                <p className="simulate-trade__market">{trade.market}</p>
-                <p className="cot-graph-sidebar__hint">
-                  {trade.shares.toFixed(2)} sh @ {formatUsd(trade.price)} · {formatUsd(trade.cost)}
-                </p>
-                {trade.thesis && <p className="cot-graph-field--muted">{trade.thesis}</p>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </aside>
+      </section>
+    </div>
   );
 }
 
 function SimulateAppInner() {
   const [workspaces, setWorkspaces] = useState<PaperWorkspace[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [paperRunning, setPaperRunning] = useState(false);
-  const [workflowRunning, setWorkflowRunning] = useState(false);
-  const [workflowRunSignal, setWorkflowRunSignal] = useState(0);
-  const [nodeCount, setNodeCount] = useState(0);
-  const [canvasHydrateKey, setCanvasHydrateKey] = useState(0);
+  const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflow[]>([]);
+  const [running, setRunning] = useState(false);
+  const [stressProgress, setStressProgress] = useState<{ completed: number; total: number } | null>(
+    null,
+  );
+  const [lastStressResult, setLastStressResult] = useState<StressTestResult | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const workspacesRef = useRef(workspaces);
-  const prevActiveIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     workspacesRef.current = workspaces;
   }, [workspaces]);
 
   useEffect(() => {
+    const { workflows } = ensureDefaultWorkflows();
     const stored = loadWorkspaces();
+    setSavedWorkflows(loadSavedWorkflows());
+
     if (stored.length === 0) {
-      const first = createWorkspace('Strategy A');
-      const second = createWorkspace('Strategy B');
-      setWorkspaces([first, second]);
+      const first = createWorkspace('Session A', 10000, workflows[0], 'both');
+      setWorkspaces([first]);
       setActiveId(first.id);
-      saveWorkspaces([first, second]);
+      saveWorkspaces([first]);
     } else {
       setWorkspaces(stored);
       setActiveId(stored[0]?.id ?? null);
@@ -357,54 +636,35 @@ function SimulateAppInner() {
     saveWorkspaces(workspaces);
   }, [workspaces, hydrated]);
 
-  useEffect(() => {
-    if (prevActiveIdRef.current !== activeId) {
-      prevActiveIdRef.current = activeId;
-      setCanvasHydrateKey((k) => k + 1);
-    }
-  }, [activeId]);
+  const refreshWorkflows = useCallback(() => {
+    setSavedWorkflows(loadSavedWorkflows());
+  }, []);
 
   const activeWorkspace = useMemo(
     () => workspaces.find((w) => w.id === activeId) ?? workspaces[0] ?? null,
     [workspaces, activeId],
   );
 
+  const resolvedCanvas = useMemo(() => {
+    if (!activeWorkspace) return { nodes: [], edges: [], workflowName: '' };
+    return resolveWorkspaceCanvas(activeWorkspace);
+  }, [activeWorkspace, savedWorkflows]);
+
   const updateWorkspace = useCallback((id: string, patch: Partial<PaperWorkspace>) => {
     setWorkspaces((current) =>
-      current.map((w) => (w.id === id ? { ...w, ...patch, updatedAt: new Date().toISOString() } : w)),
+      current.map((w) =>
+        w.id === id ? { ...w, ...patch, updatedAt: new Date().toISOString() } : w,
+      ),
     );
   }, []);
 
-  const onCanvasChange = useCallback(
-    (nodes: WorkflowNode[], edges: Edge[]) => {
-      if (!activeId) return;
-      setWorkspaces((current) =>
-        current.map((w) => {
-          if (w.id !== activeId) return w;
-          return { ...w, canvas: { nodes, edges } };
-        }),
-      );
-    },
-    [activeId],
-  );
-
-  const onCountsChange = useCallback((nodes: number, _edges: number) => {
-    setNodeCount(nodes);
-  }, []);
-
-  const loadCanvasPayload = useMemo(() => {
-    if (!activeWorkspace) return null;
-    return {
-      key: `${activeWorkspace.id}-${canvasHydrateKey}`,
-      nodes: activeWorkspace.canvas.nodes,
-      edges: activeWorkspace.canvas.edges,
-    };
-  }, [activeWorkspace, canvasHydrateKey]);
-
   const addWorkspace = useCallback(() => {
-    const next = createWorkspace(`Strategy ${workspacesRef.current.length + 1}`);
+    const workflows = listSimulatableWorkflows();
+    const wf = workflows[workspacesRef.current.length % workflows.length] ?? workflows[0];
+    const next = createWorkspace(`Session ${workspacesRef.current.length + 1}`, 10000, wf, 'both');
     setWorkspaces((current) => [...current, next]);
     setActiveId(next.id);
+    setLastStressResult(null);
   }, []);
 
   const removeWorkspace = useCallback(
@@ -412,11 +672,15 @@ function SimulateAppInner() {
       setWorkspaces((current) => {
         const filtered = current.filter((w) => w.id !== id);
         if (filtered.length === 0) {
-          const fresh = createWorkspace('Strategy A');
+          const workflows = listSimulatableWorkflows();
+          const fresh = createWorkspace('Session A', 10000, workflows[0], 'both');
           setActiveId(fresh.id);
           return [fresh];
         }
-        if (activeId === id) setActiveId(filtered[0].id);
+        if (activeId === id) {
+          setActiveId(filtered[0].id);
+          setLastStressResult(null);
+        }
         return filtered;
       });
     },
@@ -425,24 +689,39 @@ function SimulateAppInner() {
 
   const runPaperCycle = useCallback(async () => {
     const ws = workspacesRef.current.find((w) => w.id === activeId) ?? workspacesRef.current[0];
-    if (!ws || paperRunning) return;
-    setPaperRunning(true);
+    if (!ws || running) return;
+    setRunning(true);
     try {
       const result = await runSimulationCycle(ws);
-      const withTrades = applySimulationResult(ws, {
-        ...result,
-        tradesExecuted: [],
-      });
+      const withTrades = applySimulationResult(ws, { ...result, tradesExecuted: [] });
       setWorkspaces((current) =>
         current.map((w) => (w.id === withTrades.id ? withTrades : w)),
       );
     } finally {
-      setPaperRunning(false);
+      setRunning(false);
     }
-  }, [activeId, paperRunning]);
+  }, [activeId, running]);
+
+  const runStress = useCallback(async () => {
+    const ws = workspacesRef.current.find((w) => w.id === activeId) ?? workspacesRef.current[0];
+    if (!ws || running) return;
+    const cycles = ws.stressCycleCount ?? 10;
+    setRunning(true);
+    setStressProgress({ completed: 0, total: cycles });
+    try {
+      const { workspace: updated, result } = await runStressTest(ws, cycles, (completed, total) => {
+        setStressProgress({ completed, total });
+      });
+      setWorkspaces((current) => current.map((w) => (w.id === updated.id ? updated : w)));
+      setLastStressResult(result);
+    } finally {
+      setRunning(false);
+      setStressProgress(null);
+    }
+  }, [activeId, running]);
 
   useEffect(() => {
-    if (!activeWorkspace?.settings.autoRun || paperRunning) return;
+    if (!activeWorkspace?.settings.autoRun || running) return;
     const ms = Math.max(15, activeWorkspace.settings.intervalSec) * 1000;
     const timer = window.setInterval(() => {
       void runPaperCycle();
@@ -453,7 +732,7 @@ function SimulateAppInner() {
     activeWorkspace?.settings.intervalSec,
     activeWorkspace?.id,
     runPaperCycle,
-    paperRunning,
+    running,
   ]);
 
   if (!hydrated || !activeWorkspace) {
@@ -464,12 +743,11 @@ function SimulateAppInner() {
     );
   }
 
-  const equity = computeEquity(activeWorkspace.portfolio);
-  const running = paperRunning || workflowRunning;
+  const workflowReady = resolvedCanvas.nodes.length > 0;
 
   return (
-    <div className="playground-shell">
-      <header className="playground-header">
+    <div className="playground-shell paper-shell">
+      <header className="playground-header paper-header">
         <Image
           src="/conduence-logo.png"
           alt="Conduence"
@@ -478,68 +756,45 @@ function SimulateAppInner() {
           className="playground-header__logo"
           priority
         />
-
-        <nav className="simulate-workspaces" aria-label="Strategy workspaces">
-          {workspaces.map((ws) => (
-            <WorkspaceTab
-              key={ws.id}
-              workspace={ws}
-              active={ws.id === activeWorkspace.id}
-              onSelect={() => setActiveId(ws.id)}
-              onClose={() => removeWorkspace(ws.id)}
-            />
-          ))}
-          <button type="button" className="graph-view-toggle" onClick={addWorkspace}>
-            + Workspace
-          </button>
-        </nav>
-
-        <div className="playground-header__actions">
-          <span className="playground-header__stats">
-            {formatUsd(equity)}
-          </span>
-          <button
-            type="button"
-            className="graph-view-toggle"
-            onClick={() => setWorkflowRunSignal((v) => v + 1)}
-            disabled={running || nodeCount === 0}
-            title="Run connected workflow on canvas"
-          >
-            {workflowRunning ? 'Running…' : 'Run Workflow'}
-          </button>
-          <button
-            type="button"
-            className="graph-view-toggle"
-            onClick={() => void runPaperCycle()}
-            disabled={running || nodeCount === 0}
-            title="Run orchestrator and execute paper trades"
-          >
-            {paperRunning ? 'Paper…' : 'Paper cycle'}
-          </button>
-          <Link href="/" className="graph-view-toggle" title="Back to workflow builder">
+        <nav className="paper-nav" aria-label="App sections">
+          <Link href="/" className="graph-view-toggle">
             Workflow
           </Link>
-          <span className="graph-view-toggle graph-view-toggle--active">Paper Trade</span>
-        </div>
+          <span className="graph-view-toggle graph-view-toggle--active">Paper Trading</span>
+        </nav>
       </header>
 
-      <div className="playground-body">
-        <NodePalette />
-        <WorkflowCanvas
-          onCountsChange={onCountsChange}
-          runSignal={workflowRunSignal}
-          onRunStateChange={setWorkflowRunning}
-          onCanvasChange={onCanvasChange}
-          loadCanvas={loadCanvasPayload}
+      <div className="paper-body">
+        <SessionList
+          workspaces={workspaces}
+          activeId={activeWorkspace.id}
+          onSelect={(id) => {
+            setActiveId(id);
+            setLastStressResult(null);
+          }}
+          onAdd={addWorkspace}
+          onRemove={removeWorkspace}
         />
-        <PaperTradingSidebar
+        <PaperDashboard
           workspace={activeWorkspace}
+          savedWorkflows={savedWorkflows}
+          workflowReady={workflowReady}
+          workflowName={resolvedCanvas.workflowName}
+          nodeCount={resolvedCanvas.nodes.length}
+          running={running}
+          stressProgress={stressProgress}
+          lastStressResult={lastStressResult}
           onUpdate={(patch) => updateWorkspace(activeWorkspace.id, patch)}
-          running={paperRunning}
-          onPaperRun={() => void runPaperCycle()}
-          onReset={() =>
-            updateWorkspace(activeWorkspace.id, resetPortfolio(activeWorkspace))
+          onApplyCapital={(capital) =>
+            updateWorkspace(
+              activeWorkspace.id,
+              applyStartingCapital(activeWorkspace, capital),
+            )
           }
+          onReset={() => updateWorkspace(activeWorkspace.id, resetPortfolio(activeWorkspace))}
+          onRunCycle={() => void runPaperCycle()}
+          onStressTest={() => void runStress()}
+          onRefreshWorkflows={refreshWorkflows}
         />
       </div>
     </div>
@@ -547,13 +802,5 @@ function SimulateAppInner() {
 }
 
 export function SimulateApp() {
-  return (
-    <InstalledAgentsProvider>
-      <AgentFeedProvider>
-        <ReactFlowProvider>
-          <SimulateAppInner />
-        </ReactFlowProvider>
-      </AgentFeedProvider>
-    </InstalledAgentsProvider>
-  );
+  return <SimulateAppInner />;
 }

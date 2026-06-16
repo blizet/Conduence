@@ -14,7 +14,7 @@ import {
   type Connection,
   type Edge,
 } from '@xyflow/react';
-import { createNodeData, DND_TYPE, getNodeId } from '@/lib/dnd';
+import { createNodeData, DND_TYPE, getNodeId, normalizeWorkflowCanvas } from '@/lib/dnd';
 import { runWorkflow } from '@/lib/workflow-runner';
 import { getPaletteItem, nodeTypes as registeredNodeTypes } from '@/nodes';
 import type { WorkflowNode } from '@/nodes/types';
@@ -41,6 +41,8 @@ export type WorkflowCanvasProps = {
   onNextWorkflow?: () => void;
   onNewWorkflow?: () => void;
   onDeleteWorkflow?: () => void;
+  readOnly?: boolean;
+  workflowBadge?: string;
 };
 
 export function WorkflowCanvas({
@@ -61,6 +63,8 @@ export function WorkflowCanvas({
   onNextWorkflow,
   onNewWorkflow,
   onDeleteWorkflow,
+  readOnly = false,
+  workflowBadge,
 }: WorkflowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
@@ -139,8 +143,9 @@ export function WorkflowCanvas({
     if (loadedKeyRef.current === canvas.key) return;
     loadedKeyRef.current = canvas.key;
     skipCanvasSyncRef.current = true;
-    setNodes(canvas.nodes);
-    setEdges(canvas.edges);
+    const normalized = normalizeWorkflowCanvas(canvas.nodes, canvas.edges);
+    setNodes(normalized.nodes);
+    setEdges(normalized.edges);
     setSelectedNodeId(null);
     onCanvasHydrated?.();
   }, [loadCanvas?.key, onCanvasHydrated, setNodes, setEdges]);
@@ -179,18 +184,24 @@ export function WorkflowCanvas({
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (readOnly) return;
       setEdges((eds) => addEdge({ ...connection, animated: true }, eds));
     },
-    [setEdges],
+    [readOnly, setEdges],
   );
 
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
+  const onDragOver = useCallback(
+    (event: React.DragEvent) => {
+      if (readOnly) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    },
+    [readOnly],
+  );
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
+      if (readOnly) return;
       event.preventDefault();
 
       const type = event.dataTransfer.getData(DND_TYPE);
@@ -213,30 +224,38 @@ export function WorkflowCanvas({
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [screenToFlowPosition, setNodes],
+    [readOnly, screenToFlowPosition, setNodes],
   );
 
   return (
     <div className="playground-workspace">
       <div
         ref={reactFlowWrapper}
-        className="playground-canvas"
+        className={`playground-canvas${readOnly ? ' playground-canvas--readonly' : ''}`}
         onDrop={onDrop}
         onDragOver={onDragOver}
       >
+        {workflowBadge ? (
+          <div className="simulate-workflow-badge" aria-label="Linked strategy">
+            {workflowBadge}
+          </div>
+        ) : null}
         <ReactFlow
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
           colorMode="dark"
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          onNodesChange={readOnly ? undefined : onNodesChange}
+          onEdgesChange={readOnly ? undefined : onEdgesChange}
           onConnect={onConnect}
-          onNodeClick={onNodeClick}
-          onPaneClick={onPaneClick}
-          onSelectionChange={onSelectionChange}
-          deleteKeyCode={['Backspace', 'Delete']}
-          nodesFocusable
+          onNodeClick={readOnly ? undefined : onNodeClick}
+          onPaneClick={readOnly ? undefined : onPaneClick}
+          onSelectionChange={readOnly ? undefined : onSelectionChange}
+          deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
+          elementsSelectable={!readOnly}
+          nodesFocusable={!readOnly}
           defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
           snapToGrid
           snapGrid={[16, 16]}
@@ -258,12 +277,14 @@ export function WorkflowCanvas({
           <Controls position="bottom-left" showInteractive />
           <PlaygroundMinimap />
         </ReactFlow>
-        <NodeInspectorPanel
-          node={selectedNode}
-          nodes={nodes}
-          edges={edges}
-          feedSignals={agentFeeds}
-        />
+        {!readOnly ? (
+          <NodeInspectorPanel
+            node={selectedNode}
+            nodes={nodes}
+            edges={edges}
+            feedSignals={agentFeeds}
+          />
+        ) : null}
         {onRenameWorkflow && onPrevWorkflow && onNextWorkflow && onNewWorkflow && onDeleteWorkflow ? (
           <WorkflowDock
             activeWorkflowName={activeWorkflowName}

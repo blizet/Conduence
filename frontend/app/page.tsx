@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 
 const Playground = dynamic(
@@ -15,5 +16,9 @@ const Playground = dynamic(
 );
 
 export default function Page() {
-  return <Playground />;
+  return (
+    <Suspense fallback={<div className="playground-loading"><span>Loading workflow canvas…</span></div>}>
+      <Playground />
+    </Suspense>
+  );
 }

@@ -244,6 +244,27 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
     ],
   },
 
+  paperTrading: {
+    intro: 'Paper execution sink — simulates prediction market trades against a saved paper session.',
+    fields: [
+      {
+        field: 'Input port',
+        description: 'Wire Orchestrator or sub-agent output here.',
+        howTo: 'Agent payload needs action (BUY_YES, BUY_NO, etc.), market, price, and conviction.',
+      },
+      {
+        field: 'Strategy workflow',
+        description: 'Which saved workflow strategy this paper sink uses for session lookup.',
+        howTo: 'Pick any workflow you saved on the Workflow canvas — sessions are matched by workflow id.',
+      },
+      {
+        field: 'Paper session',
+        description: 'Which paper portfolio session receives simulated trades.',
+        howTo: 'Create sessions on Paper Trading — set starting capital, risk limits, and linked workflow there.',
+      },
+    ],
+  },
+
   telegram: {
     intro: 'Social execution sink — your bot sends formatted agent output to Telegram.',
     fields: [

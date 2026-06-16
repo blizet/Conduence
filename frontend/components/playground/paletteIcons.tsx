@@ -39,6 +39,12 @@ const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
       <path d="M6 7h4M6 9.5h2.5" />
     </Svg>
   ),
+  paperTrading: (p) => (
+    <Svg {...p}>
+      <path d="M2 4h12v9H2z" />
+      <path d="M5 7h6M5 9.5h4" />
+    </Svg>
+  ),
   telegram: (p) => (
     <Svg {...p}>
       <path d="M2.5 7.5L13 3.5 10.5 13.5 7.5 9.5 5.5 11.5 4.5 9.5 7.5 7.5 2.5 7.5z" />

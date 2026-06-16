@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
@@ -27,6 +28,7 @@ import {
   upsertWorkflowCanvas,
   type SavedWorkflow,
 } from '@/lib/workflow-storage';
+import { normalizeWorkflowCanvas } from '@/lib/dnd';
 
 import { DEFAULT_COT_USER_NODE_ID } from '@/nodes/constants';
 
@@ -188,8 +190,8 @@ function PlaygroundInner({
           >
             Marketplace
           </button>
-          <Link href="/simulate" className="graph-view-toggle" title="Paper trading simulation">
-            Paper Trade
+          <Link href="/simulate" className="graph-view-toggle" title="Paper trade Polymarket & Kalshi strategies">
+            Paper Trading
           </Link>
         </div>
       </header>
@@ -231,6 +233,7 @@ function PlaygroundInner({
 }
 
 function PlaygroundWithState() {
+  const searchParams = useSearchParams();
   const [nodeCount, setNodeCount] = useState(0);
   const [viewMode, setViewMode] = useState<PlaygroundView>('workflow');
   const [showMarketplace, setShowMarketplace] = useState(false);
@@ -274,30 +277,37 @@ function PlaygroundWithState() {
   const loadWorkflowIntoCanvas = useCallback((workflow: SavedWorkflow) => {
     suppressPersistRef.current = true;
     setActiveWorkflowName(workflow.name);
+    const normalized = normalizeWorkflowCanvas(workflow.canvas.nodes, workflow.canvas.edges);
     canvasSnapshotRef.current = {
-      nodes: workflow.canvas.nodes,
-      edges: workflow.canvas.edges,
+      nodes: normalized.nodes,
+      edges: normalized.edges,
     };
-    setNodeCount(workflow.canvas.nodes.length);
+    setNodeCount(normalized.nodes.length);
     setLoadCanvas({
       key: Date.now(),
-      nodes: workflow.canvas.nodes,
-      edges: workflow.canvas.edges,
+      nodes: normalized.nodes,
+      edges: normalized.edges,
     });
     setCanvasBootKey(workflow.id);
   }, []);
 
   useEffect(() => {
     const { workflows, activeId } = ensureDefaultWorkflows();
-    const active = getWorkflowById(activeId);
+    const urlWorkflowId = searchParams.get('workflow');
+    const pickId =
+      urlWorkflowId && workflows.some((w) => w.id === urlWorkflowId) ? urlWorkflowId : activeId;
+    if (pickId && pickId !== activeId) {
+      setActiveWorkflowId(pickId);
+    }
+    const active = getWorkflowById(pickId ?? activeId);
     setSavedWorkflows(workflows);
-    setActiveWorkflowIdState(activeId);
-    activeWorkflowIdRef.current = activeId;
+    setActiveWorkflowIdState(pickId ?? activeId);
+    activeWorkflowIdRef.current = pickId ?? activeId;
     if (active) {
       loadWorkflowIntoCanvas(active);
     }
     setStorageReady(true);
-  }, [loadWorkflowIntoCanvas]);
+  }, [loadWorkflowIntoCanvas, searchParams]);
 
   useEffect(() => {
     const onPageHide = () => flushPersist();

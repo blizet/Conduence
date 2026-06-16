@@ -2,6 +2,7 @@
 
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
+import { normalizeWorkflowCanvas } from '@/lib/dnd';
 
 const WORKFLOWS_KEY = 'cot-playground-workflows';
 const ACTIVE_ID_KEY = 'cot-playground-active-workflow-id';
@@ -91,7 +92,8 @@ export function upsertWorkflowCanvas(
     return workflows;
   }
 
-  workflows[idx] = { ...workflows[idx], canvas, updatedAt: now };
+  const normalized = normalizeWorkflowCanvas(canvas.nodes, canvas.edges);
+  workflows[idx] = { ...workflows[idx], canvas: normalized, updatedAt: now };
   saveSavedWorkflows(workflows);
   return workflows;
 }

@@ -1,3 +1,4 @@
+import type { Edge } from '@xyflow/react';
 import { DEFAULT_LLM_PROVIDER, defaultModelForProvider } from '@/lib/llm-providers';
 import type { PaletteItem, WorkflowNodeData } from '@/nodes/types';
 import {
@@ -13,7 +14,39 @@ let nodeId = 0;
 
 export function getNodeId(): string {
   nodeId += 1;
-  return `node_${nodeId}`;
+  return `node_${Date.now()}_${nodeId}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** Ensure React Flow node ids are unique (fixes duplicate `node_1` from legacy saves). */
+export function normalizeWorkflowCanvas<T extends { id: string }>(
+  nodes: T[],
+  edges: Edge[],
+): { nodes: T[]; edges: Edge[] } {
+  const used = new Set<string>();
+  const remap = new Map<string, string>();
+
+  const normalizedNodes = nodes.map((node) => {
+    if (!used.has(node.id)) {
+      used.add(node.id);
+      return node;
+    }
+    const newId = getNodeId();
+    remap.set(node.id, newId);
+    used.add(newId);
+    return { ...node, id: newId };
+  });
+
+  if (remap.size === 0) {
+    return { nodes: normalizedNodes, edges };
+  }
+
+  const normalizedEdges = edges.map((edge) => ({
+    ...edge,
+    source: remap.get(edge.source) ?? edge.source,
+    target: remap.get(edge.target) ?? edge.target,
+  }));
+
+  return { nodes: normalizedNodes, edges: normalizedEdges };
 }
 
 const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
@@ -72,6 +105,10 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     kalshiPrice: '',
     apiKey: '',
     apiSecret: '',
+  },
+  paperTrading: {
+    paperWorkflowId: '',
+    paperSessionId: '',
   },
   telegram: {
     apiKey: '',

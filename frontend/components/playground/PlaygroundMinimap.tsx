@@ -13,7 +13,7 @@ export function PlaygroundMinimap() {
       className="playground-minimap"
       nodeColor={(node) => {
         const accent = (node.data as WorkflowNode['data'])?.accent;
-        return typeof accent === 'string' ? accent : '#5b8def';
+        return typeof accent === 'string' ? accent : '#a8a8ae';
       }}
       nodeStrokeColor="transparent"
       nodeStrokeWidth={0}
