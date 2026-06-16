@@ -6,6 +6,8 @@ from typing import Any
 from app.signal_registry import get_signal_producer
 from app.kafka.producer import SignalProducerService
 from app.ws.events import EventsManager
+from app.llm.usage_tracker import empty_llm_usage, merge_call
+from app.observability.execution_provenance import _langsmith_block
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,8 @@ class AutonomousAgentStreamService:
             "lastError": session.get("lastError") if session else None,
             "feedTopic": defn["feedTopic"],
             "eventType": defn["eventType"],
+            "llmUsage": session.get("llmUsage") if session else empty_llm_usage(),
+            "langsmith": session.get("langsmith") if session else _langsmith_block(),
         }
 
     async def start(self, agent_id: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -74,6 +78,8 @@ class AutonomousAgentStreamService:
             "lastSignal": None,
             "feedTopic": defn["feedTopic"],
             "eventType": defn["eventType"],
+            "llmUsage": empty_llm_usage(),
+            "langsmith": _langsmith_block(),
         }
         run_config = {**config, "ingress": self._ingress}
         self._tasks[agent_id] = asyncio.create_task(self._run_loop(agent_id, defn, run_config))
@@ -120,8 +126,16 @@ class AutonomousAgentStreamService:
         config: dict[str, Any] | None = None,
     ) -> None:
         session = self._sessions.get(agent_id)
+        payload = signal
+        if isinstance(signal, dict):
+            payload = dict(signal)
+            llm_call = payload.pop("_llm_usage", None)
+            if session and isinstance(llm_call, dict):
+                session["llmUsage"] = merge_call(session.get("llmUsage") or empty_llm_usage(), llm_call)
+                session["langsmith"] = _langsmith_block()
+
         if session:
-            session["lastSignal"] = signal
+            session["lastSignal"] = payload
             session["emittedCount"] = session.get("emittedCount", 0) + 1
             session["lastError"] = None
 
@@ -130,7 +144,7 @@ class AutonomousAgentStreamService:
             "event_type": event_type,
             "agent_id": agent_id,
             "updated_at": updated_at,
-            "payload": signal,
+            "payload": payload,
         }
 
         try:
@@ -147,7 +161,9 @@ class AutonomousAgentStreamService:
                 "event_type": event_type,
                 "topic": feed_topic,
                 "updated_at": updated_at,
-                "payload": signal,
+                "payload": payload,
+                "llm_usage": session.get("llmUsage") if session else empty_llm_usage(),
+                "langsmith": session.get("langsmith") if session else _langsmith_block(),
             }
         )
 
@@ -157,7 +173,7 @@ class AutonomousAgentStreamService:
                     {
                         "agent_id": agent_id,
                         "event_type": event_type,
-                        "payload": signal,
+                        "payload": payload if isinstance(payload, dict) else signal,
                     }
                 )
             except Exception as exc:
@@ -168,7 +184,7 @@ class AutonomousAgentStreamService:
             from app.subagents.cot_emit import maybe_emit_cot_for_subagent
 
             await maybe_emit_cot_for_subagent(
-                signal if isinstance(signal, dict) else {},
+                payload if isinstance(payload, dict) else {},
                 agent_id=agent_id,
                 workflow_context=wc,
                 ingress=self._ingress,

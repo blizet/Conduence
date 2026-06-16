@@ -12,6 +12,7 @@ import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
 import { fetchWorkflowLiveStatus } from '@/lib/workflow-live';
 import { WrapperGuideModal } from './WrapperGuideModal';
+import { PublishWorkflowModal } from './PublishWorkflowModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const TWILIGHT_ACCENT = '#5b8def';
@@ -21,6 +22,7 @@ type AgentMarketplaceProps = {
   onClose: () => void;
   onInstallWorkflow?: (canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => void;
   workflowRefreshSignal?: number;
+  canvas?: { nodes: WorkflowNode[]; edges: Edge[] };
 };
 
 type AgentLiveStatus = {
@@ -60,6 +62,7 @@ export function AgentMarketplace({
   onClose,
   onInstallWorkflow,
   workflowRefreshSignal = 0,
+  canvas,
 }: AgentMarketplaceProps) {
   const { catalog, installed, install, uninstall } = useInstalledAgents();
   const {
@@ -75,6 +78,7 @@ export function AgentMarketplace({
   } = useAgentFeed();
 
   const [guideOpen, setGuideOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const [workflowLive, setWorkflowLive] = useState(false);
   const [workflows, setWorkflows] = useState<MarketplaceWorkflowListing[]>([]);
   const [workflowBusy, setWorkflowBusy] = useState<string | null>(null);
@@ -179,6 +183,16 @@ export function AgentMarketplace({
             <button type="button" className="marketplace-close" onClick={onClose} aria-label="Close">
               ×
             </button>
+            {canvas && canvas.nodes.length > 0 ? (
+              <button
+                type="button"
+                className="marketplace-btn"
+                style={{ marginRight: 8 }}
+                onClick={() => setPublishOpen(true)}
+              >
+                Publish workflow
+              </button>
+            ) : null}
           </header>
 
           <div className="marketplace-list dark-scroll">
@@ -369,6 +383,17 @@ export function AgentMarketplace({
       </div>
 
       <WrapperGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} apiUrl={API_URL} />
+      {canvas ? (
+        <PublishWorkflowModal
+          open={publishOpen}
+          onClose={() => setPublishOpen(false)}
+          canvas={canvas}
+          onPublished={() => {
+            void loadWorkflows();
+            setPublishOpen(false);
+          }}
+        />
+      ) : null}
     </>
   );
 }

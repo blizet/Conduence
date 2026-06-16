@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.llm.client import complete_json
+from app.llm.client import complete_json_with_usage
+from app.llm.usage_tracker import call_from_meta, empty_llm_usage, merge_call
 
 
 def _fallback_decision(suggestions: list[dict[str, Any]]) -> dict[str, Any]:
@@ -71,14 +72,14 @@ async def synthesize_decision(
     graph_registry: dict[str, Any] | None = None,
     subagent_registry_entry: dict[str, Any] | None = None,
     mind_agent_registry: dict[str, Any] | None = None,
-) -> tuple[dict[str, Any], dict[str, Any]]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     import json
 
     correlated = _build_correlated(tool_results, suggestions)
     api_key = (llm_config.get("apiKey") or llm_config.get("llmApiKey") or "").strip()
 
     if not api_key:
-        return _fallback_decision(suggestions), correlated
+        return _fallback_decision(suggestions), correlated, empty_llm_usage()
 
     system_prompt = llm_config.get("systemPrompt") or (
         "You are a trading analyst synthesizing multi-source signals. "
@@ -138,8 +139,12 @@ async def synthesize_decision(
     }
     full_user = f"{user_prompt}\n\nContext:\n{json.dumps(context, default=str)[:12000]}"
 
-    parsed = await complete_json(llm_config, system_prompt, full_user)
+    parsed, meta = await complete_json_with_usage(llm_config, system_prompt, full_user)
+    llm_usage = empty_llm_usage()
+    llm_call = call_from_meta(meta, agent_id="orchestrator") if meta else None
+    if llm_call:
+        llm_usage = merge_call(llm_usage, llm_call)
     if parsed:
-        return parsed, correlated
+        return parsed, correlated, llm_usage
 
-    return _fallback_decision(suggestions), correlated
+    return _fallback_decision(suggestions), correlated, llm_usage

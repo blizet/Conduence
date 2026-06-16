@@ -8,6 +8,8 @@ from typing import Any
 
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
 from app.ws.events import EventsManager
+from app.llm.usage_tracker import empty_llm_usage, merge_usage
+from app.observability.execution_provenance import _langsmith_block
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,8 @@ class OrchestratorStreamService:
         self._config: dict[str, Any] = {}
         self._memory: dict[str, Any] = {"recent_signals": []}
         self._last_result: dict[str, Any] | None = None
+        self._session_llm_usage: dict[str, Any] = empty_llm_usage()
+        self._session_langsmith: dict[str, Any] = _langsmith_block()
         self._processed = 0
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._task: asyncio.Task | None = None
@@ -55,12 +59,16 @@ class OrchestratorStreamService:
             "lastResult": self._last_result,
             "memorySize": len(recent),
             "recentSignals": list(reversed(previews)),
+            "llmUsage": self._session_llm_usage,
+            "langsmith": self._session_langsmith,
         }
 
     async def start(self, canvas: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:
         self._canvas = canvas or {"nodes": [], "edges": []}
         self._config = config or {}
         self._running = True
+        self._session_llm_usage = empty_llm_usage()
+        self._session_langsmith = _langsmith_block()
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._loop())
         logger.info("Orchestrator stream started")
@@ -92,6 +100,12 @@ class OrchestratorStreamService:
         )
         self._memory = result.get("memory") or self._memory
         self._last_result = result
+        run_usage = result.get("llm_usage")
+        if isinstance(run_usage, dict):
+            self._session_llm_usage = merge_usage(self._session_llm_usage, run_usage)
+        run_ls = result.get("langsmith")
+        if isinstance(run_ls, dict) and run_ls.get("url"):
+            self._session_langsmith = run_ls
         return result
 
     async def _loop(self) -> None:
@@ -109,6 +123,8 @@ class OrchestratorStreamService:
                         {
                             "type": "orchestrator.result",
                             "processed": self._processed,
+                            "llm_usage": self._session_llm_usage,
+                            "langsmith": self._session_langsmith,
                             "result": {
                                 "decision": result.get("decision"),
                                 "suggestions": result.get("suggestions"),

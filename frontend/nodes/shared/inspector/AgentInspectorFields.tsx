@@ -1,13 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import type { Edge } from '@xyflow/react';
+import type { WorkflowNode } from '@/nodes/types';
 import { useAgentFeed } from '@/lib/agent-feed';
 import {
   defaultModelForProvider,
   normalizeProvider,
   type LlmProvider,
 } from '@/lib/llm-providers';
-import { fetchWorkflowLiveStatus } from '@/lib/workflow-live';
+import { fetchWorkflowLiveStatus, type WorkflowLiveStatus } from '@/lib/workflow-live';
+import { upstreamAgentFeedId } from '@/lib/node-wiring';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
+import { formatTokens, formatUsd, hasLlmUsage, mergeLlmUsage } from '@/lib/llm-usage';
 import {
   DEFAULT_COT_CORRELATED_JSON,
   DEFAULT_COT_DECISION_JSON,
@@ -748,31 +753,163 @@ export function CotBuilderInspectorFields({ data, accent, onPatch }: InspectorFi
   );
 }
 
-export function OutputInspectorFields({ data }: Pick<InspectorFieldsProps, 'data'>) {
-  const hasPayload = Boolean(data.outputPayload);
-  const statusLabel = data.outputStatus ? `Status: ${data.outputStatus}` : 'Waiting for workflow run';
+export function OutputInspectorFields({
+  data,
+  node,
+  nodes,
+  edges,
+  feedSignals,
+}: {
+  data: WorkflowNodeData;
+  node: WorkflowNode;
+  nodes: WorkflowNode[];
+  edges: Edge[];
+  feedSignals?: Record<
+    string,
+    {
+      latest?: unknown;
+      running?: boolean;
+      count?: number;
+      llmUsage?: GraphObservabilityLlmUsage;
+      langsmith?: GraphObservability['langsmith'];
+    }
+  >;
+}) {
+  const { orchestratorUsage, orchestratorLangsmith } = useAgentFeed();
+  const [workflowLive, setWorkflowLive] = useState(false);
+  const [workflowDetail, setWorkflowDetail] = useState<WorkflowLiveStatus | null>(null);
+
+  useEffect(() => {
+    const sync = () =>
+      void fetchWorkflowLiveStatus().then((s) => {
+        setWorkflowLive(Boolean(s.running));
+        setWorkflowDetail(s);
+      });
+    sync();
+    const t = setInterval(sync, 8000);
+    return () => clearInterval(t);
+  }, []);
+
+  const upstreamFeedId =
+    node && nodes && edges ? upstreamAgentFeedId(node.id, nodes, edges) : null;
+  const liveFeed = upstreamFeedId ? feedSignals?.[upstreamFeedId] : undefined;
+  const livePayload =
+    liveFeed?.latest != null ? JSON.stringify(liveFeed.latest, null, 2) : null;
+  const hasBatchPayload = Boolean(data.outputPayload);
+  const displayPayload = livePayload ?? data.outputPayload ?? '';
+  const hasPayload = Boolean(displayPayload);
+
+  const liveSubagentUsage = upstreamFeedId ? feedSignals?.[upstreamFeedId]?.llmUsage : undefined;
+  const polledOrchestratorUsage = workflowDetail?.orchestrator?.llmUsage;
+  const polledSubagentUsages = Object.values(workflowDetail?.subagents ?? {}).map(
+    (entry) => entry.llmUsage,
+  );
+  const polledSubagentUsage = mergeLlmUsage(...polledSubagentUsages);
+  const combinedUsage = mergeLlmUsage(
+    liveSubagentUsage ?? polledSubagentUsage,
+    orchestratorUsage ?? polledOrchestratorUsage,
+    data.outputLlmUsage,
+  );
+  const langsmith =
+    data.outputLangsmith ??
+    orchestratorLangsmith ??
+    workflowDetail?.orchestrator?.langsmith ??
+    (upstreamFeedId ? feedSignals?.[upstreamFeedId]?.langsmith : undefined);
+  const showUsage = hasLlmUsage(combinedUsage);
+
+  let statusLabel = data.outputStatus ? `Status: ${data.outputStatus}` : 'Waiting for workflow run';
+  if (upstreamFeedId && (liveFeed?.running || workflowLive)) {
+    statusLabel = `Live · ${upstreamFeedId}${liveFeed?.count ? ` · ${liveFeed.count} signals` : ''}`;
+  } else if (upstreamFeedId && !liveFeed?.running) {
+    statusLabel = `Wired to ${upstreamFeedId} — click Go Live to stream`;
+  }
 
   return (
     <div>
       <p className="node-field__hint">
         {statusLabel}
-        {data.outputSource ? ` · Source: ${data.outputSource}` : ''}
-        {data.outputDurationMs != null
+        {data.outputSource && !livePayload ? ` · Source: ${data.outputSource}` : ''}
+        {data.outputDurationMs != null && !livePayload
           ? ` · ${data.outputDurationMs < 1000 ? `${data.outputDurationMs} ms` : `${(data.outputDurationMs / 1000).toFixed(2)} s`}`
           : ''}
       </p>
+      {upstreamFeedId && !liveFeed?.running && !hasBatchPayload ? (
+        <p className="node-field__hint">
+          Wire News Agent → Output (right port to Input), set LLM + feed tools, then Go Live. News
+          signals appear here in real time — they do not build a graph until CoT Builder is in the
+          path.
+        </p>
+      ) : null}
+      {showUsage ? (
+        <div className="node-field">
+          <div className="node-field__label">LLM cost (session)</div>
+          {langsmith?.url ? (
+            <a
+              className="cot-graph-detail__link"
+              href={langsmith.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open trace in LangSmith ↗
+            </a>
+          ) : (
+            <p className="node-field__hint">
+              {langsmith?.status === 'connected'
+                ? 'LangSmith tracing enabled — cost is estimated from provider token rates.'
+                : 'Estimated from token usage · enable LANGCHAIN_TRACING_V2 for live traces.'}
+            </p>
+          )}
+          <div className="cot-graph-detail__metrics">
+            <div className="cot-graph-detail__metric">
+              <span className="cot-graph-detail__metric-label">Input tokens</span>
+              <span>{formatTokens(combinedUsage.total_input_tokens)}</span>
+            </div>
+            <div className="cot-graph-detail__metric">
+              <span className="cot-graph-detail__metric-label">Output tokens</span>
+              <span>{formatTokens(combinedUsage.total_output_tokens)}</span>
+            </div>
+            <div className="cot-graph-detail__metric">
+              <span className="cot-graph-detail__metric-label">Cost</span>
+              <span>{formatUsd(combinedUsage.total_cost_usd)}</span>
+            </div>
+            {combinedUsage.calls?.length ? (
+              <div className="cot-graph-detail__metric">
+                <span className="cot-graph-detail__metric-label">LLM calls</span>
+                <span>{combinedUsage.calls.length}</span>
+              </div>
+            ) : null}
+          </div>
+          {combinedUsage.calls && combinedUsage.calls.length > 0 ? (
+            <ul className="cot-graph-detail__list cot-graph-detail__list--compact">
+              {combinedUsage.calls.slice(-6).map((call, index) => (
+                <li key={`${call.agent_id ?? 'llm'}-${index}`}>
+                  {call.agent_id ?? 'llm'} · {call.provider}/{call.model} · in{' '}
+                  {formatTokens(call.input_tokens)} / out {formatTokens(call.output_tokens)} ·{' '}
+                  {formatUsd(call.cost_usd)}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
       {hasPayload ? (
         <div className="node-field">
-          <div className="node-field__label">Output payload</div>
+          <div className="node-field__label">
+            {livePayload ? 'Latest live signal' : 'Output payload'}
+          </div>
           <textarea
             className="node-textarea node-fetch-result"
-            rows={8}
+            rows={12}
             readOnly
-            value={data.outputPayload}
+            value={displayPayload}
           />
         </div>
       ) : (
-        <p className="node-field__hint">Run the workflow to populate this output node.</p>
+        <p className="node-field__hint">
+          {upstreamFeedId
+            ? 'No signals yet — waiting for the upstream agent.'
+            : 'Wire an agent output into this node, or run a one-shot workflow with an Orchestrator.'}
+        </p>
       )}
     </div>
   );

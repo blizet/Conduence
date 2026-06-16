@@ -91,7 +91,15 @@ export function NodeInspectorFields({ node, nodes, edges, feedSignals }: NodeIns
       return <CotBuilderInspectorFields data={data} accent={accent} onPatch={onPatch} />;
     case 'workflowOutput':
     case 'output':
-      return <OutputInspectorFields data={data} />;
+      return (
+        <OutputInspectorFields
+          data={data}
+          node={node}
+          nodes={nodes}
+          edges={edges}
+          feedSignals={feedSignals}
+        />
+      );
     case 'llm':
       return <LlmInspectorFields data={data} accent={accent} onPatch={onPatch} />;
     case 'newsAgent':

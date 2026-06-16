@@ -2,6 +2,7 @@
 
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
 import { API_BASE } from './workflow-tools';
 
 const DEMO_SIGNAL = {
@@ -28,6 +29,8 @@ export type OrchestratorRunResult = {
   evidence?: string[];
   errors?: string[];
   error?: string;
+  llm_usage?: GraphObservabilityLlmUsage;
+  langsmith?: GraphObservability['langsmith'];
 };
 
 function canvasPayload(nodes: WorkflowNode[], edges: Edge[]) {

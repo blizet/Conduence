@@ -332,9 +332,13 @@ class FalkorDbService:
             return []
 
         def run():
-            return self._client.list()
+            return self._client.list_graphs()
 
-        return await asyncio.to_thread(run)
+        try:
+            return await asyncio.to_thread(run)
+        except Exception as exc:
+            logger.warning("FalkorDB list_graphs failed: %s", exc)
+            return []
 
 
 def _action_from_rel(rel_type: str) -> str | None:

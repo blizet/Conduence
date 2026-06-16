@@ -2,6 +2,7 @@
 
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -12,6 +13,17 @@ export type WorkflowLiveStatus = {
   started_subagents?: string[];
   has_orchestrator?: boolean;
   error?: string;
+  orchestrator?: {
+    llmUsage?: GraphObservabilityLlmUsage;
+    langsmith?: GraphObservability['langsmith'];
+  };
+  subagents?: Record<
+    string,
+    {
+      llmUsage?: GraphObservabilityLlmUsage;
+      langsmith?: GraphObservability['langsmith'];
+    }
+  >;
 };
 
 function canvasPayload(nodes: WorkflowNode[], edges: Edge[]) {

@@ -118,6 +118,7 @@ function PlaygroundInner({
         onClose={onCloseMarketplace}
         onInstallWorkflow={onInstallWorkflow}
         workflowRefreshSignal={workflowRefreshSignal}
+        canvas={canvasSnapshot}
       />
       <header className="playground-header">
         <Image
@@ -178,6 +179,14 @@ function PlaygroundInner({
               <path d="M4.6 7.2L11.2 4.8M4.6 8.8L11.2 11.2" />
             </svg>
             {viewMode === 'agentic' ? 'Workflow' : 'Agentic Graph'}
+          </button>
+          <button
+            type="button"
+            className={`graph-view-toggle${showMarketplace ? ' graph-view-toggle--active' : ''}`}
+            onClick={onToggleMarketplace}
+            title="Install agents and publish workflows to the marketplace"
+          >
+            Marketplace
           </button>
           <Link href="/simulate" className="graph-view-toggle" title="Paper trading simulation">
             Paper Trade

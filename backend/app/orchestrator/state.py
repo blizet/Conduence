@@ -40,3 +40,5 @@ class OrchestratorState(TypedDict, total=False):
     mind_agent_registry: dict[str, Any]
     orchestrator_registry: dict[str, Any]
     workflow_topology: dict[str, Any]
+    llm_usage: dict[str, Any]
+    langsmith: dict[str, Any]

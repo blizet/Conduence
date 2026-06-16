@@ -3,15 +3,64 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_GRAPH_PATH = Path(
-    os.getenv("CORRELATION_GRAPH_PATH", str(_REPO_ROOT / "cry" / "graph" / "correlation_graph.json"))
+    os.getenv(
+        "CORRELATION_GRAPH_PATH",
+        str(_REPO_ROOT / "data" / "correlation" / "correlation_graph.json"),
+    )
 )
 HOP_DECAY = 0.6
+
+_BUILTIN_GRAPH: dict = {
+    "nodes": [
+        {
+            "id": "ethereum",
+            "type": "asset",
+            "label": "Ethereum",
+            "keywords": ["eth", "ethereum"],
+            "coingecko_id": "ethereum",
+        },
+        {
+            "id": "bitcoin",
+            "type": "asset",
+            "label": "Bitcoin",
+            "keywords": ["btc", "bitcoin"],
+            "coingecko_id": "bitcoin",
+        },
+    ],
+    "edges": [
+        {
+            "source": "bitcoin",
+            "target": "ethereum",
+            "weight": 0.75,
+            "direction": "bi",
+            "rationale": "BTC-ETH beta",
+        }
+    ],
+}
+
+
+def _load_graph_json(path: Path | str) -> dict:
+    graph_path = Path(path)
+    try:
+        return json.loads(graph_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        logger.warning(
+            "Correlation graph not found at %s — using built-in minimal graph",
+            graph_path,
+        )
+        return _BUILTIN_GRAPH
+    except json.JSONDecodeError as exc:
+        logger.warning("Invalid correlation graph JSON at %s (%s) — using built-in", graph_path, exc)
+        return _BUILTIN_GRAPH
 
 
 @dataclass
@@ -42,7 +91,7 @@ class Impact:
 
 class CorrelationGraph:
     def __init__(self, path: Path | str = DEFAULT_GRAPH_PATH):
-        raw = json.loads(Path(path).read_text())
+        raw = _load_graph_json(path)
         self.nodes: dict[str, GraphNode] = {
             n["id"]: GraphNode(
                 id=n["id"],

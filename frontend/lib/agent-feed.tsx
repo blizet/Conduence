@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import type { NewsSignalPayload } from '@/lib/news-signal';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
 
 const API_KEY_STORAGE = 'cot-coindesk-api-key';
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -24,6 +25,8 @@ export type AgentFeedState = {
   feedTopic: string | null;
   source?: 'hosted' | 'external';
   lastSeen?: string | null;
+  llmUsage?: GraphObservabilityLlmUsage;
+  langsmith?: GraphObservability['langsmith'];
 };
 
 type AgentFeedContextValue = {
@@ -34,6 +37,8 @@ type AgentFeedContextValue = {
   newsStreamError: string | null;
   feedTopic: string | null;
   agentFeeds: Record<string, AgentFeedState>;
+  orchestratorUsage: GraphObservabilityLlmUsage | null;
+  orchestratorLangsmith: GraphObservability['langsmith'] | null;
   startAgent: (
     agentId: string,
     config?: Record<string, unknown>,
@@ -81,6 +86,12 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
   const [feedTopic, setFeedTopic] = useState<string | null>(null);
   const [history, setHistory] = useState<NewsSignalPayload[]>([]);
   const [agentFeeds, setAgentFeeds] = useState<Record<string, AgentFeedState>>({});
+  const [orchestratorUsage, setOrchestratorUsage] = useState<GraphObservabilityLlmUsage | null>(
+    null,
+  );
+  const [orchestratorLangsmith, setOrchestratorLangsmith] = useState<
+    GraphObservability['langsmith'] | null
+  >(null);
 
   const pushSignal = useCallback((payload: NewsSignalPayload) => {
     setLatestNews(payload);
@@ -169,9 +180,23 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
             agent_id?: string;
             topic?: string;
             payload?: unknown;
+            llm_usage?: GraphObservabilityLlmUsage;
+            langsmith?: GraphObservability['langsmith'];
+            result?: unknown;
           };
+          if (msg.type === 'orchestrator.result') {
+            if (msg.llm_usage) setOrchestratorUsage(msg.llm_usage);
+            if (msg.langsmith) setOrchestratorLangsmith(msg.langsmith);
+            return;
+          }
           if (msg.type !== 'agent.feed' || !msg.agent_id) return;
           pushAgentSignal(msg.agent_id, msg.payload, msg.topic);
+          if (msg.llm_usage || msg.langsmith) {
+            patchAgentFeed(msg.agent_id, {
+              ...(msg.llm_usage ? { llmUsage: msg.llm_usage } : {}),
+              ...(msg.langsmith ? { langsmith: msg.langsmith } : {}),
+            });
+          }
           if (msg.agent_id === NEWS_AGENT_ID && isNewsPayload(msg.payload)) {
             pushSignal(msg.payload);
             setNewsStreamError(null);
@@ -188,7 +213,7 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
       if (retryTimer) clearTimeout(retryTimer);
       ws?.close();
     };
-  }, [pushSignal, pushAgentSignal]);
+  }, [pushSignal, pushAgentSignal, patchAgentFeed]);
 
   const refreshAgentStatus = useCallback(
     async (agentId: string) => {
@@ -206,6 +231,8 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
           lastSignal?: unknown;
           emittedCount?: number;
           lastSeen?: string | null;
+          llmUsage?: GraphObservabilityLlmUsage;
+          langsmith?: GraphObservability['langsmith'];
         };
         const isExternal = body.source === 'external';
         const isLive = isExternal ? Boolean(body.live) : Boolean(body.running);
@@ -219,6 +246,8 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
             ? { latest: body.lastSignal }
             : {}),
           ...(typeof body.emittedCount === 'number' ? { count: body.emittedCount } : {}),
+          ...(body.llmUsage ? { llmUsage: body.llmUsage } : {}),
+          ...(body.langsmith ? { langsmith: body.langsmith } : {}),
         });
       } catch {
         /* backend optional */
@@ -369,6 +398,8 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
       newsStreamError,
       feedTopic,
       agentFeeds,
+      orchestratorUsage,
+      orchestratorLangsmith,
       startAgent,
       stopAgent,
       refreshAgentStatus,
@@ -386,6 +417,8 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
       newsStreamError,
       feedTopic,
       agentFeeds,
+      orchestratorUsage,
+      orchestratorLangsmith,
       startAgent,
       stopAgent,
       refreshAgentStatus,

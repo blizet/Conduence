@@ -6,6 +6,8 @@ from typing import Any
 
 from app.orchestrator.graph import get_compiled_graph
 from app.orchestrator.state import OrchestratorState
+from app.llm.usage_tracker import empty_llm_usage
+from app.observability.execution_provenance import _langsmith_block
 
 
 def normalize_inbound_signal(body: dict[str, Any]) -> dict[str, Any]:
@@ -55,6 +57,8 @@ async def run_orchestrator(
         "skills_registry": final_state.get("skills_registry"),
         "tool_registry": final_state.get("tool_registry"),
         "rag_context": final_state.get("rag_context"),
+        "llm_usage": final_state.get("llm_usage") or empty_llm_usage(),
+        "langsmith": final_state.get("langsmith") or _langsmith_block(),
         "memory": {
             "recent_signals": final_state.get("recent_signals") or [],
         },

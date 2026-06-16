@@ -14,7 +14,8 @@ from app.orchestrator.planner import plan_tool_calls
 from app.orchestrator.state import OrchestratorState
 from app.orchestrator.tools_registry import ToolRegistry
 from app.schemas.decision import DecisionEvent
-from app.observability.execution_provenance import build_execution_provenance, merge_provenance
+from app.observability.execution_provenance import _langsmith_block, build_execution_provenance, merge_provenance
+from app.llm.usage_tracker import empty_llm_usage, merge_call, merge_usage
 from app.tools.cot_builder import build_cot_decision
 
 
@@ -36,7 +37,12 @@ def _normalize_signal(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
-    signal = _normalize_signal(state.get("signal") or {})
+    raw_signal = state.get("signal") or {}
+    signal = _normalize_signal(raw_signal)
+    llm_usage = empty_llm_usage()
+    signal_call = signal.pop("_llm_usage", None)
+    if isinstance(signal_call, dict):
+        llm_usage = merge_call(llm_usage, signal_call)
     config = state.get("config") or {}
     canvas = state.get("canvas") or {}
     compiled = compile_orchestrator(
@@ -79,6 +85,8 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
         "rag_context": {},
         "errors": [],
         "evidence": [],
+        "llm_usage": merge_usage(state.get("llm_usage"), llm_usage),
+        "langsmith": state.get("langsmith") or _langsmith_block(),
         "steps": _append_step(state, "ingest_signal"),
     }
 
@@ -223,7 +231,7 @@ async def llm_synthesize_node(state: OrchestratorState) -> dict[str, Any]:
     subagent_reg = orch_reg.get("subagent_registry") or state.get("subagent_registry") or {}
     subagent_entry = subagent_reg.get(agent_id) if agent_id in subagent_reg else None
 
-    decision, correlated = await synthesize_decision(
+    decision, correlated, synth_usage = await synthesize_decision(
         llm_config,
         signal,
         state.get("suggestions") or [],
@@ -235,9 +243,13 @@ async def llm_synthesize_node(state: OrchestratorState) -> dict[str, Any]:
         subagent_registry_entry=subagent_entry,
         mind_agent_registry=state.get("mind_agent_registry") or {},
     )
+    llm_usage = merge_usage(state.get("llm_usage"), synth_usage)
+    langsmith = _langsmith_block()
     return {
         "decision": decision,
         "correlated": correlated,
+        "llm_usage": llm_usage,
+        "langsmith": langsmith,
         "steps": _append_step(state, "llm_synthesize"),
     }
 
@@ -256,6 +268,8 @@ async def publish_outputs(state: OrchestratorState) -> dict[str, Any]:
             signal=state.get("signal"),
             workflow_id=topology.get("workflow_id"),
             path="orchestrator",
+            langsmith=state.get("langsmith"),
+            llm_usage=state.get("llm_usage"),
         )
         provenance = merge_provenance(None, execution=execution)
         draft = build_cot_decision(

@@ -172,7 +172,14 @@ export async function runWorkflow({
 
   for (const node of nodes) {
     if (isOutputNodeType(node.type)) {
-      patchNode(node.id, { outputStatus: '', outputPayload: '', outputSource: '', outputDurationMs: undefined });
+      patchNode(node.id, {
+        outputStatus: '',
+        outputPayload: '',
+        outputSource: '',
+        outputDurationMs: undefined,
+        outputLlmUsage: undefined,
+        outputLangsmith: undefined,
+      });
     }
     if (node.type && RUNNABLE_TOOL_TYPES.has(node.type)) {
       patchNode(node.id, {
@@ -275,6 +282,8 @@ export async function runWorkflow({
         outputPayload: formatOutputPayload(orch),
         outputSource: 'llm',
         outputDurationMs: orch.durationMs,
+        outputLlmUsage: orch.llm_usage,
+        outputLangsmith: orch.langsmith,
       });
     }
   }

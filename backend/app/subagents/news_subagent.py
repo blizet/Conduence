@@ -24,7 +24,8 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
-from app.llm.client import complete_json
+from app.llm.client import complete_json_with_usage
+from app.llm.usage_tracker import call_from_meta
 from app.subagents.tool_loop import NEWS_FEED_TOOLS, fetch_headlines_from_tools
 
 NEWS_POLL_INTERVAL_MS = int(os.getenv("NEWS_POLL_INTERVAL_MS", "30000"))
@@ -128,7 +129,7 @@ async def _infer_with_llm(
         parts.append("Tool evidence:\n" + "\n".join(f"- {e}" for e in evidence[:8]))
     user_message = "\n\n".join(parts)
 
-    parsed = await complete_json(llm_config, SYSTEM_PROMPT, user_message)
+    parsed, meta = await complete_json_with_usage(llm_config, SYSTEM_PROMPT, user_message)
     if not parsed:
         raise RuntimeError("LLM returned no parseable JSON for news enrichment")
 
@@ -157,7 +158,7 @@ async def _infer_with_llm(
         f"News is {sentiment}; expect related markets to reprice {direction}."
     )
 
-    return {
+    result = {
         "sentiment": sentiment,
         "direction": direction,
         "strength": round(strength, 3),
@@ -165,6 +166,10 @@ async def _infer_with_llm(
         "categories": categories,
         "thesis": thesis,
     }
+    llm_call = call_from_meta(meta, agent_id="newsAgent") if meta else None
+    if llm_call:
+        result["_llm_usage"] = llm_call
+    return result
 
 
 async def _make_signal(
@@ -181,7 +186,7 @@ async def _make_signal(
     inferred = await _infer_with_llm(
         headline, summary, llm_config, user_prompt=user_prompt, evidence=evidence
     )
-    return {
+    signal = {
         "type": "news",
         "agent": "newsAgent",
         "headline": headline,
@@ -198,6 +203,9 @@ async def _make_signal(
         "evidence": evidence or [],
         "ts": _now_iso(),
     }
+    if inferred.get("_llm_usage"):
+        signal["_llm_usage"] = inferred["_llm_usage"]
+    return signal
 
 
 def _signal_key(signal: dict[str, Any]) -> str:

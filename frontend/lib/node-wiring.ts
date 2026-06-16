@@ -74,3 +74,30 @@ export function partitionWiredInputs(inputs: WiredInput[]) {
     ),
   };
 }
+
+/** Marketplace / Kafka feed id for a sub-agent or mind-agent source node. */
+export function agentFeedIdForSourceNode(node: WorkflowNode | undefined): string | null {
+  if (!node?.type) return null;
+  if (node.type === 'newsAgent') return 'newsAgent';
+  if (node.type === 'arbitrageAgent') return 'arbitrageAgent';
+  if (node.type === 'riskAnalyzer') return 'riskAnalyzer';
+  if (node.type === 'sportsScanner') {
+    return String(node.data?.agentId ?? 'sportsScanner.user_demo');
+  }
+  return null;
+}
+
+/** When Output is wired from a live sub-agent, return its feed agent id. */
+export function upstreamAgentFeedId(
+  outputNodeId: string,
+  nodes: WorkflowNode[],
+  edges: Edge[],
+): string | null {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  for (const edge of edges) {
+    if (edge.target !== outputNodeId) continue;
+    const feedId = agentFeedIdForSourceNode(byId.get(edge.source));
+    if (feedId) return feedId;
+  }
+  return null;
+}
