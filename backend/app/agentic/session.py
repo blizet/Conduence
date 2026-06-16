@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.agentic.config import LlmConfig, is_supermemory_configured
+from app.agentic.config import LlmConfig
 from app.agentic.graph import (
     apply_llm_delta,
     apply_weights_from_quoted_context,
@@ -20,7 +20,8 @@ from app.agentic.graph import (
     supplement_graph_from_text,
 )
 from app.agentic.llm_graph import call_graph_llm
-from app.agentic.memory import fetch_supermemory_context, load_graph_from_supermemory, persist_to_supermemory
+from app.agentic.memory import fetch_supermemory_context, persist_to_supermemory
+from app.agentic.shared_graph import agentic_chat_mutations_enabled, load_shared_agentic_graph
 from app.agentic.pricing import estimate_cost_usd
 from app.agentic.tokens import add_turn_usage, empty_conversation_usage, with_cost_usd
 from app.agentic.weight import clamp_weight, parse_batch_weight_answers
@@ -44,41 +45,42 @@ def get_session(session_id: str) -> Session | None:
     return _sessions.get(session_id)
 
 
-def _welcome_message(supermemory_loaded: bool, edge_count: int, fresh: bool) -> str:
-    if fresh:
-        return (
-            "Starting a fresh session. Tell me about the causal relationships you're thinking through — "
-            "markets, geopolitics, assets, events — and we'll build the graph together. Once links appear "
-            "on the graph, you can click any edge to set its weight with the sidebar slider (−1 to 1), "
-            "or keep chatting here if you prefer."
-        )
-    sm = ""
-    if supermemory_loaded:
-        sm = f"I've restored your prior graph ({edge_count} edge{'s' if edge_count != 1 else ''}). "
-    elif is_supermemory_configured():
-        sm = "Supermemory is connected, so your graph will persist across sessions. "
-    return (
-        f"{sm}What would you like to add or refine? Describe relationships in your own words — "
-        "and click edges on the graph anytime to adjust weights (−1 to 1) in the sidebar."
+def _welcome_message(
+    *,
+    node_count: int,
+    edge_count: int,
+    supermemory_loaded: bool,
+    fresh_chat: bool,
+) -> str:
+    graph_line = (
+        f"The shared macro correlation graph is loaded ({node_count} nodes, {edge_count} edges). "
+        if node_count
+        else "No shared graph is loaded yet — run seed_agentic_graph_supermemory.py after setting SUPERMEMORY_API_KEY. "
     )
+    sm = "Restored from Supermemory. " if supermemory_loaded else ""
+    chat_hint = (
+        "Ask questions about relationships, sectors, or impacts — chat won't reshape this curated graph. "
+        if not agentic_chat_mutations_enabled()
+        else "Describe refinements in chat or click edges to set weights (−1 to 1) in the sidebar. "
+    )
+    fresh = "New chat session. " if fresh_chat else ""
+    return f"{fresh}{sm}{graph_line}{chat_hint}Click any edge to inspect or adjust its weight."
 
 
 async def create_session(container_tag: str, fresh: bool = False) -> Session:
-    graph = create_empty_graph()
-    supermemory_loaded = False
-
-    if not fresh and is_supermemory_configured():
-        hydrated = await load_graph_from_supermemory(container_tag)
-        if hydrated["nodes"] or hydrated["edges"]:
-            graph = sanitize_graph(hydrated)
-            supermemory_loaded = True
+    graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
 
     session = Session(
         id=str(uuid.uuid4()),
         messages=[
             {
                 "role": "assistant",
-                "content": _welcome_message(supermemory_loaded, len(graph["edges"]), fresh),
+                "content": _welcome_message(
+                    node_count=len(graph["nodes"]),
+                    edge_count=len(graph["edges"]),
+                    supermemory_loaded=supermemory_loaded,
+                    fresh_chat=fresh,
+                ),
             }
         ],
         graph=graph,
@@ -136,11 +138,13 @@ async def handle_chat(
         active = await create_session(container_tag)
 
     active.messages.append({"role": "user", "content": user_message})
-    active.graph = supplement_graph_from_prose(active.graph, user_message)
-    active.graph = supplement_graph_from_text(active.graph, user_message)
-    active.graph = apply_weights_from_recent_assistant_messages(active.graph, active.messages, user_message)
-    _apply_local_batch_weight_fallback(active, user_message)
-    active.graph = sanitize_graph(active.graph)
+
+    if agentic_chat_mutations_enabled():
+        active.graph = supplement_graph_from_prose(active.graph, user_message)
+        active.graph = supplement_graph_from_text(active.graph, user_message)
+        active.graph = apply_weights_from_recent_assistant_messages(active.graph, active.messages, user_message)
+        _apply_local_batch_weight_fallback(active, user_message)
+        active.graph = sanitize_graph(active.graph)
 
     memory_context, _ = await fetch_supermemory_context(container_tag, user_message)
     llm_result, turn_usage = await call_graph_llm(
@@ -156,7 +160,7 @@ async def handle_chat(
             with_cost_usd(turn_usage, cost_usd),
         )
 
-    if llm_result:
+    if llm_result and agentic_chat_mutations_enabled():
         active.graph = apply_llm_delta(active.graph, llm_result)
         active.graph = supplement_graph_from_prose(active.graph, user_message)
         active.graph = supplement_graph_from_text(active.graph, user_message)
@@ -167,14 +171,21 @@ async def handle_chat(
         )
         _apply_local_batch_weight_fallback(active, user_message)
 
-    active.graph = sanitize_graph(active.graph)
+    if agentic_chat_mutations_enabled():
+        active.graph = sanitize_graph(active.graph)
     pending = pending_weight_questions(active.graph)
     reply = (llm_result or {}).get("assistant_message", "").strip() or (
         "LLM unavailable — check provider/key in settings."
     )
 
     active.messages.append({"role": "assistant", "content": reply})
-    await persist_to_supermemory(container_tag, user_message, reply, active.graph)
+    await persist_to_supermemory(
+        container_tag,
+        user_message,
+        reply,
+        active.graph,
+        persist_graph_snapshot=agentic_chat_mutations_enabled(),
+    )
 
     return {
         "sessionId": active.id,

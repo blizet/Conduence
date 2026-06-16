@@ -204,7 +204,7 @@ export function GraphView({
     return (
       <div className="cot-graph-view cot-graph-view--empty">
         <div className="graph-empty">
-          <p>Your causal graph will appear here as you chat.</p>
+          <p>Shared macro correlation graph — open Session &amp; LLM to chat about it.</p>
           <p className="muted">Click the message button at the bottom-left to describe relationships.</p>
         </div>
       </div>

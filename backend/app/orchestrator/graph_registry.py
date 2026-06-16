@@ -12,8 +12,8 @@ ContextGraphId = Literal["correlation", "decision"]
 GRAPH_CATALOG: dict[str, dict[str, str]] = {
     "correlation": {
         "label": "Correlation graph",
-        "description": "Market context — asset/theme co-movement (data/correlation/correlation_graph.json)",
-        "source": "data/correlation/correlation_graph.json",
+        "description": "Market context — asset/theme co-movement (CORRELATION_GRAPH_PATH or data/correlation/)",
+        "source": "correlation_graph.json",
     },
     "decision": {
         "label": "Decision graph",

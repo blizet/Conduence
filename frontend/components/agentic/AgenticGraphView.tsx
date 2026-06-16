@@ -288,6 +288,8 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
         setSessionId(data.sessionId);
         setMessages(data.messages ?? []);
         setGraph(data.graph ?? { nodes: [], edges: [] });
+        setPendingCount((data.pendingWeights ?? []).length);
+        setGraphComplete(Boolean(data.graphComplete));
         setTokenUsage(data.tokenUsage ?? emptyConversationUsage());
         setSupermemoryLoaded(Boolean(data.supermemoryLoaded));
       })
@@ -339,8 +341,8 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
       setSessionId(data.sessionId);
       setMessages(data.messages);
       setGraph(data.graph);
-      setPendingCount(0);
-      setGraphComplete(false);
+      setPendingCount((data.pendingWeights ?? []).length);
+      setGraphComplete(Boolean(data.graphComplete));
       setTokenUsage(data.tokenUsage ?? emptyConversationUsage());
       setSupermemoryLoaded(Boolean(data.supermemoryLoaded));
     },
@@ -388,9 +390,9 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
               type="button"
               className="graph-view-toggle graph-view-toggle--active"
               onClick={() => reset({ fresh: false })}
-              title="New session and restore graph from Supermemory"
+              title="New chat session — reload shared graph from Supermemory"
             >
-              Restore
+              Restore graph
             </button>
           </div>
         ) : null}

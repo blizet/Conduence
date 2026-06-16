@@ -95,7 +95,8 @@ def is_supermemory_configured() -> bool:
 
 
 def resolve_container_tag(user_slug: str | None) -> str:
-    slug = (user_slug or "").strip()
-    if slug:
-        return f"{slug}.agentic.v1"
-    return os.getenv("AGENTIC_CONTAINER_TAG", "cot-graph-user").strip()
+    """All users share one agentic graph container in Supermemory."""
+    _ = user_slug
+    from app.agentic.shared_graph import shared_graph_container_tag
+
+    return shared_graph_container_tag()

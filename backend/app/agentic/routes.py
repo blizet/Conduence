@@ -14,6 +14,12 @@ from app.agentic.config import (
     resolve_container_tag,
     resolve_llm_config,
 )
+from app.agentic.shared_graph import (
+    agentic_chat_mutations_enabled,
+    load_shared_agentic_graph,
+    shared_graph_container_tag,
+)
+from app.agentic.graph import graph_is_complete, pending_weight_questions
 from app.agentic.session import (
     create_session,
     get_session,
@@ -60,6 +66,22 @@ async def agentic_health() -> dict[str, Any]:
         "supermemoryConfigured": is_supermemory_configured(),
         "envFallbackConfigured": bool(env_fallback),
         "providers": LLM_PROVIDERS,
+        "sharedGraphContainer": shared_graph_container_tag(),
+        "graphChatMutations": agentic_chat_mutations_enabled(),
+    }
+
+
+@router.get("/graph")
+async def agentic_shared_graph() -> dict[str, Any]:
+    container_tag = shared_graph_container_tag()
+    graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
+    return {
+        "ok": True,
+        "containerTag": container_tag,
+        "graph": graph,
+        "supermemoryLoaded": supermemory_loaded,
+        "graphComplete": graph_is_complete(graph),
+        "pendingWeights": pending_weight_questions(graph),
     }
 
 
@@ -109,6 +131,8 @@ async def agentic_reset(body: ResetRequest) -> dict[str, Any]:
         "graph": session.graph,
         "tokenUsage": session.token_usage,
         "supermemoryLoaded": session.supermemory_loaded,
+        "graphComplete": graph_is_complete(session.graph),
+        "pendingWeights": pending_weight_questions(session.graph),
     }
 
 

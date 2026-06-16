@@ -11,11 +11,17 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_GRAPH_PATH = Path(
-    os.getenv(
-        "CORRELATION_GRAPH_PATH",
-        str(_REPO_ROOT / "data" / "correlation" / "correlation_graph.json"),
-    )
+
+
+def _resolve_graph_path(raw: str | Path) -> Path:
+    path = Path(raw)
+    if path.is_absolute():
+        return path
+    return _REPO_ROOT / path
+
+
+DEFAULT_GRAPH_PATH = _resolve_graph_path(
+    os.getenv("CORRELATION_GRAPH_PATH", "data/correlation/correlation_graph.json")
 )
 HOP_DECAY = 0.6
 
@@ -91,7 +97,7 @@ class Impact:
 
 class CorrelationGraph:
     def __init__(self, path: Path | str = DEFAULT_GRAPH_PATH):
-        raw = _load_graph_json(path)
+        raw = _load_graph_json(_resolve_graph_path(path))
         self.nodes: dict[str, GraphNode] = {
             n["id"]: GraphNode(
                 id=n["id"],

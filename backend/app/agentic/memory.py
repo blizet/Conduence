@@ -84,16 +84,20 @@ def graph_from_memories(memories: list[str]) -> dict:
 
     for match in cot_node_re.finditer(text):
         node_id, label, node_type = match.group(1), match.group(2), match.group(3)
+        if node_id in {"id", "sourceId", "targetId"} or label in {"label", "sourceLabel", "targetLabel"}:
+            continue
         typ = node_type if node_type in {"event", "asset", "market", "concept"} else infer_node_type(label)
         nodes[node_id] = {"id": node_id, "label": label, "type": typ}
 
     for match in cot_edge_re.finditer(text):
         source_id, source_label, target_id, target_label, weight_raw, direction = match.groups()
-        weight = (
-            None
-            if weight_raw in {"", "unset", "null"}
-            else clamp_weight(float(weight_raw))
-        )
+        if weight_raw in {"", "unset", "null", "weight"}:
+            weight = None
+        else:
+            try:
+                weight = clamp_weight(float(weight_raw))
+            except ValueError:
+                continue
         nodes[source_id] = {"id": source_id, "label": source_label, "type": infer_node_type(source_label)}
         nodes[target_id] = {"id": target_id, "label": target_label, "type": infer_node_type(target_label)}
         edge_id = f"{source_id}_to_{target_id}"
@@ -248,13 +252,15 @@ def _persist_to_supermemory_sync(
     last_user_message: str,
     last_assistant_message: str,
     graph: dict,
+    *,
+    persist_graph_snapshot: bool = True,
 ) -> None:
     sm = _get_client()
     if not sm:
         return
     try:
         _ensure_container_context(container_tag)
-        if graph["nodes"] or graph["edges"]:
+        if persist_graph_snapshot and (graph["nodes"] or graph["edges"]):
             sm.add(
                 content=format_graph_snapshot(graph),
                 container_tag=container_tag,
@@ -277,6 +283,8 @@ async def persist_to_supermemory(
     last_user_message: str,
     last_assistant_message: str,
     graph: dict,
+    *,
+    persist_graph_snapshot: bool = True,
 ) -> None:
     await asyncio.to_thread(
         _persist_to_supermemory_sync,
@@ -284,4 +292,5 @@ async def persist_to_supermemory(
         last_user_message,
         last_assistant_message,
         graph,
+        persist_graph_snapshot=persist_graph_snapshot,
     )

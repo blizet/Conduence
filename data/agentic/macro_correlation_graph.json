@@ -1,0 +1,3093 @@
+{
+  "graph_metadata": {
+    "source": "gemini_macro",
+    "total_nodes": 210,
+    "total_edges": 254
+  },
+  "nodes": [
+    {
+      "id": "geo_01",
+      "label": "Iran-US Kinetic Escalation",
+      "type": "event"
+    },
+    {
+      "id": "geo_02",
+      "label": "Strait of Hormuz Blockade Risk",
+      "type": "event"
+    },
+    {
+      "id": "geo_03",
+      "label": "Saudi Oil Infrastructure Vulnerability",
+      "type": "event"
+    },
+    {
+      "id": "geo_04",
+      "label": "Israel-Regional Proxy Conflict",
+      "type": "event"
+    },
+    {
+      "id": "geo_05",
+      "label": "Suez Canal Shipping Disruption",
+      "type": "event"
+    },
+    {
+      "id": "geo_06",
+      "label": "Red Sea Maritime Security Threats",
+      "type": "event"
+    },
+    {
+      "id": "geo_07",
+      "label": "OPEC+ Sudden Production Cuts",
+      "type": "event"
+    },
+    {
+      "id": "geo_08",
+      "label": "US-China Taiwan Strait Tensions",
+      "type": "event"
+    },
+    {
+      "id": "geo_09",
+      "label": "South China Sea Sovereignty Disputes",
+      "type": "event"
+    },
+    {
+      "id": "geo_10",
+      "label": "US Advanced Semiconductor Export Bans",
+      "type": "event"
+    },
+    {
+      "id": "geo_11",
+      "label": "China Rare Earth Element Export Restrictions",
+      "type": "event"
+    },
+    {
+      "id": "geo_12",
+      "label": "Taiwan Foundry (TSMC) Kinetic Risk",
+      "type": "event"
+    },
+    {
+      "id": "geo_13",
+      "label": "Russia-NATO Border Militarization",
+      "type": "event"
+    },
+    {
+      "id": "geo_14",
+      "label": "Black Sea Grain Corridor Disruptions",
+      "type": "event"
+    },
+    {
+      "id": "geo_15",
+      "label": "EU Russian Gas Pipeline Total Shutdown",
+      "type": "event"
+    },
+    {
+      "id": "geo_16",
+      "label": "US-EU Coordinated Sanctions Enforcement",
+      "type": "event"
+    },
+    {
+      "id": "geo_17",
+      "label": "Cyberwarfare Targeting Western Power Grids",
+      "type": "event"
+    },
+    {
+      "id": "geo_18",
+      "label": "Ransomware Attacks on Global Banking SWIFT",
+      "type": "event"
+    },
+    {
+      "id": "geo_19",
+      "label": "North Korean State-Sponsored Crypto Hacks",
+      "type": "event"
+    },
+    {
+      "id": "geo_20",
+      "label": "Satellite/GPS Signal Jamming Networks",
+      "type": "event"
+    },
+    {
+      "id": "macro_01",
+      "label": "US Federal Reserve Funds Rate",
+      "type": "concept"
+    },
+    {
+      "id": "macro_02",
+      "label": "European Central Bank Policy Rate",
+      "type": "concept"
+    },
+    {
+      "id": "macro_03",
+      "label": "Bank of Japan Yield Curve Control Shifts",
+      "type": "concept"
+    },
+    {
+      "id": "macro_04",
+      "label": "People's Bank of China RRR Cuts",
+      "type": "concept"
+    },
+    {
+      "id": "macro_05",
+      "label": "Federal Reserve Balance Sheet (QT/QE)",
+      "type": "concept"
+    },
+    {
+      "id": "macro_06",
+      "label": "Global M2 Money Supply Aggregates",
+      "type": "concept"
+    },
+    {
+      "id": "macro_07",
+      "label": "US Net Liquidity Indicator",
+      "type": "concept"
+    },
+    {
+      "id": "macro_08",
+      "label": "Reverse Repo Facility (RRP) Depletion",
+      "type": "concept"
+    },
+    {
+      "id": "macro_09",
+      "label": "Treasury General Account (TGA) Cash Balance",
+      "type": "concept"
+    },
+    {
+      "id": "macro_10",
+      "label": "Eurodollar Market Liquidity Spreads",
+      "type": "concept"
+    },
+    {
+      "id": "macro_11",
+      "label": "US Consumer Price Index (CPI Base)",
+      "type": "concept"
+    },
+    {
+      "id": "macro_12",
+      "label": "Core PCE Deflator Inflation",
+      "type": "concept"
+    },
+    {
+      "id": "macro_13",
+      "label": "US Producer Price Index (PPI Input)",
+      "type": "concept"
+    },
+    {
+      "id": "macro_14",
+      "label": "Eurozone Harmonized Index of Consumer Prices",
+      "type": "concept"
+    },
+    {
+      "id": "macro_15",
+      "label": "Long-Term Inflation Expectations (5Y5Y)",
+      "type": "concept"
+    },
+    {
+      "id": "macro_16",
+      "label": "US Dollar Index (DXY Spectrum)",
+      "type": "concept"
+    },
+    {
+      "id": "macro_17",
+      "label": "EUR/USD Exchange Rate Pair",
+      "type": "concept"
+    },
+    {
+      "id": "macro_18",
+      "label": "USD/JPY Carry Trade Unwind Target",
+      "type": "concept"
+    },
+    {
+      "id": "macro_19",
+      "label": "Offshore Chinese Yuan (USD/CNH)",
+      "type": "concept"
+    },
+    {
+      "id": "macro_20",
+      "label": "Emerging Market Currency Volatility Index",
+      "type": "concept"
+    },
+    {
+      "id": "fi_01",
+      "label": "US 10-Year Treasury Yield",
+      "type": "market"
+    },
+    {
+      "id": "fi_02",
+      "label": "US 2-Year Treasury Yield",
+      "type": "market"
+    },
+    {
+      "id": "fi_03",
+      "label": "10Y-2Y Treasury Yield Curve Inversion",
+      "type": "market"
+    },
+    {
+      "id": "fi_04",
+      "label": "US 30-Year Fixed Mortgage Rates",
+      "type": "market"
+    },
+    {
+      "id": "fi_05",
+      "label": "ICE BofA US High Yield Index Option-Adjusted Spread",
+      "type": "market"
+    },
+    {
+      "id": "fi_06",
+      "label": "Global Sovereign Debt Default Risk Index",
+      "type": "market"
+    },
+    {
+      "id": "fi_07",
+      "label": "US Secured Overnight Financing Rate (SOFR)",
+      "type": "market"
+    },
+    {
+      "id": "fi_08",
+      "label": "Corporate Investment Grade Credit Spreads",
+      "type": "market"
+    },
+    {
+      "id": "fi_09",
+      "label": "TIPS (Treasury Inflation-Protected Securities) Breakeven",
+      "type": "market"
+    },
+    {
+      "id": "fi_10",
+      "label": "Municipal Bond Market Liquidity",
+      "type": "market"
+    },
+    {
+      "id": "cmd_01",
+      "label": "Brent Crude Oil Spot Price",
+      "type": "market"
+    },
+    {
+      "id": "cmd_02",
+      "label": "WTI Crude Oil Futures",
+      "type": "market"
+    },
+    {
+      "id": "cmd_03",
+      "label": "Henry Hub Natural Gas Spot Price",
+      "type": "market"
+    },
+    {
+      "id": "cmd_04",
+      "label": "Rotterdam Coal Futures",
+      "type": "market"
+    },
+    {
+      "id": "cmd_05",
+      "label": "Uranium Oxide (U3O8) Spot Price",
+      "type": "market"
+    },
+    {
+      "id": "cmd_06",
+      "label": "Gold Spot Price (XAU/USD)",
+      "type": "market"
+    },
+    {
+      "id": "cmd_07",
+      "label": "Silver Spot Price (XAG/USD)",
+      "type": "market"
+    },
+    {
+      "id": "cmd_08",
+      "label": "Platinum Spot Price",
+      "type": "market"
+    },
+    {
+      "id": "cmd_09",
+      "label": "LME Copper Grade A Cash Settlement",
+      "type": "market"
+    },
+    {
+      "id": "cmd_10",
+      "label": "LME Aluminum Cash Settlement",
+      "type": "market"
+    },
+    {
+      "id": "cmd_11",
+      "label": "LME Nickel Futures Contract",
+      "type": "market"
+    },
+    {
+      "id": "cmd_12",
+      "label": "Lithium Carbonate 99.5% Min China",
+      "type": "market"
+    },
+    {
+      "id": "cmd_13",
+      "label": "Cobalt Cash Price",
+      "type": "market"
+    },
+    {
+      "id": "cmd_14",
+      "label": "Chicago Board of Trade (CBOT) Wheat Futures",
+      "type": "market"
+    },
+    {
+      "id": "cmd_15",
+      "label": "CBOT Corn Futures",
+      "type": "market"
+    },
+    {
+      "id": "cmd_16",
+      "label": "CBOT Soybeans Futures",
+      "type": "market"
+    },
+    {
+      "id": "cmd_17",
+      "label": "ICE Coffee Futures",
+      "type": "market"
+    },
+    {
+      "id": "cmd_18",
+      "label": "ICE Cocoa Futures",
+      "type": "market"
+    },
+    {
+      "id": "cmd_19",
+      "label": "Global Shipping Container Freight Rate Index",
+      "type": "market"
+    },
+    {
+      "id": "cmd_20",
+      "label": "Baltic Dry Index (BDI Stock Shipping)",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_01",
+      "label": "S&P 500 Index Market Cap Weighted",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_02",
+      "label": "Nasdaq 100 Index Technology Proxy",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_03",
+      "label": "Dow Jones Industrial Average",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_04",
+      "label": "Russell 2000 Small Cap Index",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_05",
+      "label": "CBOE Volatility Index (VIX)",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_06",
+      "label": "Euro Stoxx 50 Index Blue-Chip",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_07",
+      "label": "FTSE 100 Index London Stocks",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_08",
+      "label": "Frankfurt DAX 40 Index Performance",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_09",
+      "label": "Nikkei 225 Tokyo Benchmark",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_10",
+      "label": "Hang Seng Index Hong Kong Market",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_11",
+      "label": "Shanghai Composite Index Mainland China",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_12",
+      "label": "India NSE Nifty 50 Index Benchmark",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_13",
+      "label": "MSCI Emerging Markets Index ETF",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_14",
+      "label": "MSCI World ex-USA Equity Index",
+      "type": "market"
+    },
+    {
+      "id": "stk_idx_15",
+      "label": "NYSE Arca Pharmaceutical Index",
+      "type": "market"
+    },
+    {
+      "id": "stk_tech_01",
+      "label": "NVIDIA Corporation (NVDA) Market Cap",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_02",
+      "label": "Apple Inc. (AAPL) Hardware Ecosystem",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_03",
+      "label": "Microsoft Corporation (MSFT) Cloud/AI",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_04",
+      "label": "Alphabet Inc. (GOOGL) Digital Ads",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_05",
+      "label": "Amazon.com Inc. (AMZN) Retail/AWS",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_06",
+      "label": "Meta Platforms Inc. (META) Social Infra",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_07",
+      "label": "Tesla Inc. (TSLA) Automotive Innovation",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_08",
+      "label": "Taiwan Semiconductor Mfg (TSM ADR)",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_09",
+      "label": "Advanced Micro Devices (AMD) Compute",
+      "type": "asset"
+    },
+    {
+      "id": "stk_tech_10",
+      "label": "ASML Holding NV Lithography Dominance",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_01",
+      "label": "JPMorgan Chase & Co. Global Banking",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_02",
+      "label": "Goldman Sachs Group Investment Banking",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_03",
+      "label": "Morgan Stanley Wealth Management Node",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_04",
+      "label": "Citigroup International Asset Network",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_05",
+      "label": "BlackRock Inc. Institutional Capital Flows",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_06",
+      "label": "Vanguard Group Mutual Fund Core",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_07",
+      "label": "Visa Inc. High-Volume Payment Rail",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_08",
+      "label": "Mastercard Inc. Credit Processing Net",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_09",
+      "label": "S&P Global Capital Markets Intelligence",
+      "type": "asset"
+    },
+    {
+      "id": "stk_fin_10",
+      "label": "CME Group Derivative Exchange Volume",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_01",
+      "label": "MicroStrategy Inc. (MSTR) Equity Lever",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_02",
+      "label": "Coinbase Global Inc. (COIN) Fee Volume",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_03",
+      "label": "Marathon Digital Holdings (MARA) Hash",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_04",
+      "label": "Riot Platforms Inc. Bitcoin Mining",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_05",
+      "label": "Hut 8 Corp Infrastructure Operations",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_06",
+      "label": "CleanSpark Inc. Sustainable Mining Focus",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_07",
+      "label": "Galaxy Digital Holdings Merchant Bank",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_08",
+      "label": "Robinhood Markets (HOOD) Retail Velocity",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_09",
+      "label": "Block Inc. (SQ) TBD Developer Pipeline",
+      "type": "asset"
+    },
+    {
+      "id": "stk_prox_10",
+      "label": "Core Scientific Institutional Co-Location",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_01",
+      "label": "Bitcoin (BTC) Decentralized Settlement Layer",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_02",
+      "label": "Ethereum (ETH) Smart Contract Engine",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_03",
+      "label": "Solana (SOL) High-Throughput Monolith",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_04",
+      "label": "Binance Coin (BNB) Centralized Chain Utility",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_05",
+      "label": "Ripple (XRP) Cross-Border Payment Ledger",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_06",
+      "label": "Cardano (ADA) Peer-Reviewed Architecture",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_07",
+      "label": "Avalanche (AVAX) Subnet Architecture",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_08",
+      "label": "Polkadot (DOT) Interoperable Relay Chain",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_09",
+      "label": "NEAR Protocol Sharded Cloud Base",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_10",
+      "label": "Sui Network Move-Language Ledger",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_11",
+      "label": "Aptos Labs Parallel Execution Core",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_12",
+      "label": "Cosmos (ATOM) Inter-Blockchain Communication",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_13",
+      "label": "Toncoin (TON) Telegram Embedded Layer",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_14",
+      "label": "TRON (TRX) Low-Fee Stablecoin Transfer",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l1_15",
+      "label": "Litecoin (LTC) Legacy Payment Alternative",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_01",
+      "label": "Arbitrum One (ARB) Nitro Rollup Core",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_02",
+      "label": "Optimism (OP) Mainnet Superchain Fabric",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_03",
+      "label": "Polygon (MATIC/POL) Aggregated Liquidity",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_04",
+      "label": "Base L2 Network Coin-Backed Ecosystem",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_05",
+      "label": "Starknet (STRK) ZK-STARK Validity Rollup",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_06",
+      "label": "zkSync Era Zero-Knowledge Scaler",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_07",
+      "label": "Mantle Network Modular Rollup",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_08",
+      "label": "Scroll zkEVM Absolute Compatibility Layer",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_09",
+      "label": "Celestia (TIA) Modular Data Availability",
+      "type": "asset"
+    },
+    {
+      "id": "cry_l2_10",
+      "label": "EigenLayer Ethereum Restaking Engine",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_01",
+      "label": "Tether (USDT) Offshore Liquidity Core",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_02",
+      "label": "USD Coin (USDC) Onshore Audited Engine",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_03",
+      "label": "Dai (DAI) Decentralized Overcollateralized",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_04",
+      "label": "First Digital USD (FDUSD) Exchange Mainstay",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_05",
+      "label": "PayPal USD (PYUSD) Fintech Rail Pivot",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_06",
+      "label": "Ethena (USDe) Synthetic Dollar Engine",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_07",
+      "label": "USDT Reserves in US Short Treasury Bills",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_08",
+      "label": "USDC Reserves in Circle Reserve Fund",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_09",
+      "label": "Stablecoin Centralized Yield Inversion Spreads",
+      "type": "asset"
+    },
+    {
+      "id": "cry_st_10",
+      "label": "Global Stablecoin Velocity Multiplier",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_01",
+      "label": "Uniswap (UNI) Governance Automation Matrix",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_02",
+      "label": "Aave (AAVE) Decentralized Credit Protocol",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_03",
+      "label": "MakerDAO Sky Transformation Engine",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_04",
+      "label": "Lido Finance (LDO) Liquid Staking Pool",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_05",
+      "label": "Curve Finance (CRV) Low-Slippage Stable AMM",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_06",
+      "label": "Jupiter (JUP) Solana Aggregator Backbone",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_07",
+      "label": "Ethena Governance (ENA) Reward Architecture",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_08",
+      "label": "Chainlink (LINK) Cross-Chain Oracle Grid",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_09",
+      "label": "The Graph (GRT) Decentralized Indexing",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_10",
+      "label": "Arweave (AR) Permanent Storage Network",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_11",
+      "label": "Filecoin (FIL) Storage Marketplace Engine",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_12",
+      "label": "Render Network (RENDER) Distributed GPU Computing",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_13",
+      "label": "Fetch.ai (FET) Artificial Superintelligence Alliance",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_14",
+      "label": "Bittensor (TAO) Decentralized ML Protocol",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_15",
+      "label": "Akash Network Decentralized Compute Cloud",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_16",
+      "label": "Helium (HNT) Decentralized Wireless Interface",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_17",
+      "label": "Ondo (ONDO) Institutional RWA Treasury Rail",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_18",
+      "label": "Centrifuge Real-World Asset Credit Pool",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_19",
+      "label": "Pendle Finance Interest Yield Tokenization",
+      "type": "asset"
+    },
+    {
+      "id": "cry_df_20",
+      "label": "Frax Finance Fractional Algorithmic Suite",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_01",
+      "label": "BlackRock iShares Bitcoin Trust (IBIT)",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_02",
+      "label": "Fidelity Wise Origin Bitcoin Fund (FBTC)",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_03",
+      "label": "Grayscale Bitcoin Trust (GBTC) Outflow Multiplier",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_04",
+      "label": "BlackRock iShares Ethereum Trust (ETHA)",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_05",
+      "label": "Fidelity Ethereum Fund Institutional Rail",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_06",
+      "label": "CME Bitcoin Futures Open Interest Volumes",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_07",
+      "label": "CME Ethereum Futures Regulated Trading",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_08",
+      "label": "Total Bitcoin Corporate Treasury Reserves",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_09",
+      "label": "US Spot ETF Aggregate Net Inflow Metric",
+      "type": "asset"
+    },
+    {
+      "id": "cry_inst_10",
+      "label": "European Crypto Exchange Traded Products (ETPs)",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_01",
+      "label": "Bitcoin Network Total Hashrate Metrics",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_02",
+      "label": "Bitcoin Mining Difficulty Adjustment Cycle",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_03",
+      "label": "Ethereum Total Value Staked on Validator Nodes",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_04",
+      "label": "Solana Active Daily Transaction Volumes",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_05",
+      "label": "Total DeFi Ecosystem Value Locked (TVL)",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_06",
+      "label": "Crypto Fear and Greed Sentiment Index",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_07",
+      "label": "Binance Net Exchange Token Reserves",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_08",
+      "label": "Coinbase Exchange Vault Custody Assets",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_09",
+      "label": "Bybit Perpetual Contract Funding Rates",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_10",
+      "label": "Deribit Option Contract Implied Volatility Surface",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_11",
+      "label": "Total Native Liquidations across Exchanges",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_12",
+      "label": "Bitcoin 4-Year Halving Reward Depletion Cycle",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_13",
+      "label": "Ethereum Net Burning Mechanism (EIP-1559)",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_14",
+      "label": "On-Chain Long-Term Holder Realized Cap",
+      "type": "asset"
+    },
+    {
+      "id": "cry_met_15",
+      "label": "Short-Term Holder Market Value to Realized Value",
+      "type": "asset"
+    },
+    {
+      "id": "reg_01",
+      "label": "US SEC Digital Asset Security Enforcement",
+      "type": "event"
+    },
+    {
+      "id": "reg_02",
+      "label": "CFTC Commodity Classification for Altcoins",
+      "type": "event"
+    },
+    {
+      "id": "reg_03",
+      "label": "US Treasury FinCEN Unhosted Wallet Mandates",
+      "type": "event"
+    },
+    {
+      "id": "reg_04",
+      "label": "IRS Crypto Staking Capital Gains Taxation Rule",
+      "type": "event"
+    },
+    {
+      "id": "reg_05",
+      "label": "US Congress Stablecoin Regulation Framework Bills",
+      "type": "event"
+    },
+    {
+      "id": "reg_06",
+      "label": "EU Markets in Crypto-Assets (MiCA) Execution",
+      "type": "event"
+    },
+    {
+      "id": "reg_07",
+      "label": "People's Bank of China Capital Outflow Controls",
+      "type": "event"
+    },
+    {
+      "id": "reg_08",
+      "label": "Hong Kong SFC Regulated Crypto Retail Frameworks",
+      "type": "event"
+    },
+    {
+      "id": "reg_09",
+      "label": "Japan FSA Cryptographic Stablecoin Clearances",
+      "type": "event"
+    },
+    {
+      "id": "reg_10",
+      "label": "FATF Global Travel Rule Compliance Systems",
+      "type": "event"
+    },
+    {
+      "id": "reg_11",
+      "label": "Federal Reserve Central Bank Digital Currency (CBDC) R&D",
+      "type": "event"
+    },
+    {
+      "id": "reg_12",
+      "label": "Digital Asset Anti-Money Laundering Legislation Bills",
+      "type": "event"
+    },
+    {
+      "id": "reg_13",
+      "label": "South Korea FSC Cross-Border Token Mandates",
+      "type": "event"
+    },
+    {
+      "id": "reg_14",
+      "label": "UK FCA Cryptographic Financial Promotion Sanctions",
+      "type": "event"
+    },
+    {
+      "id": "reg_15",
+      "label": "SEC Sab 121 Banking Custody Restriction Standard",
+      "type": "event"
+    }
+  ],
+  "edges": [
+    {
+      "id": "geo_01_to_cmd_01",
+      "source": "geo_01",
+      "target": "cmd_01",
+      "label": "Iran-US Kinetic Escalation \u2192 Brent Crude Oil Spot Price",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_01_to_stk_idx_01",
+      "source": "geo_01",
+      "target": "stk_idx_01",
+      "label": "Iran-US Kinetic Escalation \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": -0.7,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_01_to_cry_l1_01",
+      "source": "geo_01",
+      "target": "cry_l1_01",
+      "label": "Iran-US Kinetic Escalation \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": -0.45,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_02_to_cmd_01",
+      "source": "geo_02",
+      "target": "cmd_01",
+      "label": "Strait of Hormuz Blockade Risk \u2192 Brent Crude Oil Spot Price",
+      "weight": 0.95,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_02_to_cmd_02",
+      "source": "geo_02",
+      "target": "cmd_02",
+      "label": "Strait of Hormuz Blockade Risk \u2192 WTI Crude Oil Futures",
+      "weight": 0.92,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_03_to_cmd_01",
+      "source": "geo_03",
+      "target": "cmd_01",
+      "label": "Saudi Oil Infrastructure Vulnerability \u2192 Brent Crude Oil Spot Price",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_03_to_stk_idx_14",
+      "source": "geo_03",
+      "target": "stk_idx_14",
+      "label": "Saudi Oil Infrastructure Vulnerability \u2192 MSCI World ex-USA Equity Index",
+      "weight": -0.6,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_04_to_cmd_06",
+      "source": "geo_04",
+      "target": "cmd_06",
+      "label": "Israel-Regional Proxy Conflict \u2192 Gold Spot Price (XAU/USD)",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_05_to_cmd_19",
+      "source": "geo_05",
+      "target": "cmd_19",
+      "label": "Suez Canal Shipping Disruption \u2192 Global Shipping Container Freight Rate Index",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_05_to_cmd_20",
+      "source": "geo_05",
+      "target": "cmd_20",
+      "label": "Suez Canal Shipping Disruption \u2192 Baltic Dry Index (BDI Stock Shipping)",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_06_to_cmd_19",
+      "source": "geo_06",
+      "target": "cmd_19",
+      "label": "Red Sea Maritime Security Threats \u2192 Global Shipping Container Freight Rate Index",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_06_to_stk_tech_05",
+      "source": "geo_06",
+      "target": "stk_tech_05",
+      "label": "Red Sea Maritime Security Threats \u2192 Amazon.com Inc. (AMZN) Retail/AWS",
+      "weight": -0.4,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_07_to_cmd_01",
+      "source": "geo_07",
+      "target": "cmd_01",
+      "label": "OPEC+ Sudden Production Cuts \u2192 Brent Crude Oil Spot Price",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_07_to_macro_14",
+      "source": "geo_07",
+      "target": "macro_14",
+      "label": "OPEC+ Sudden Production Cuts \u2192 Eurozone Harmonized Index of Consumer Prices",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_08_to_stk_idx_09",
+      "source": "geo_08",
+      "target": "stk_idx_09",
+      "label": "US-China Taiwan Strait Tensions \u2192 Nikkei 225 Tokyo Benchmark",
+      "weight": -0.75,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_08_to_stk_idx_10",
+      "source": "geo_08",
+      "target": "stk_idx_10",
+      "label": "US-China Taiwan Strait Tensions \u2192 Hang Seng Index Hong Kong Market",
+      "weight": -0.78,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_09_to_stk_idx_11",
+      "source": "geo_09",
+      "target": "stk_idx_11",
+      "label": "South China Sea Sovereignty Disputes \u2192 Shanghai Composite Index Mainland China",
+      "weight": -0.62,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_10_to_stk_tech_01",
+      "source": "geo_10",
+      "target": "stk_tech_01",
+      "label": "US Advanced Semiconductor Export Bans \u2192 NVIDIA Corporation (NVDA) Market Cap",
+      "weight": -0.65,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_10_to_stk_tech_08",
+      "source": "geo_10",
+      "target": "stk_tech_08",
+      "label": "US Advanced Semiconductor Export Bans \u2192 Taiwan Semiconductor Mfg (TSM ADR)",
+      "weight": -0.7,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_10_to_stk_tech_09",
+      "source": "geo_10",
+      "target": "stk_tech_09",
+      "label": "US Advanced Semiconductor Export Bans \u2192 Advanced Micro Devices (AMD) Compute",
+      "weight": -0.6,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_11_to_cmd_12",
+      "source": "geo_11",
+      "target": "cmd_12",
+      "label": "China Rare Earth Element Export Restrictions \u2192 Lithium Carbonate 99.5% Min China",
+      "weight": 0.6,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_11_to_stk_tech_07",
+      "source": "geo_11",
+      "target": "stk_tech_07",
+      "label": "China Rare Earth Element Export Restrictions \u2192 Tesla Inc. (TSLA) Automotive Innovation",
+      "weight": -0.55,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_12_to_stk_idx_02",
+      "source": "geo_12",
+      "target": "stk_idx_02",
+      "label": "Taiwan Foundry (TSMC) Kinetic Risk \u2192 Nasdaq 100 Index Technology Proxy",
+      "weight": -0.85,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_12_to_stk_tech_10",
+      "source": "geo_12",
+      "target": "stk_tech_10",
+      "label": "Taiwan Foundry (TSMC) Kinetic Risk \u2192 ASML Holding NV Lithography Dominance",
+      "weight": -0.8,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_13_to_stk_idx_08",
+      "source": "geo_13",
+      "target": "stk_idx_08",
+      "label": "Russia-NATO Border Militarization \u2192 Frankfurt DAX 40 Index Performance",
+      "weight": -0.7,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_13_to_stk_idx_06",
+      "source": "geo_13",
+      "target": "stk_idx_06",
+      "label": "Russia-NATO Border Militarization \u2192 Euro Stoxx 50 Index Blue-Chip",
+      "weight": -0.68,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_14_to_cmd_14",
+      "source": "geo_14",
+      "target": "cmd_14",
+      "label": "Black Sea Grain Corridor Disruptions \u2192 Chicago Board of Trade (CBOT) Wheat Futures",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_14_to_cmd_15",
+      "source": "geo_14",
+      "target": "cmd_15",
+      "label": "Black Sea Grain Corridor Disruptions \u2192 CBOT Corn Futures",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_15_to_cmd_03",
+      "source": "geo_15",
+      "target": "cmd_03",
+      "label": "EU Russian Gas Pipeline Total Shutdown \u2192 Henry Hub Natural Gas Spot Price",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_15_to_cmd_04",
+      "source": "geo_15",
+      "target": "cmd_04",
+      "label": "EU Russian Gas Pipeline Total Shutdown \u2192 Rotterdam Coal Futures",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_16_to_macro_19",
+      "source": "geo_16",
+      "target": "macro_19",
+      "label": "US-EU Coordinated Sanctions Enforcement \u2192 Offshore Chinese Yuan (USD/CNH)",
+      "weight": -0.5,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_17_to_stk_idx_01",
+      "source": "geo_17",
+      "target": "stk_idx_01",
+      "label": "Cyberwarfare Targeting Western Power Grids \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": -0.65,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_17_to_cmd_05",
+      "source": "geo_17",
+      "target": "cmd_05",
+      "label": "Cyberwarfare Targeting Western Power Grids \u2192 Uranium Oxide (U3O8) Spot Price",
+      "weight": 0.45,
+      "expectedSign": 1
+    },
+    {
+      "id": "geo_18_to_stk_fin_01",
+      "source": "geo_18",
+      "target": "stk_fin_01",
+      "label": "Ransomware Attacks on Global Banking SWIFT \u2192 JPMorgan Chase & Co. Global Banking",
+      "weight": -0.75,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_18_to_stk_fin_04",
+      "source": "geo_18",
+      "target": "stk_fin_04",
+      "label": "Ransomware Attacks on Global Banking SWIFT \u2192 Citigroup International Asset Network",
+      "weight": -0.72,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_19_to_cry_met_06",
+      "source": "geo_19",
+      "target": "cry_met_06",
+      "label": "North Korean State-Sponsored Crypto Hacks \u2192 Crypto Fear and Greed Sentiment Index",
+      "weight": -0.55,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_19_to_cry_met_07",
+      "source": "geo_19",
+      "target": "cry_met_07",
+      "label": "North Korean State-Sponsored Crypto Hacks \u2192 Binance Net Exchange Token Reserves",
+      "weight": -0.5,
+      "expectedSign": -1
+    },
+    {
+      "id": "geo_20_to_cmd_20",
+      "source": "geo_20",
+      "target": "cmd_20",
+      "label": "Satellite/GPS Signal Jamming Networks \u2192 Baltic Dry Index (BDI Stock Shipping)",
+      "weight": -0.45,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_01_to_macro_16",
+      "source": "macro_01",
+      "target": "macro_16",
+      "label": "US Federal Reserve Funds Rate \u2192 US Dollar Index (DXY Spectrum)",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_01_to_fi_02",
+      "source": "macro_01",
+      "target": "fi_02",
+      "label": "US Federal Reserve Funds Rate \u2192 US 2-Year Treasury Yield",
+      "weight": 0.95,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_01_to_stk_idx_02",
+      "source": "macro_01",
+      "target": "stk_idx_02",
+      "label": "US Federal Reserve Funds Rate \u2192 Nasdaq 100 Index Technology Proxy",
+      "weight": -0.75,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_01_to_cry_l1_01",
+      "source": "macro_01",
+      "target": "cry_l1_01",
+      "label": "US Federal Reserve Funds Rate \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": -0.8,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_02_to_macro_17",
+      "source": "macro_02",
+      "target": "macro_17",
+      "label": "European Central Bank Policy Rate \u2192 EUR/USD Exchange Rate Pair",
+      "weight": -0.82,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_02_to_stk_idx_07",
+      "source": "macro_02",
+      "target": "stk_idx_07",
+      "label": "European Central Bank Policy Rate \u2192 FTSE 100 Index London Stocks",
+      "weight": 0.55,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_03_to_macro_18",
+      "source": "macro_03",
+      "target": "macro_18",
+      "label": "Bank of Japan Yield Curve Control Shifts \u2192 USD/JPY Carry Trade Unwind Target",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_03_to_fi_01",
+      "source": "macro_03",
+      "target": "fi_01",
+      "label": "Bank of Japan Yield Curve Control Shifts \u2192 US 10-Year Treasury Yield",
+      "weight": 0.6,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_04_to_stk_idx_11",
+      "source": "macro_04",
+      "target": "stk_idx_11",
+      "label": "People's Bank of China RRR Cuts \u2192 Shanghai Composite Index Mainland China",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_04_to_cmd_09",
+      "source": "macro_04",
+      "target": "cmd_09",
+      "label": "People's Bank of China RRR Cuts \u2192 LME Copper Grade A Cash Settlement",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_05_to_macro_06",
+      "source": "macro_05",
+      "target": "macro_06",
+      "label": "Federal Reserve Balance Sheet (QT/QE) \u2192 Global M2 Money Supply Aggregates",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_05_to_fi_01",
+      "source": "macro_05",
+      "target": "fi_01",
+      "label": "Federal Reserve Balance Sheet (QT/QE) \u2192 US 10-Year Treasury Yield",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_06_to_stk_idx_01",
+      "source": "macro_06",
+      "target": "stk_idx_01",
+      "label": "Global M2 Money Supply Aggregates \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_06_to_cry_l1_01",
+      "source": "macro_06",
+      "target": "cry_l1_01",
+      "label": "Global M2 Money Supply Aggregates \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_07_to_stk_idx_02",
+      "source": "macro_07",
+      "target": "stk_idx_02",
+      "label": "US Net Liquidity Indicator \u2192 Nasdaq 100 Index Technology Proxy",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_07_to_cry_met_05",
+      "source": "macro_07",
+      "target": "cry_met_05",
+      "label": "US Net Liquidity Indicator \u2192 Total DeFi Ecosystem Value Locked (TVL)",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_08_to_macro_07",
+      "source": "macro_08",
+      "target": "macro_07",
+      "label": "Reverse Repo Facility (RRP) Depletion \u2192 US Net Liquidity Indicator",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_08_to_stk_fin_10",
+      "source": "macro_08",
+      "target": "stk_fin_10",
+      "label": "Reverse Repo Facility (RRP) Depletion \u2192 CME Group Derivative Exchange Volume",
+      "weight": 0.5,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_09_to_macro_07",
+      "source": "macro_09",
+      "target": "macro_07",
+      "label": "Treasury General Account (TGA) Cash Balance \u2192 US Net Liquidity Indicator",
+      "weight": -0.8,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_09_to_fi_07",
+      "source": "macro_09",
+      "target": "fi_07",
+      "label": "Treasury General Account (TGA) Cash Balance \u2192 US Secured Overnight Financing Rate (SOFR)",
+      "weight": 0.6,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_10_to_stk_fin_04",
+      "source": "macro_10",
+      "target": "stk_fin_04",
+      "label": "Eurodollar Market Liquidity Spreads \u2192 Citigroup International Asset Network",
+      "weight": -0.7,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_11_to_macro_01",
+      "source": "macro_11",
+      "target": "macro_01",
+      "label": "US Consumer Price Index (CPI Base) \u2192 US Federal Reserve Funds Rate",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_11_to_cmd_06",
+      "source": "macro_11",
+      "target": "cmd_06",
+      "label": "US Consumer Price Index (CPI Base) \u2192 Gold Spot Price (XAU/USD)",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_12_to_macro_11",
+      "source": "macro_12",
+      "target": "macro_11",
+      "label": "Core PCE Deflator Inflation \u2192 US Consumer Price Index (CPI Base)",
+      "weight": 0.95,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_13_to_macro_11",
+      "source": "macro_13",
+      "target": "macro_11",
+      "label": "US Producer Price Index (PPI Input) \u2192 US Consumer Price Index (CPI Base)",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_14_to_macro_02",
+      "source": "macro_14",
+      "target": "macro_02",
+      "label": "Eurozone Harmonized Index of Consumer Prices \u2192 European Central Bank Policy Rate",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_15_to_fi_09",
+      "source": "macro_15",
+      "target": "fi_09",
+      "label": "Long-Term Inflation Expectations (5Y5Y) \u2192 TIPS (Treasury Inflation-Protected Securities) Breakeven",
+      "weight": 0.92,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_16_to_cry_l1_01",
+      "source": "macro_16",
+      "target": "cry_l1_01",
+      "label": "US Dollar Index (DXY Spectrum) \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": -0.85,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_16_to_cmd_01",
+      "source": "macro_16",
+      "target": "cmd_01",
+      "label": "US Dollar Index (DXY Spectrum) \u2192 Brent Crude Oil Spot Price",
+      "weight": -0.7,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_17_to_stk_idx_06",
+      "source": "macro_17",
+      "target": "stk_idx_06",
+      "label": "EUR/USD Exchange Rate Pair \u2192 Euro Stoxx 50 Index Blue-Chip",
+      "weight": 0.6,
+      "expectedSign": 1
+    },
+    {
+      "id": "macro_18_to_stk_idx_01",
+      "source": "macro_18",
+      "target": "stk_idx_01",
+      "label": "USD/JPY Carry Trade Unwind Target \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": -0.8,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_19_to_stk_idx_10",
+      "source": "macro_19",
+      "target": "stk_idx_10",
+      "label": "Offshore Chinese Yuan (USD/CNH) \u2192 Hang Seng Index Hong Kong Market",
+      "weight": -0.72,
+      "expectedSign": -1
+    },
+    {
+      "id": "macro_20_to_stk_idx_13",
+      "source": "macro_20",
+      "target": "stk_idx_13",
+      "label": "Emerging Market Currency Volatility Index \u2192 MSCI Emerging Markets Index ETF",
+      "weight": -0.82,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_01_to_stk_idx_04",
+      "source": "fi_01",
+      "target": "stk_idx_04",
+      "label": "US 10-Year Treasury Yield \u2192 Russell 2000 Small Cap Index",
+      "weight": -0.75,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_01_to_cry_l1_02",
+      "source": "fi_01",
+      "target": "cry_l1_02",
+      "label": "US 10-Year Treasury Yield \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": -0.7,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_02_to_fi_03",
+      "source": "fi_02",
+      "target": "fi_03",
+      "label": "US 2-Year Treasury Yield \u2192 10Y-2Y Treasury Yield Curve Inversion",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "fi_03_to_stk_fin_01",
+      "source": "fi_03",
+      "target": "stk_fin_01",
+      "label": "10Y-2Y Treasury Yield Curve Inversion \u2192 JPMorgan Chase & Co. Global Banking",
+      "weight": -0.65,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_04_to_stk_idx_03",
+      "source": "fi_04",
+      "target": "stk_idx_03",
+      "label": "US 30-Year Fixed Mortgage Rates \u2192 Dow Jones Industrial Average",
+      "weight": -0.55,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_05_to_stk_idx_01",
+      "source": "fi_05",
+      "target": "stk_idx_01",
+      "label": "ICE BofA US High Yield Index Option-Adjusted Spread \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": -0.8,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_05_to_cry_met_06",
+      "source": "fi_05",
+      "target": "cry_met_06",
+      "label": "ICE BofA US High Yield Index Option-Adjusted Spread \u2192 Crypto Fear and Greed Sentiment Index",
+      "weight": -0.75,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_06_to_macro_20",
+      "source": "fi_06",
+      "target": "macro_20",
+      "label": "Global Sovereign Debt Default Risk Index \u2192 Emerging Market Currency Volatility Index",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "fi_07_to_stk_fin_02",
+      "source": "fi_07",
+      "target": "stk_fin_02",
+      "label": "US Secured Overnight Financing Rate (SOFR) \u2192 Goldman Sachs Group Investment Banking",
+      "weight": -0.5,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_08_to_stk_fin_09",
+      "source": "fi_08",
+      "target": "stk_fin_09",
+      "label": "Corporate Investment Grade Credit Spreads \u2192 S&P Global Capital Markets Intelligence",
+      "weight": -0.6,
+      "expectedSign": -1
+    },
+    {
+      "id": "fi_09_to_fi_01",
+      "source": "fi_09",
+      "target": "fi_01",
+      "label": "TIPS (Treasury Inflation-Protected Securities) Breakeven \u2192 US 10-Year Treasury Yield",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "fi_10_to_stk_fin_03",
+      "source": "fi_10",
+      "target": "stk_fin_03",
+      "label": "Municipal Bond Market Liquidity \u2192 Morgan Stanley Wealth Management Node",
+      "weight": -0.45,
+      "expectedSign": -1
+    },
+    {
+      "id": "cmd_01_to_macro_11",
+      "source": "cmd_01",
+      "target": "macro_11",
+      "label": "Brent Crude Oil Spot Price \u2192 US Consumer Price Index (CPI Base)",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_01_to_stk_idx_01",
+      "source": "cmd_01",
+      "target": "stk_idx_01",
+      "label": "Brent Crude Oil Spot Price \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": -0.55,
+      "expectedSign": -1
+    },
+    {
+      "id": "cmd_02_to_cmd_01",
+      "source": "cmd_02",
+      "target": "cmd_01",
+      "label": "WTI Crude Oil Futures \u2192 Brent Crude Oil Spot Price",
+      "weight": 0.98,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_03_to_stk_idx_08",
+      "source": "cmd_03",
+      "target": "stk_idx_08",
+      "label": "Henry Hub Natural Gas Spot Price \u2192 Frankfurt DAX 40 Index Performance",
+      "weight": -0.65,
+      "expectedSign": -1
+    },
+    {
+      "id": "cmd_04_to_macro_13",
+      "source": "cmd_04",
+      "target": "macro_13",
+      "label": "Rotterdam Coal Futures \u2192 US Producer Price Index (PPI Input)",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_05_to_cmd_04",
+      "source": "cmd_05",
+      "target": "cmd_04",
+      "label": "Uranium Oxide (U3O8) Spot Price \u2192 Rotterdam Coal Futures",
+      "weight": -0.4,
+      "expectedSign": -1
+    },
+    {
+      "id": "cmd_06_to_cry_l1_01",
+      "source": "cmd_06",
+      "target": "cry_l1_01",
+      "label": "Gold Spot Price (XAU/USD) \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": 0.4,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_06_to_macro_16",
+      "source": "cmd_06",
+      "target": "macro_16",
+      "label": "Gold Spot Price (XAU/USD) \u2192 US Dollar Index (DXY Spectrum)",
+      "weight": -0.68,
+      "expectedSign": -1
+    },
+    {
+      "id": "cmd_07_to_cmd_06",
+      "source": "cmd_07",
+      "target": "cmd_06",
+      "label": "Silver Spot Price (XAG/USD) \u2192 Gold Spot Price (XAU/USD)",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_08_to_cmd_07",
+      "source": "cmd_08",
+      "target": "cmd_07",
+      "label": "Platinum Spot Price \u2192 Silver Spot Price (XAG/USD)",
+      "weight": 0.72,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_09_to_stk_idx_01",
+      "source": "cmd_09",
+      "target": "stk_idx_01",
+      "label": "LME Copper Grade A Cash Settlement \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_10_to_macro_13",
+      "source": "cmd_10",
+      "target": "macro_13",
+      "label": "LME Aluminum Cash Settlement \u2192 US Producer Price Index (PPI Input)",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_11_to_stk_idx_03",
+      "source": "cmd_11",
+      "target": "stk_idx_03",
+      "label": "LME Nickel Futures Contract \u2192 Dow Jones Industrial Average",
+      "weight": 0.5,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_12_to_stk_tech_07",
+      "source": "cmd_12",
+      "target": "stk_tech_07",
+      "label": "Lithium Carbonate 99.5% Min China \u2192 Tesla Inc. (TSLA) Automotive Innovation",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_13_to_cmd_12",
+      "source": "cmd_13",
+      "target": "cmd_12",
+      "label": "Cobalt Cash Price \u2192 Lithium Carbonate 99.5% Min China",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_14_to_macro_11",
+      "source": "cmd_14",
+      "target": "macro_11",
+      "label": "Chicago Board of Trade (CBOT) Wheat Futures \u2192 US Consumer Price Index (CPI Base)",
+      "weight": 0.55,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_15_to_cmd_16",
+      "source": "cmd_15",
+      "target": "cmd_16",
+      "label": "CBOT Corn Futures \u2192 CBOT Soybeans Futures",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_16_to_cmd_14",
+      "source": "cmd_16",
+      "target": "cmd_14",
+      "label": "CBOT Soybeans Futures \u2192 Chicago Board of Trade (CBOT) Wheat Futures",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_17_to_stk_tech_05",
+      "source": "cmd_17",
+      "target": "stk_tech_05",
+      "label": "ICE Coffee Futures \u2192 Amazon.com Inc. (AMZN) Retail/AWS",
+      "weight": 0.35,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_18_to_cmd_17",
+      "source": "cmd_18",
+      "target": "cmd_17",
+      "label": "ICE Cocoa Futures \u2192 ICE Coffee Futures",
+      "weight": 0.6,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_19_to_macro_11",
+      "source": "cmd_19",
+      "target": "macro_11",
+      "label": "Global Shipping Container Freight Rate Index \u2192 US Consumer Price Index (CPI Base)",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "cmd_20_to_cmd_19",
+      "source": "cmd_20",
+      "target": "cmd_19",
+      "label": "Baltic Dry Index (BDI Stock Shipping) \u2192 Global Shipping Container Freight Rate Index",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_01_to_cry_l1_01",
+      "source": "stk_idx_01",
+      "target": "cry_l1_01",
+      "label": "S&P 500 Index Market Cap Weighted \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_02_to_cry_l1_02",
+      "source": "stk_idx_02",
+      "target": "cry_l1_02",
+      "label": "Nasdaq 100 Index Technology Proxy \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_03_to_stk_idx_01",
+      "source": "stk_idx_03",
+      "target": "stk_idx_01",
+      "label": "Dow Jones Industrial Average \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.92,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_04_to_stk_idx_01",
+      "source": "stk_idx_04",
+      "target": "stk_idx_01",
+      "label": "Russell 2000 Small Cap Index \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_05_to_stk_idx_01",
+      "source": "stk_idx_05",
+      "target": "stk_idx_01",
+      "label": "CBOE Volatility Index (VIX) \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": -0.85,
+      "expectedSign": -1
+    },
+    {
+      "id": "stk_idx_05_to_cry_met_06",
+      "source": "stk_idx_05",
+      "target": "cry_met_06",
+      "label": "CBOE Volatility Index (VIX) \u2192 Crypto Fear and Greed Sentiment Index",
+      "weight": -0.7,
+      "expectedSign": -1
+    },
+    {
+      "id": "stk_idx_06_to_stk_idx_14",
+      "source": "stk_idx_06",
+      "target": "stk_idx_14",
+      "label": "Euro Stoxx 50 Index Blue-Chip \u2192 MSCI World ex-USA Equity Index",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_07_to_stk_idx_06",
+      "source": "stk_idx_07",
+      "target": "stk_idx_06",
+      "label": "FTSE 100 Index London Stocks \u2192 Euro Stoxx 50 Index Blue-Chip",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_08_to_stk_tech_10",
+      "source": "stk_idx_08",
+      "target": "stk_tech_10",
+      "label": "Frankfurt DAX 40 Index Performance \u2192 ASML Holding NV Lithography Dominance",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_09_to_stk_tech_08",
+      "source": "stk_idx_09",
+      "target": "stk_tech_08",
+      "label": "Nikkei 225 Tokyo Benchmark \u2192 Taiwan Semiconductor Mfg (TSM ADR)",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_10_to_stk_idx_11",
+      "source": "stk_idx_10",
+      "target": "stk_idx_11",
+      "label": "Hang Seng Index Hong Kong Market \u2192 Shanghai Composite Index Mainland China",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_11_to_cmd_09",
+      "source": "stk_idx_11",
+      "target": "cmd_09",
+      "label": "Shanghai Composite Index Mainland China \u2192 LME Copper Grade A Cash Settlement",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_12_to_stk_idx_13",
+      "source": "stk_idx_12",
+      "target": "stk_idx_13",
+      "label": "India NSE Nifty 50 Index Benchmark \u2192 MSCI Emerging Markets Index ETF",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_13_to_stk_idx_01",
+      "source": "stk_idx_13",
+      "target": "stk_idx_01",
+      "label": "MSCI Emerging Markets Index ETF \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_14_to_stk_idx_01",
+      "source": "stk_idx_14",
+      "target": "stk_idx_01",
+      "label": "MSCI World ex-USA Equity Index \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_idx_15_to_stk_tech_02",
+      "source": "stk_idx_15",
+      "target": "stk_tech_02",
+      "label": "NYSE Arca Pharmaceutical Index \u2192 Apple Inc. (AAPL) Hardware Ecosystem",
+      "weight": 0.4,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_01_to_stk_idx_02",
+      "source": "stk_tech_01",
+      "target": "stk_idx_02",
+      "label": "NVIDIA Corporation (NVDA) Market Cap \u2192 Nasdaq 100 Index Technology Proxy",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_01_to_cry_df_14",
+      "source": "stk_tech_01",
+      "target": "cry_df_14",
+      "label": "NVIDIA Corporation (NVDA) Market Cap \u2192 Bittensor (TAO) Decentralized ML Protocol",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_02_to_stk_tech_08",
+      "source": "stk_tech_02",
+      "target": "stk_tech_08",
+      "label": "Apple Inc. (AAPL) Hardware Ecosystem \u2192 Taiwan Semiconductor Mfg (TSM ADR)",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_03_to_stk_tech_01",
+      "source": "stk_tech_03",
+      "target": "stk_tech_01",
+      "label": "Microsoft Corporation (MSFT) Cloud/AI \u2192 NVIDIA Corporation (NVDA) Market Cap",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_04_to_stk_tech_03",
+      "source": "stk_tech_04",
+      "target": "stk_tech_03",
+      "label": "Alphabet Inc. (GOOGL) Digital Ads \u2192 Microsoft Corporation (MSFT) Cloud/AI",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_05_to_stk_tech_03",
+      "source": "stk_tech_05",
+      "target": "stk_tech_03",
+      "label": "Amazon.com Inc. (AMZN) Retail/AWS \u2192 Microsoft Corporation (MSFT) Cloud/AI",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_06_to_stk_tech_01",
+      "source": "stk_tech_06",
+      "target": "stk_tech_01",
+      "label": "Meta Platforms Inc. (META) Social Infra \u2192 NVIDIA Corporation (NVDA) Market Cap",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_07_to_stk_tech_09",
+      "source": "stk_tech_07",
+      "target": "stk_tech_09",
+      "label": "Tesla Inc. (TSLA) Automotive Innovation \u2192 Advanced Micro Devices (AMD) Compute",
+      "weight": 0.6,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_08_to_stk_tech_01",
+      "source": "stk_tech_08",
+      "target": "stk_tech_01",
+      "label": "Taiwan Semiconductor Mfg (TSM ADR) \u2192 NVIDIA Corporation (NVDA) Market Cap",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_09_to_stk_tech_01",
+      "source": "stk_tech_09",
+      "target": "stk_tech_01",
+      "label": "Advanced Micro Devices (AMD) Compute \u2192 NVIDIA Corporation (NVDA) Market Cap",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_tech_10_to_stk_tech_08",
+      "source": "stk_tech_10",
+      "target": "stk_tech_08",
+      "label": "ASML Holding NV Lithography Dominance \u2192 Taiwan Semiconductor Mfg (TSM ADR)",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_01_to_stk_idx_01",
+      "source": "stk_fin_01",
+      "target": "stk_idx_01",
+      "label": "JPMorgan Chase & Co. Global Banking \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_02_to_stk_fin_03",
+      "source": "stk_fin_02",
+      "target": "stk_fin_03",
+      "label": "Goldman Sachs Group Investment Banking \u2192 Morgan Stanley Wealth Management Node",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_03_to_stk_idx_01",
+      "source": "stk_fin_03",
+      "target": "stk_idx_01",
+      "label": "Morgan Stanley Wealth Management Node \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_04_to_stk_fin_01",
+      "source": "stk_fin_04",
+      "target": "stk_fin_01",
+      "label": "Citigroup International Asset Network \u2192 JPMorgan Chase & Co. Global Banking",
+      "weight": 0.84,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_05_to_cry_inst_01",
+      "source": "stk_fin_05",
+      "target": "cry_inst_01",
+      "label": "BlackRock Inc. Institutional Capital Flows \u2192 BlackRock iShares Bitcoin Trust (IBIT)",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_06_to_stk_fin_05",
+      "source": "stk_fin_06",
+      "target": "stk_fin_05",
+      "label": "Vanguard Group Mutual Fund Core \u2192 BlackRock Inc. Institutional Capital Flows",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_07_to_stk_fin_08",
+      "source": "stk_fin_07",
+      "target": "stk_fin_08",
+      "label": "Visa Inc. High-Volume Payment Rail \u2192 Mastercard Inc. Credit Processing Net",
+      "weight": 0.95,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_08_to_stk_idx_01",
+      "source": "stk_fin_08",
+      "target": "stk_idx_01",
+      "label": "Mastercard Inc. Credit Processing Net \u2192 S&P 500 Index Market Cap Weighted",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_09_to_stk_idx_05",
+      "source": "stk_fin_09",
+      "target": "stk_idx_05",
+      "label": "S&P Global Capital Markets Intelligence \u2192 CBOE Volatility Index (VIX)",
+      "weight": 0.55,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_fin_10_to_cry_inst_06",
+      "source": "stk_fin_10",
+      "target": "cry_inst_06",
+      "label": "CME Group Derivative Exchange Volume \u2192 CME Bitcoin Futures Open Interest Volumes",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_01_to_cry_l1_01",
+      "source": "stk_prox_01",
+      "target": "cry_l1_01",
+      "label": "MicroStrategy Inc. (MSTR) Equity Lever \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": 0.95,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_02_to_cry_met_05",
+      "source": "stk_prox_02",
+      "target": "cry_met_05",
+      "label": "Coinbase Global Inc. (COIN) Fee Volume \u2192 Total DeFi Ecosystem Value Locked (TVL)",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_03_to_cry_met_01",
+      "source": "stk_prox_03",
+      "target": "cry_met_01",
+      "label": "Marathon Digital Holdings (MARA) Hash \u2192 Bitcoin Network Total Hashrate Metrics",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_04_to_stk_prox_03",
+      "source": "stk_prox_04",
+      "target": "stk_prox_03",
+      "label": "Riot Platforms Inc. Bitcoin Mining \u2192 Marathon Digital Holdings (MARA) Hash",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_05_to_stk_prox_04",
+      "source": "stk_prox_05",
+      "target": "stk_prox_04",
+      "label": "Hut 8 Corp Infrastructure Operations \u2192 Riot Platforms Inc. Bitcoin Mining",
+      "weight": 0.84,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_06_to_stk_prox_03",
+      "source": "stk_prox_06",
+      "target": "stk_prox_03",
+      "label": "CleanSpark Inc. Sustainable Mining Focus \u2192 Marathon Digital Holdings (MARA) Hash",
+      "weight": 0.86,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_07_to_cry_inst_09",
+      "source": "stk_prox_07",
+      "target": "cry_inst_09",
+      "label": "Galaxy Digital Holdings Merchant Bank \u2192 US Spot ETF Aggregate Net Inflow Metric",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_08_to_cry_met_09",
+      "source": "stk_prox_08",
+      "target": "cry_met_09",
+      "label": "Robinhood Markets (HOOD) Retail Velocity \u2192 Bybit Perpetual Contract Funding Rates",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_09_to_stk_prox_08",
+      "source": "stk_prox_09",
+      "target": "stk_prox_08",
+      "label": "Block Inc. (SQ) TBD Developer Pipeline \u2192 Robinhood Markets (HOOD) Retail Velocity",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "stk_prox_10_to_cry_df_15",
+      "source": "stk_prox_10",
+      "target": "cry_df_15",
+      "label": "Core Scientific Institutional Co-Location \u2192 Akash Network Decentralized Compute Cloud",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_01_to_cry_l1_02",
+      "source": "cry_l1_01",
+      "target": "cry_l1_02",
+      "label": "Bitcoin (BTC) Decentralized Settlement Layer \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_01_to_stk_prox_01",
+      "source": "cry_l1_01",
+      "target": "stk_prox_01",
+      "label": "Bitcoin (BTC) Decentralized Settlement Layer \u2192 MicroStrategy Inc. (MSTR) Equity Lever",
+      "weight": 0.95,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_01_to_cry_inst_09",
+      "source": "cry_l1_01",
+      "target": "cry_inst_09",
+      "label": "Bitcoin (BTC) Decentralized Settlement Layer \u2192 US Spot ETF Aggregate Net Inflow Metric",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_01_to_cry_met_14",
+      "source": "cry_l1_01",
+      "target": "cry_met_14",
+      "label": "Bitcoin (BTC) Decentralized Settlement Layer \u2192 On-Chain Long-Term Holder Realized Cap",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_02_to_cry_l1_03",
+      "source": "cry_l1_02",
+      "target": "cry_l1_03",
+      "label": "Ethereum (ETH) Smart Contract Engine \u2192 Solana (SOL) High-Throughput Monolith",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_02_to_cry_l2_01",
+      "source": "cry_l1_02",
+      "target": "cry_l2_01",
+      "label": "Ethereum (ETH) Smart Contract Engine \u2192 Arbitrum One (ARB) Nitro Rollup Core",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_02_to_cry_df_04",
+      "source": "cry_l1_02",
+      "target": "cry_df_04",
+      "label": "Ethereum (ETH) Smart Contract Engine \u2192 Lido Finance (LDO) Liquid Staking Pool",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_03_to_cry_df_06",
+      "source": "cry_l1_03",
+      "target": "cry_df_06",
+      "label": "Solana (SOL) High-Throughput Monolith \u2192 Jupiter (JUP) Solana Aggregator Backbone",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_04_to_cry_met_07",
+      "source": "cry_l1_04",
+      "target": "cry_met_07",
+      "label": "Binance Coin (BNB) Centralized Chain Utility \u2192 Binance Net Exchange Token Reserves",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_05_to_stk_fin_07",
+      "source": "cry_l1_05",
+      "target": "stk_fin_07",
+      "label": "Ripple (XRP) Cross-Border Payment Ledger \u2192 Visa Inc. High-Volume Payment Rail",
+      "weight": 0.55,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_06_to_cry_l1_02",
+      "source": "cry_l1_06",
+      "target": "cry_l1_02",
+      "label": "Cardano (ADA) Peer-Reviewed Architecture \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_07_to_cry_df_02",
+      "source": "cry_l1_07",
+      "target": "cry_df_02",
+      "label": "Avalanche (AVAX) Subnet Architecture \u2192 Aave (AAVE) Decentralized Credit Protocol",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_08_to_cry_l1_02",
+      "source": "cry_l1_08",
+      "target": "cry_l1_02",
+      "label": "Polkadot (DOT) Interoperable Relay Chain \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": 0.68,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_09_to_cry_df_13",
+      "source": "cry_l1_09",
+      "target": "cry_df_13",
+      "label": "NEAR Protocol Sharded Cloud Base \u2192 Fetch.ai (FET) Artificial Superintelligence Alliance",
+      "weight": 0.72,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_10_to_cry_l1_03",
+      "source": "cry_l1_10",
+      "target": "cry_l1_03",
+      "label": "Sui Network Move-Language Ledger \u2192 Solana (SOL) High-Throughput Monolith",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_11_to_cry_l1_10",
+      "source": "cry_l1_11",
+      "target": "cry_l1_10",
+      "label": "Aptos Labs Parallel Execution Core \u2192 Sui Network Move-Language Ledger",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_12_to_cry_l1_08",
+      "source": "cry_l1_12",
+      "target": "cry_l1_08",
+      "label": "Cosmos (ATOM) Inter-Blockchain Communication \u2192 Polkadot (DOT) Interoperable Relay Chain",
+      "weight": 0.74,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_13_to_cry_met_04",
+      "source": "cry_l1_13",
+      "target": "cry_met_04",
+      "label": "Toncoin (TON) Telegram Embedded Layer \u2192 Solana Active Daily Transaction Volumes",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_14_to_cry_st_01",
+      "source": "cry_l1_14",
+      "target": "cry_st_01",
+      "label": "TRON (TRX) Low-Fee Stablecoin Transfer \u2192 Tether (USDT) Offshore Liquidity Core",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l1_15_to_cry_l1_01",
+      "source": "cry_l1_15",
+      "target": "cry_l1_01",
+      "label": "Litecoin (LTC) Legacy Payment Alternative \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": 0.76,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_01_to_cry_met_05",
+      "source": "cry_l2_01",
+      "target": "cry_met_05",
+      "label": "Arbitrum One (ARB) Nitro Rollup Core \u2192 Total DeFi Ecosystem Value Locked (TVL)",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_02_to_cry_l2_01",
+      "source": "cry_l2_02",
+      "target": "cry_l2_01",
+      "label": "Optimism (OP) Mainnet Superchain Fabric \u2192 Arbitrum One (ARB) Nitro Rollup Core",
+      "weight": 0.86,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_03_to_cry_l1_02",
+      "source": "cry_l2_03",
+      "target": "cry_l1_02",
+      "label": "Polygon (MATIC/POL) Aggregated Liquidity \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_04_to_stk_prox_02",
+      "source": "cry_l2_04",
+      "target": "stk_prox_02",
+      "label": "Base L2 Network Coin-Backed Ecosystem \u2192 Coinbase Global Inc. (COIN) Fee Volume",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_05_to_cry_l2_06",
+      "source": "cry_l2_05",
+      "target": "cry_l2_06",
+      "label": "Starknet (STRK) ZK-STARK Validity Rollup \u2192 zkSync Era Zero-Knowledge Scaler",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_06_to_cry_l2_01",
+      "source": "cry_l2_06",
+      "target": "cry_l2_01",
+      "label": "zkSync Era Zero-Knowledge Scaler \u2192 Arbitrum One (ARB) Nitro Rollup Core",
+      "weight": 0.74,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_07_to_cry_l2_09",
+      "source": "cry_l2_07",
+      "target": "cry_l2_09",
+      "label": "Mantle Network Modular Rollup \u2192 Celestia (TIA) Modular Data Availability",
+      "weight": 0.76,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_08_to_cry_l2_06",
+      "source": "cry_l2_08",
+      "target": "cry_l2_06",
+      "label": "Scroll zkEVM Absolute Compatibility Layer \u2192 zkSync Era Zero-Knowledge Scaler",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_09_to_cry_l2_02",
+      "source": "cry_l2_09",
+      "target": "cry_l2_02",
+      "label": "Celestia (TIA) Modular Data Availability \u2192 Optimism (OP) Mainnet Superchain Fabric",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_l2_10_to_cry_met_03",
+      "source": "cry_l2_10",
+      "target": "cry_met_03",
+      "label": "EigenLayer Ethereum Restaking Engine \u2192 Ethereum Total Value Staked on Validator Nodes",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_01_to_fi_07",
+      "source": "cry_st_01",
+      "target": "fi_07",
+      "label": "Tether (USDT) Offshore Liquidity Core \u2192 US Secured Overnight Financing Rate (SOFR)",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_01_to_cry_l1_14",
+      "source": "cry_st_01",
+      "target": "cry_l1_14",
+      "label": "Tether (USDT) Offshore Liquidity Core \u2192 TRON (TRX) Low-Fee Stablecoin Transfer",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_02_to_cry_df_02",
+      "source": "cry_st_02",
+      "target": "cry_df_02",
+      "label": "USD Coin (USDC) Onshore Audited Engine \u2192 Aave (AAVE) Decentralized Credit Protocol",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_03_to_cry_st_02",
+      "source": "cry_st_03",
+      "target": "cry_st_02",
+      "label": "Dai (DAI) Decentralized Overcollateralized \u2192 USD Coin (USDC) Onshore Audited Engine",
+      "weight": 0.84,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_04_to_cry_l1_04",
+      "source": "cry_st_04",
+      "target": "cry_l1_04",
+      "label": "First Digital USD (FDUSD) Exchange Mainstay \u2192 Binance Coin (BNB) Centralized Chain Utility",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_05_to_stk_fin_07",
+      "source": "cry_st_05",
+      "target": "stk_fin_07",
+      "label": "PayPal USD (PYUSD) Fintech Rail Pivot \u2192 Visa Inc. High-Volume Payment Rail",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_06_to_cry_df_05",
+      "source": "cry_st_06",
+      "target": "cry_df_05",
+      "label": "Ethena (USDe) Synthetic Dollar Engine \u2192 Curve Finance (CRV) Low-Slippage Stable AMM",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_07_to_fi_01",
+      "source": "cry_st_07",
+      "target": "fi_01",
+      "label": "USDT Reserves in US Short Treasury Bills \u2192 US 10-Year Treasury Yield",
+      "weight": 0.45,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_08_to_stk_fin_05",
+      "source": "cry_st_08",
+      "target": "stk_fin_05",
+      "label": "USDC Reserves in Circle Reserve Fund \u2192 BlackRock Inc. Institutional Capital Flows",
+      "weight": 0.72,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_st_09_to_cry_df_02",
+      "source": "cry_st_09",
+      "target": "cry_df_02",
+      "label": "Stablecoin Centralized Yield Inversion Spreads \u2192 Aave (AAVE) Decentralized Credit Protocol",
+      "weight": -0.78,
+      "expectedSign": -1
+    },
+    {
+      "id": "cry_st_10_to_cry_met_05",
+      "source": "cry_st_10",
+      "target": "cry_met_05",
+      "label": "Global Stablecoin Velocity Multiplier \u2192 Total DeFi Ecosystem Value Locked (TVL)",
+      "weight": 0.86,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_01_to_cry_met_05",
+      "source": "cry_df_01",
+      "target": "cry_met_05",
+      "label": "Uniswap (UNI) Governance Automation Matrix \u2192 Total DeFi Ecosystem Value Locked (TVL)",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_02_to_cry_st_09",
+      "source": "cry_df_02",
+      "target": "cry_st_09",
+      "label": "Aave (AAVE) Decentralized Credit Protocol \u2192 Stablecoin Centralized Yield Inversion Spreads",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_03_to_cry_st_03",
+      "source": "cry_df_03",
+      "target": "cry_st_03",
+      "label": "MakerDAO Sky Transformation Engine \u2192 Dai (DAI) Decentralized Overcollateralized",
+      "weight": 0.92,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_04_to_cry_met_03",
+      "source": "cry_df_04",
+      "target": "cry_met_03",
+      "label": "Lido Finance (LDO) Liquid Staking Pool \u2192 Ethereum Total Value Staked on Validator Nodes",
+      "weight": 0.94,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_05_to_cry_df_01",
+      "source": "cry_df_05",
+      "target": "cry_df_01",
+      "label": "Curve Finance (CRV) Low-Slippage Stable AMM \u2192 Uniswap (UNI) Governance Automation Matrix",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_06_to_cry_met_04",
+      "source": "cry_df_06",
+      "target": "cry_met_04",
+      "label": "Jupiter (JUP) Solana Aggregator Backbone \u2192 Solana Active Daily Transaction Volumes",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_07_to_cry_st_06",
+      "source": "cry_df_07",
+      "target": "cry_st_06",
+      "label": "Ethena Governance (ENA) Reward Architecture \u2192 Ethena (USDe) Synthetic Dollar Engine",
+      "weight": 0.84,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_08_to_cry_df_17",
+      "source": "cry_df_08",
+      "target": "cry_df_17",
+      "label": "Chainlink (LINK) Cross-Chain Oracle Grid \u2192 Ondo (ONDO) Institutional RWA Treasury Rail",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_09_to_cry_df_08",
+      "source": "cry_df_09",
+      "target": "cry_df_08",
+      "label": "The Graph (GRT) Decentralized Indexing \u2192 Chainlink (LINK) Cross-Chain Oracle Grid",
+      "weight": 0.76,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_10_to_cry_df_09",
+      "source": "cry_df_10",
+      "target": "cry_df_09",
+      "label": "Arweave (AR) Permanent Storage Network \u2192 The Graph (GRT) Decentralized Indexing",
+      "weight": 0.72,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_11_to_cry_df_10",
+      "source": "cry_df_11",
+      "target": "cry_df_10",
+      "label": "Filecoin (FIL) Storage Marketplace Engine \u2192 Arweave (AR) Permanent Storage Network",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_12_to_stk_tech_01",
+      "source": "cry_df_12",
+      "target": "stk_tech_01",
+      "label": "Render Network (RENDER) Distributed GPU Computing \u2192 NVIDIA Corporation (NVDA) Market Cap",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_13_to_cry_df_14",
+      "source": "cry_df_13",
+      "target": "cry_df_14",
+      "label": "Fetch.ai (FET) Artificial Superintelligence Alliance \u2192 Bittensor (TAO) Decentralized ML Protocol",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_14_to_cry_l1_09",
+      "source": "cry_df_14",
+      "target": "cry_l1_09",
+      "label": "Bittensor (TAO) Decentralized ML Protocol \u2192 NEAR Protocol Sharded Cloud Base",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_15_to_cry_df_12",
+      "source": "cry_df_15",
+      "target": "cry_df_12",
+      "label": "Akash Network Decentralized Compute Cloud \u2192 Render Network (RENDER) Distributed GPU Computing",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_16_to_cry_df_15",
+      "source": "cry_df_16",
+      "target": "cry_df_15",
+      "label": "Helium (HNT) Decentralized Wireless Interface \u2192 Akash Network Decentralized Compute Cloud",
+      "weight": 0.64,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_17_to_fi_01",
+      "source": "cry_df_17",
+      "target": "fi_01",
+      "label": "Ondo (ONDO) Institutional RWA Treasury Rail \u2192 US 10-Year Treasury Yield",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_18_to_cry_df_17",
+      "source": "cry_df_18",
+      "target": "cry_df_17",
+      "label": "Centrifuge Real-World Asset Credit Pool \u2192 Ondo (ONDO) Institutional RWA Treasury Rail",
+      "weight": 0.84,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_19_to_cry_df_02",
+      "source": "cry_df_19",
+      "target": "cry_df_02",
+      "label": "Pendle Finance Interest Yield Tokenization \u2192 Aave (AAVE) Decentralized Credit Protocol",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_df_20_to_cry_st_03",
+      "source": "cry_df_20",
+      "target": "cry_st_03",
+      "label": "Frax Finance Fractional Algorithmic Suite \u2192 Dai (DAI) Decentralized Overcollateralized",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_01_to_cry_l1_01",
+      "source": "cry_inst_01",
+      "target": "cry_l1_01",
+      "label": "BlackRock iShares Bitcoin Trust (IBIT) \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_02_to_cry_inst_01",
+      "source": "cry_inst_02",
+      "target": "cry_inst_01",
+      "label": "Fidelity Wise Origin Bitcoin Fund (FBTC) \u2192 BlackRock iShares Bitcoin Trust (IBIT)",
+      "weight": 0.94,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_03_to_cry_met_08",
+      "source": "cry_inst_03",
+      "target": "cry_met_08",
+      "label": "Grayscale Bitcoin Trust (GBTC) Outflow Multiplier \u2192 Coinbase Exchange Vault Custody Assets",
+      "weight": -0.75,
+      "expectedSign": -1
+    },
+    {
+      "id": "cry_inst_04_to_cry_l1_02",
+      "source": "cry_inst_04",
+      "target": "cry_l1_02",
+      "label": "BlackRock iShares Ethereum Trust (ETHA) \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_05_to_cry_inst_04",
+      "source": "cry_inst_05",
+      "target": "cry_inst_04",
+      "label": "Fidelity Ethereum Fund Institutional Rail \u2192 BlackRock iShares Ethereum Trust (ETHA)",
+      "weight": 0.92,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_06_to_stk_fin_10",
+      "source": "cry_inst_06",
+      "target": "stk_fin_10",
+      "label": "CME Bitcoin Futures Open Interest Volumes \u2192 CME Group Derivative Exchange Volume",
+      "weight": 0.86,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_07_to_cry_inst_06",
+      "source": "cry_inst_07",
+      "target": "cry_inst_06",
+      "label": "CME Ethereum Futures Regulated Trading \u2192 CME Bitcoin Futures Open Interest Volumes",
+      "weight": 0.84,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_08_to_cry_inst_09",
+      "source": "cry_inst_08",
+      "target": "cry_inst_09",
+      "label": "Total Bitcoin Corporate Treasury Reserves \u2192 US Spot ETF Aggregate Net Inflow Metric",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_09_to_cry_met_06",
+      "source": "cry_inst_09",
+      "target": "cry_met_06",
+      "label": "US Spot ETF Aggregate Net Inflow Metric \u2192 Crypto Fear and Greed Sentiment Index",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_inst_10_to_cry_inst_09",
+      "source": "cry_inst_10",
+      "target": "cry_inst_09",
+      "label": "European Crypto Exchange Traded Products (ETPs) \u2192 US Spot ETF Aggregate Net Inflow Metric",
+      "weight": 0.82,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_01_to_cry_met_02",
+      "source": "cry_met_01",
+      "target": "cry_met_02",
+      "label": "Bitcoin Network Total Hashrate Metrics \u2192 Bitcoin Mining Difficulty Adjustment Cycle",
+      "weight": 0.95,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_02_to_stk_prox_03",
+      "source": "cry_met_02",
+      "target": "stk_prox_03",
+      "label": "Bitcoin Mining Difficulty Adjustment Cycle \u2192 Marathon Digital Holdings (MARA) Hash",
+      "weight": -0.65,
+      "expectedSign": -1
+    },
+    {
+      "id": "cry_met_03_to_cry_df_04",
+      "source": "cry_met_03",
+      "target": "cry_df_04",
+      "label": "Ethereum Total Value Staked on Validator Nodes \u2192 Lido Finance (LDO) Liquid Staking Pool",
+      "weight": 0.9,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_04_to_cry_df_06",
+      "source": "cry_met_04",
+      "target": "cry_df_06",
+      "label": "Solana Active Daily Transaction Volumes \u2192 Jupiter (JUP) Solana Aggregator Backbone",
+      "weight": 0.84,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_05_to_cry_df_02",
+      "source": "cry_met_05",
+      "target": "cry_df_02",
+      "label": "Total DeFi Ecosystem Value Locked (TVL) \u2192 Aave (AAVE) Decentralized Credit Protocol",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_06_to_cry_met_09",
+      "source": "cry_met_06",
+      "target": "cry_met_09",
+      "label": "Crypto Fear and Greed Sentiment Index \u2192 Bybit Perpetual Contract Funding Rates",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_07_to_cry_met_11",
+      "source": "cry_met_07",
+      "target": "cry_met_11",
+      "label": "Binance Net Exchange Token Reserves \u2192 Total Native Liquidations across Exchanges",
+      "weight": 0.72,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_08_to_stk_prox_02",
+      "source": "cry_met_08",
+      "target": "stk_prox_02",
+      "label": "Coinbase Exchange Vault Custody Assets \u2192 Coinbase Global Inc. (COIN) Fee Volume",
+      "weight": 0.88,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_09_to_cry_met_11",
+      "source": "cry_met_09",
+      "target": "cry_met_11",
+      "label": "Bybit Perpetual Contract Funding Rates \u2192 Total Native Liquidations across Exchanges",
+      "weight": 0.75,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_10_to_cry_met_09",
+      "source": "cry_met_10",
+      "target": "cry_met_09",
+      "label": "Deribit Option Contract Implied Volatility Surface \u2192 Bybit Perpetual Contract Funding Rates",
+      "weight": 0.78,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_11_to_cry_l1_01",
+      "source": "cry_met_11",
+      "target": "cry_l1_01",
+      "label": "Total Native Liquidations across Exchanges \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": -0.8,
+      "expectedSign": -1
+    },
+    {
+      "id": "cry_met_12_to_cry_l1_01",
+      "source": "cry_met_12",
+      "target": "cry_l1_01",
+      "label": "Bitcoin 4-Year Halving Reward Depletion Cycle \u2192 Bitcoin (BTC) Decentralized Settlement Layer",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_13_to_cry_l1_02",
+      "source": "cry_met_13",
+      "target": "cry_l1_02",
+      "label": "Ethereum Net Burning Mechanism (EIP-1559) \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "cry_met_14_to_cry_met_15",
+      "source": "cry_met_14",
+      "target": "cry_met_15",
+      "label": "On-Chain Long-Term Holder Realized Cap \u2192 Short-Term Holder Market Value to Realized Value",
+      "weight": -0.82,
+      "expectedSign": -1
+    },
+    {
+      "id": "cry_met_15_to_cry_met_06",
+      "source": "cry_met_15",
+      "target": "cry_met_06",
+      "label": "Short-Term Holder Market Value to Realized Value \u2192 Crypto Fear and Greed Sentiment Index",
+      "weight": 0.76,
+      "expectedSign": 1
+    },
+    {
+      "id": "reg_01_to_stk_prox_02",
+      "source": "reg_01",
+      "target": "stk_prox_02",
+      "label": "US SEC Digital Asset Security Enforcement \u2192 Coinbase Global Inc. (COIN) Fee Volume",
+      "weight": -0.75,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_01_to_cry_df_01",
+      "source": "reg_01",
+      "target": "cry_df_01",
+      "label": "US SEC Digital Asset Security Enforcement \u2192 Uniswap (UNI) Governance Automation Matrix",
+      "weight": -0.7,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_02_to_cry_l1_02",
+      "source": "reg_02",
+      "target": "cry_l1_02",
+      "label": "CFTC Commodity Classification for Altcoins \u2192 Ethereum (ETH) Smart Contract Engine",
+      "weight": 0.65,
+      "expectedSign": 1
+    },
+    {
+      "id": "reg_03_to_cry_st_01",
+      "source": "reg_03",
+      "target": "cry_st_01",
+      "label": "US Treasury FinCEN Unhosted Wallet Mandates \u2192 Tether (USDT) Offshore Liquidity Core",
+      "weight": -0.8,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_04_to_cry_df_04",
+      "source": "reg_04",
+      "target": "cry_df_04",
+      "label": "IRS Crypto Staking Capital Gains Taxation Rule \u2192 Lido Finance (LDO) Liquid Staking Pool",
+      "weight": -0.6,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_05_to_cry_st_02",
+      "source": "reg_05",
+      "target": "cry_st_02",
+      "label": "US Congress Stablecoin Regulation Framework Bills \u2192 USD Coin (USDC) Onshore Audited Engine",
+      "weight": 0.85,
+      "expectedSign": 1
+    },
+    {
+      "id": "reg_06_to_cry_l2_03",
+      "source": "reg_06",
+      "target": "cry_l2_03",
+      "label": "EU Markets in Crypto-Assets (MiCA) Execution \u2192 Polygon (MATIC/POL) Aggregated Liquidity",
+      "weight": 0.7,
+      "expectedSign": 1
+    },
+    {
+      "id": "reg_07_to_macro_19",
+      "source": "reg_07",
+      "target": "macro_19",
+      "label": "People's Bank of China Capital Outflow Controls \u2192 Offshore Chinese Yuan (USD/CNH)",
+      "weight": -0.65,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_08_to_stk_idx_10",
+      "source": "reg_08",
+      "target": "stk_idx_10",
+      "label": "Hong Kong SFC Regulated Crypto Retail Frameworks \u2192 Hang Seng Index Hong Kong Market",
+      "weight": 0.62,
+      "expectedSign": 1
+    },
+    {
+      "id": "reg_09_to_cry_st_05",
+      "source": "reg_09",
+      "target": "cry_st_05",
+      "label": "Japan FSA Cryptographic Stablecoin Clearances \u2192 PayPal USD (PYUSD) Fintech Rail Pivot",
+      "weight": 0.58,
+      "expectedSign": 1
+    },
+    {
+      "id": "reg_10_to_cry_met_07",
+      "source": "reg_10",
+      "target": "cry_met_07",
+      "label": "FATF Global Travel Rule Compliance Systems \u2192 Binance Net Exchange Token Reserves",
+      "weight": -0.6,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_11_to_stk_fin_07",
+      "source": "reg_11",
+      "target": "stk_fin_07",
+      "label": "Federal Reserve Central Bank Digital Currency (CBDC) R&D \u2192 Visa Inc. High-Volume Payment Rail",
+      "weight": -0.45,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_12_to_cry_df_17",
+      "source": "reg_12",
+      "target": "cry_df_17",
+      "label": "Digital Asset Anti-Money Laundering Legislation Bills \u2192 Ondo (ONDO) Institutional RWA Treasury Rail",
+      "weight": -0.68,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_13_to_reg_10",
+      "source": "reg_13",
+      "target": "reg_10",
+      "label": "South Korea FSC Cross-Border Token Mandates \u2192 FATF Global Travel Rule Compliance Systems",
+      "weight": 0.8,
+      "expectedSign": 1
+    },
+    {
+      "id": "reg_14_to_stk_prox_08",
+      "source": "reg_14",
+      "target": "stk_prox_08",
+      "label": "UK FCA Cryptographic Financial Promotion Sanctions \u2192 Robinhood Markets (HOOD) Retail Velocity",
+      "weight": -0.55,
+      "expectedSign": -1
+    },
+    {
+      "id": "reg_15_to_stk_fin_01",
+      "source": "reg_15",
+      "target": "stk_fin_01",
+      "label": "SEC Sab 121 Banking Custody Restriction Standard \u2192 JPMorgan Chase & Co. Global Banking",
+      "weight": -0.8,
+      "expectedSign": -1
+    }
+  ]
+}
