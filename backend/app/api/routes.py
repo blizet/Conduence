@@ -33,6 +33,7 @@ from app.tools.wallet_monitor import fetch_wallet_monitor
 from app.tools.x_monitor import fetch_x_monitor
 from app.orchestrator.graph_registry import GRAPH_CATALOG
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
+from app.services.wallet_graph_builder import build_wallet_graph_preview
 from app.services.workflow_marketplace import (
     delete_workflow,
     get_workflow,
@@ -84,6 +85,28 @@ async def graph_node_detail(graph_id: str, node_id: str, request: Request) -> di
     if detail is None:
         raise HTTPException(status_code=404, detail="Node not found")
     return detail
+
+
+@router.post("/wallet/graph-preview")
+async def wallet_graph_preview(body: dict[str, Any]) -> dict[str, Any]:
+    """Build agentic + CoT graph previews from Polymarket/Kalshi trade history."""
+    wallet = (body.get("wallet") or "").strip()
+    limit = int(body.get("limit") or 50)
+    kalshi_api_key_id = (body.get("kalshiApiKeyId") or body.get("kalshi_api_key_id") or "").strip() or None
+    kalshi_private_key_pem = (
+        body.get("kalshiPrivateKeyPem") or body.get("kalshi_private_key_pem") or ""
+    ).strip() or None
+    try:
+        return await build_wallet_graph_preview(
+            wallet=wallet,
+            limit=max(1, min(limit, 200)),
+            kalshi_api_key_id=kalshi_api_key_id,
+            kalshi_private_key_pem=kalshi_private_key_pem,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.post("/signals/cot")

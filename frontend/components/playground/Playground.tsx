@@ -193,6 +193,9 @@ function PlaygroundInner({
           <Link href="/simulate" className="graph-view-toggle" title="Paper trade Polymarket & Kalshi strategies">
             Paper Trading
           </Link>
+          <Link href="/wallet-lab" className="graph-view-toggle" title="Build CoT + agentic graphs from wallet trade history">
+            Wallet lab
+          </Link>
         </div>
       </header>
       <div className="playground-body">

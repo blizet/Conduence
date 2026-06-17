@@ -1,6 +1,7 @@
 export type GraphSnapshotNode = {
   id: string;
   type: string;
+  label?: string;
   marketRole?: 'anchor' | 'correlated_peer';
 };
 
@@ -8,6 +9,9 @@ export type GraphSnapshotEdge = {
   source: string;
   target: string;
   type: string;
+  label?: string;
+  weight?: number;
+  origin?: string;
 };
 
 export type GraphSnapshot = {
