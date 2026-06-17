@@ -20,10 +20,6 @@ def _action_label(action: str) -> str:
     return "Hold"
 
 
-def _outcome_node_id(action: str) -> str:
-    return "OUT_NO_CONTRACTS" if action == "BUY_NO" else "OUT_YES_SHARES"
-
-
 def build_cot_decision(
     decision: dict[str, Any],
     correlated: dict[str, Any],
@@ -58,8 +54,7 @@ def build_cot_decision(
         {"node_id": "Polymarket", "node_type": "protocol"},
         {"node_id": market_id, "node_type": "market"},
         {"node_id": trade_id, "node_type": "trade"},
-        {"node_id": _outcome_node_id(decision["action"]), "node_type": "outcome"},
-        {"node_id": "FB_OPEN", "node_type": "feedback"},
+        {"node_id": f"FB_{trade_id}", "node_type": "feedback"},
     ]
     for kal_id in correlated_targets:
         if not any(n["node_id"] == kal_id for n in nodes):
@@ -93,12 +88,7 @@ def build_cot_decision(
                 "decision_id": decision_id,
             },
         },
-        {
-            "source": trade_id,
-            "target": _outcome_node_id(decision["action"]),
-            "metadata": {"source_url": pm_url},
-        },
-        {"source": trade_id, "target": "FB_OPEN", "metadata": {"source_url": pm_url}},
+        {"source": trade_id, "target": f"FB_{trade_id}", "metadata": {"source_url": pm_url}},
     ]
     if targets:
         edges.append(

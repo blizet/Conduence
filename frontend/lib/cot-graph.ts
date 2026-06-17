@@ -192,15 +192,13 @@ export const SAMPLE_SNAPSHOT: GraphSnapshot = {
     { id: 'Polymarket', type: 'protocol' },
     { id: 'PM_EXAMPLE', type: 'market', marketRole: 'anchor' },
     { id: 'TRD_M001', type: 'trade' },
-    { id: 'OUT_YES_SHARES', type: 'outcome' },
-    { id: 'FB_OPEN', type: 'feedback' },
+    { id: 'FB_TRD_M001', type: 'feedback' },
   ],
   edges: [
     { source: 'user_771', target: 'Polymarket', type: 'CONNECTED_TO' },
     { source: 'Polymarket', target: 'PM_EXAMPLE', type: 'CONNECTED_TO' },
     { source: 'PM_EXAMPLE', target: 'TRD_M001', type: 'OPEN_YES' },
-    { source: 'TRD_M001', target: 'OUT_YES_SHARES', type: 'CONNECTED_TO' },
-    { source: 'TRD_M001', target: 'FB_OPEN', type: 'CONNECTED_TO' },
+    { source: 'TRD_M001', target: 'FB_TRD_M001', type: 'CONNECTED_TO' },
   ],
 };
 
@@ -286,10 +284,7 @@ export const SAMPLE_NODE_DETAILS: Record<string, GraphNodeDetail> = {
         reasoning: 'News corroboration from newsAgent; gamma liquidity acceptable.',
       },
     ],
-    outgoing_edges: [
-      { source: 'TRD_M001', target: 'OUT_YES_SHARES', type: 'CONNECTED_TO' },
-      { source: 'TRD_M001', target: 'FB_OPEN', type: 'CONNECTED_TO' },
-    ],
+    outgoing_edges: [{ source: 'TRD_M001', target: 'FB_TRD_M001', type: 'CONNECTED_TO' }],
   },
   PM_EXAMPLE: {
     graph_id: DEFAULT_GRAPH_ID,
@@ -305,26 +300,9 @@ export const SAMPLE_NODE_DETAILS: Record<string, GraphNodeDetail> = {
     incoming_edges: [{ source: 'Polymarket', target: 'PM_EXAMPLE', type: 'CONNECTED_TO' }],
     outgoing_edges: [{ source: 'PM_EXAMPLE', target: 'TRD_M001', type: 'OPEN_YES' }],
   },
-  OUT_YES_SHARES: {
+  FB_TRD_M001: {
     graph_id: DEFAULT_GRAPH_ID,
-    node: { id: 'OUT_YES_SHARES', type: 'outcome' },
-    decision: {
-      decision_id: 'dec-trd_m001-open',
-      linked_trade_id: 'TRD_M001',
-      action: 'Buy YES',
-      thesis: 'ETF inflows and macro tailwind support upside into year-end.',
-      reasoning: 'Outcome path — YES shares if the trade thesis resolves.',
-      conviction_level: 8,
-      tags: ['#BTC', '#ETF'],
-      market_id: 'PM_EXAMPLE',
-    },
-    observability: SAMPLE_OBSERVABILITY,
-    incoming_edges: [{ source: 'TRD_M001', target: 'OUT_YES_SHARES', type: 'CONNECTED_TO' }],
-    outgoing_edges: [],
-  },
-  FB_OPEN: {
-    graph_id: DEFAULT_GRAPH_ID,
-    node: { id: 'FB_OPEN', type: 'feedback' },
+    node: { id: 'FB_TRD_M001', type: 'feedback' },
     decision: {
       decision_id: 'dec-trd_m001-open',
       linked_trade_id: 'TRD_M001',
@@ -333,7 +311,7 @@ export const SAMPLE_NODE_DETAILS: Record<string, GraphNodeDetail> = {
       conviction_level: 8,
     },
     observability: SAMPLE_OBSERVABILITY,
-    incoming_edges: [{ source: 'TRD_M001', target: 'FB_OPEN', type: 'CONNECTED_TO' }],
+    incoming_edges: [{ source: 'TRD_M001', target: 'FB_TRD_M001', type: 'CONNECTED_TO' }],
     outgoing_edges: [],
   },
 };

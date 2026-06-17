@@ -117,7 +117,6 @@ export function WalletCotNodeInspector({
           </>
         ) : null}
 
-        {nodeType === 'outcome' ? <MetaRow label="Outcome" value={detail.outcomeDescription} /> : null}
         {nodeType === 'feedback' ? (
           <MetaRow label="Linked trade" value={detail.linkedTradeId ? <code>{detail.linkedTradeId}</code> : null} />
         ) : null}

@@ -164,11 +164,9 @@ def _strip_open_lifecycle_orphans(payload: DecisionEvent) -> None:
     )
     if not is_open:
         return
-    leaf_ids = {
-        n.node_id for n in payload.nodes if n.node_type in ("outcome", "feedback")
-    }
+    leaf_ids = {n.node_id for n in payload.nodes if n.node_type == "feedback"}
     payload.edges = [e for e in payload.edges if not e.target or e.target not in leaf_ids]
-    payload.nodes = [n for n in payload.nodes if n.node_type not in ("outcome", "feedback")]
+    payload.nodes = [n for n in payload.nodes if n.node_type != "feedback"]
 
 
 def _stamp_close_lifecycle(payload: DecisionEvent) -> None:
@@ -201,7 +199,7 @@ def _scope_trade_leaf_nodes(payload: DecisionEvent) -> None:
             if edge.source != trade_id or not edge.target:
                 continue
             target_node = next((n for n in payload.nodes if n.node_id == edge.target), None)
-            if not target_node or target_node.node_type not in ("feedback", "outcome"):
+            if not target_node or target_node.node_type != "feedback":
                 continue
             scoped_id = scoped_leaf_id(edge.target, trade_id)
             if edge.target != scoped_id:

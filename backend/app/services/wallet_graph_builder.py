@@ -73,10 +73,6 @@ def _edge_type_for_action(action: str) -> str:
     return mapping.get(action, "OPEN_YES")
 
 
-def _outcome_node_id(action: str) -> str:
-    return "OUT_NO_CONTRACTS" if "NO" in action else "OUT_YES_SHARES"
-
-
 def _action_label(action: str) -> str:
     return action.replace("_", " ").title()
 
@@ -332,7 +328,6 @@ def _decision_from_trade(
             "timestamp": timestamp,
             "tx_hash": trade.get("txHash"),
         }},
-        {"node_id": _outcome_node_id(action), "node_type": "outcome"},
         {"node_id": f"FB_{trade_id}", "node_type": "feedback"},
     ]
     edges = [
@@ -358,7 +353,6 @@ def _decision_from_trade(
                 "outcome": trade.get("outcome"),
             },
         },
-        {"source": trade_id, "target": _outcome_node_id(action)},
         {"source": trade_id, "target": f"FB_{trade_id}"},
     ]
 
@@ -506,13 +500,7 @@ def build_node_details(
             node_type = str(node.get("node_type") or "")
             if node_id in details:
                 continue
-            if node_type == "outcome":
-                details[node_id] = {
-                    "nodeType": "outcome",
-                    "outcomeDescription": "YES shares" if "YES" in node_id else "NO contracts",
-                    "origin": "extracted",
-                }
-            elif node_type == "feedback":
+            if node_type == "feedback":
                 details[node_id] = {
                     "nodeType": "feedback",
                     "linkedTradeId": node_id.replace("FB_", ""),

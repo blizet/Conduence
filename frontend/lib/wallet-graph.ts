@@ -52,7 +52,6 @@ export type WalletCotNodeDetail = {
   timestamp?: string | number | null;
   txHash?: string | null;
   thesis?: string | null;
-  outcomeDescription?: string;
   linkedTradeId?: string;
 };
 
