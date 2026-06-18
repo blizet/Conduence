@@ -257,6 +257,22 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
   } | null>(null);
   const [supermemoryLoaded, setSupermemoryLoaded] = useState(false);
   const [serviceError, setServiceError] = useState<string | null>(null);
+  const [highlights, setHighlights] = useState<{ nodes: string[]; edges: string[] }>({
+    nodes: [],
+    edges: [],
+  });
+  const highlightTimerRef = useRef<number | null>(null);
+
+  const applyHighlights = useCallback((data: ChatApiResponse) => {
+    const nodes = data.changedNodeIds ?? [];
+    const edges = data.changedEdgeIds ?? [];
+    if (!nodes.length && !edges.length) return;
+    setHighlights({ nodes, edges });
+    if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlights({ nodes: [], edges: [] });
+    }, 12000);
+  }, []);
 
   useEffect(() => {
     agenticFetch('/health')
@@ -315,6 +331,7 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
         setGraphComplete(data.graphComplete);
         setTokenUsage(data.tokenUsage ?? emptyConversationUsage());
         setSupermemoryLoaded(Boolean(data.supermemoryLoaded));
+        applyHighlights(data);
       } catch (err) {
         setMessages((prev) => [
           ...prev,
@@ -327,7 +344,7 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
         setLoading(false);
       }
     },
-    [sessionId, llmSettings, userSlug],
+    [sessionId, llmSettings, userSlug, applyHighlights],
   );
 
   const reset = useCallback(
@@ -362,8 +379,9 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
       setGraph(data.graph);
       setPendingCount(data.pendingWeights.length);
       setGraphComplete(data.graphComplete);
+      applyHighlights(data);
     },
-    [sessionId, userSlug],
+    [sessionId, userSlug, applyHighlights],
   );
 
   const hasLlmKey = Boolean(llmSettings.apiKey?.trim()) || Boolean(health?.envFallbackConfigured);
@@ -398,7 +416,12 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
                 </button>
               </div>
             ) : null}
-            <GraphView graph={graph} onWeightChange={setEdgeWeight} />
+            <GraphView
+              graph={graph}
+              onWeightChange={setEdgeWeight}
+              highlightedNodeIds={new Set(highlights.nodes)}
+              highlightedEdgeIds={new Set(highlights.edges)}
+            />
           </div>
           <ChatPanel
             messages={messages}

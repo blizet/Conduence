@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -11,7 +12,9 @@ from app.agentic.graph import (
     apply_llm_delta,
     apply_weights_from_quoted_context,
     apply_weights_from_recent_assistant_messages,
+    compute_graph_changes,
     create_empty_graph,
+    GraphChanges,
     graph_is_complete,
     graph_summary,
     pending_weight_questions,
@@ -161,6 +164,8 @@ async def handle_chat(
 
     active.messages.append({"role": "user", "content": user_message})
 
+    graph_at_turn_start = copy.deepcopy(active.graph)
+
     if agentic_chat_mutations_enabled(container_tag):
         active.graph = supplement_graph_from_prose(active.graph, user_message)
         active.graph = supplement_graph_from_text(active.graph, user_message)
@@ -209,6 +214,12 @@ async def handle_chat(
         persist_graph_snapshot=agentic_chat_mutations_enabled(container_tag),
     )
 
+    changes = (
+        compute_graph_changes(graph_at_turn_start, active.graph).as_response()
+        if agentic_chat_mutations_enabled(container_tag)
+        else GraphChanges().as_response()
+    )
+
     return {
         "sessionId": active.id,
         "message": reply,
@@ -217,6 +228,7 @@ async def handle_chat(
         "graphComplete": graph_is_complete(active.graph),
         "tokenUsage": active.token_usage,
         "supermemoryLoaded": active.supermemory_loaded,
+        **changes,
     }
 
 
@@ -246,6 +258,7 @@ async def update_edge_weight(
         return None
 
     clamped = clamp_weight(weight)
+    graph_before = copy.deepcopy(session.graph)
     session.graph = apply_llm_delta(
         session.graph,
         {"assistant_message": "", "weight_updates": [{"edge_id": edge_id, "weight": clamped}]},
@@ -254,6 +267,7 @@ async def update_edge_weight(
     src = label_by_id.get(edge["source"], edge["source"])
     tgt = label_by_id.get(edge["target"], edge["target"])
     session.graph = sanitize_graph(session.graph)
+    changes = compute_graph_changes(graph_before, session.graph).as_response()
     await persist_to_supermemory(
         container_tag,
         f"[graph] Set weight: {src} → {tgt}",
@@ -271,4 +285,5 @@ async def update_edge_weight(
         "graphComplete": graph_is_complete(session.graph),
         "tokenUsage": session.token_usage,
         "supermemoryLoaded": session.supermemory_loaded,
+        **changes,
     }

@@ -136,14 +136,15 @@ export function edgeStrokeWidth(weight: number | null): number {
   return 1.25 + Math.abs(weight) * 3.5;
 }
 
-function visNodeColor(bg: string) {
+function visNodeColor(bg: string, borderWidth = 1.5) {
   return {
     background: bg,
-    border: withAlpha(bg, 0.75),
+    border: withAlpha(bg, 0.95),
     highlight: {
       background: withAlpha(bg, 0.95),
       border: withAlpha(bg, 0.85),
     },
+    borderWidth,
   };
 }
 
@@ -215,7 +216,15 @@ export function computeGroupClusterPositions(graph: WeightedGraph): Map<string, 
   return positions;
 }
 
-export function graphToVis(graph: WeightedGraph): { nodes: VisNode[]; edges: VisEdge[] } {
+const HIGHLIGHT_COLOR = "#F4D35E";
+const HIGHLIGHT_EDGE = "#FFD166";
+
+export function graphToVis(
+  graph: WeightedGraph,
+  options?: { highlightedNodeIds?: Set<string>; highlightedEdgeIds?: Set<string> },
+): { nodes: VisNode[]; edges: VisEdge[] } {
+  const highlightedNodes = options?.highlightedNodeIds ?? new Set<string>();
+  const highlightedEdges = options?.highlightedEdgeIds ?? new Set<string>();
   const degrees = computeDegrees(graph);
   const nodeIds = new Set(graph.nodes.map((n) => n.id));
   const groupColorMap = buildGroupColorMap(collectGroupIds(graph));
@@ -225,14 +234,16 @@ export function graphToVis(graph: WeightedGraph): { nodes: VisNode[]; edges: Vis
     const bg = groupColorForNode(node.id, groupColorMap);
     const degree = degrees.get(node.id) ?? 0;
     const position = clusterPositions.get(node.id);
+    const highlighted = highlightedNodes.has(node.id);
+    const nodeColor = highlighted ? HIGHLIGHT_COLOR : bg;
     return {
       id: node.id,
       label: shortLabel(node.label, 16),
       title: `${node.id}\n${node.label}\nGroup: ${nodeIdPrefix(node.id)}`,
       x: position?.x,
       y: position?.y,
-      color: visNodeColor(bg),
-      size: Math.min(36, 16 + degree * 2.2),
+      color: visNodeColor(nodeColor, highlighted ? 3 : 1.5),
+      size: Math.min(36, 16 + degree * 2.2) + (highlighted ? 6 : 0),
       font: {
         size: 12,
         color: "#f1f5f9",
@@ -250,17 +261,19 @@ export function graphToVis(graph: WeightedGraph): { nodes: VisNode[]; edges: Vis
       const stroke = groupColorForEdge(edge.source, edge.target, groupColorMap);
       const weightLabel =
         edge.weight != null ? formatWeightShort(edge.weight) : "unset";
+      const highlighted = highlightedEdges.has(edge.id);
+      const edgeColor = highlighted ? HIGHLIGHT_EDGE : stroke;
       return {
         id: edge.id,
         from: edge.source,
         to: edge.target,
         title: `${edge.label}\nWeight: ${weightLabel}`,
-        width: edgeStrokeWidth(edge.weight),
+        width: edgeStrokeWidth(edge.weight) + (highlighted ? 2 : 0),
         dashes: edge.weight == null ? [8, 6] : false,
         color: {
-          color: withAlpha(stroke, edge.weight == null ? 0.5 : 0.78),
+          color: withAlpha(edgeColor, highlighted ? 0.95 : edge.weight == null ? 0.5 : 0.78),
           opacity: 1,
-          highlight: withAlpha(stroke, 0.92),
+          highlight: withAlpha(edgeColor, 0.92),
         },
         arrows: { to: { enabled: true, scaleFactor: 0.65 } },
         font: {

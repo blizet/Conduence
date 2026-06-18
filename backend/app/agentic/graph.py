@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import re
+from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from app.agentic.weight import clamp_weight, format_weight_short
@@ -75,6 +77,59 @@ def slugify(label: str) -> str:
 
 def create_empty_graph() -> dict[str, list]:
     return {"nodes": [], "edges": []}
+
+
+@dataclass
+class GraphChanges:
+    added_node_ids: list[str] = field(default_factory=list)
+    updated_node_ids: list[str] = field(default_factory=list)
+    added_edge_ids: list[str] = field(default_factory=list)
+    updated_edge_ids: list[str] = field(default_factory=list)
+
+    def as_response(self) -> dict[str, list[str]]:
+        return {
+            "changedNodeIds": list(dict.fromkeys(self.added_node_ids + self.updated_node_ids)),
+            "addedNodeIds": self.added_node_ids,
+            "updatedNodeIds": self.updated_node_ids,
+            "changedEdgeIds": list(dict.fromkeys(self.added_edge_ids + self.updated_edge_ids)),
+            "addedEdgeIds": self.added_edge_ids,
+            "updatedEdgeIds": self.updated_edge_ids,
+        }
+
+
+def compute_graph_changes(before: dict, after: dict) -> GraphChanges:
+    before_nodes = {n["id"]: n for n in before.get("nodes") or []}
+    after_nodes = {n["id"]: n for n in after.get("nodes") or []}
+    before_edges = {e["id"]: e for e in before.get("edges") or []}
+    after_edges = {e["id"]: e for e in after.get("edges") or []}
+
+    added_node_ids = [node_id for node_id in after_nodes if node_id not in before_nodes]
+    updated_node_ids = [
+        node_id
+        for node_id, node in after_nodes.items()
+        if node_id in before_nodes and node != before_nodes[node_id]
+    ]
+
+    added_edge_ids = [edge_id for edge_id in after_edges if edge_id not in before_edges]
+    updated_edge_ids = []
+    for edge_id, edge in after_edges.items():
+        if edge_id not in before_edges:
+            continue
+        prev = before_edges[edge_id]
+        if edge.get("weight") != prev.get("weight"):
+            updated_edge_ids.append(edge_id)
+            continue
+        for key in ("source", "target", "label", "expectedSign"):
+            if edge.get(key) != prev.get(key):
+                updated_edge_ids.append(edge_id)
+                break
+
+    return GraphChanges(
+        added_node_ids=added_node_ids,
+        updated_node_ids=updated_node_ids,
+        added_edge_ids=added_edge_ids,
+        updated_edge_ids=updated_edge_ids,
+    )
 
 
 def _normalize_label(text: str) -> str:

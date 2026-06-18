@@ -64,6 +64,12 @@ export interface ChatApiResponse {
   graphComplete: boolean;
   tokenUsage: ConversationTokenUsage;
   supermemoryLoaded?: boolean;
+  changedNodeIds?: string[];
+  addedNodeIds?: string[];
+  updatedNodeIds?: string[];
+  changedEdgeIds?: string[];
+  addedEdgeIds?: string[];
+  updatedEdgeIds?: string[];
 }
 
 export interface ForceGraphNode {

@@ -70,9 +70,13 @@ function graphSignature(graph: WeightedGraph): string {
 export function GraphView({
   graph,
   onWeightChange,
+  highlightedNodeIds,
+  highlightedEdgeIds,
 }: {
   graph: WeightedGraph;
   onWeightChange?: (edgeId: string, weight: number) => Promise<void>;
+  highlightedNodeIds?: Set<string>;
+  highlightedEdgeIds?: Set<string>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
@@ -93,6 +97,11 @@ export function GraphView({
   const allGroupIdSet = useMemo(() => new Set(allGroupIds), [allGroupIds]);
   const degrees = useMemo(() => computeDegrees(graph), [graph]);
   const signature = useMemo(() => graphSignature(graph), [graph]);
+  const highlightKey = useMemo(
+    () =>
+      `${[...(highlightedNodeIds ?? [])].sort().join(",")}|${[...(highlightedEdgeIds ?? [])].sort().join(",")}`,
+    [highlightedNodeIds, highlightedEdgeIds],
+  );
 
   const activeVisibleGroups = visibleGroupIds ?? allGroupIdSet;
 
@@ -270,7 +279,10 @@ export function GraphView({
   useEffect(() => {
     if (!hasGraph || !containerRef.current) return;
 
-    const { nodes, edges } = graphToVis(filteredGraph);
+    const { nodes, edges } = graphToVis(filteredGraph, {
+      highlightedNodeIds,
+      highlightedEdgeIds,
+    });
 
     for (const edge of edges) {
       if (edge.id === selectedEdgeIdRef.current) {
@@ -375,7 +387,9 @@ export function GraphView({
       network.destroy();
       networkRef.current = null;
     };
-  }, [filteredGraph, hasGraph, selectEdge, buildSelectedNode]);
+  }, [filteredGraph, hasGraph, selectEdge, buildSelectedNode, highlightKey, highlightedNodeIds, highlightedEdgeIds]);
+
+  const hasHighlights = Boolean(highlightedNodeIds?.size || highlightedEdgeIds?.size);
 
   if (!hasGraph) {
     return (
@@ -396,6 +410,14 @@ export function GraphView({
       <div ref={containerRef} className="cot-graph-view__canvas cot-graph-view__canvas--agentic" />
       <aside className="cot-graph-view__sidebar">
         <div className="cot-graph-sidebar__section cot-graph-sidebar__info">
+          {hasHighlights ? (
+            <div className="cot-graph-change-banner">
+              Updated this turn: {highlightedNodeIds?.size ?? 0} node
+              {(highlightedNodeIds?.size ?? 0) === 1 ? "" : "s"},{" "}
+              {highlightedEdgeIds?.size ?? 0} edge
+              {(highlightedEdgeIds?.size ?? 0) === 1 ? "" : "s"} (highlighted in gold)
+            </div>
+          ) : null}
           <h3>Node info</h3>
           {selectedNode ? (
             <div className="cot-graph-info-panel">
