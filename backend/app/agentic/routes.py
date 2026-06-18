@@ -17,6 +17,7 @@ from app.agentic.config import (
 from app.agentic.shared_graph import (
     agentic_chat_mutations_enabled,
     load_shared_agentic_graph,
+    load_user_agentic_graph,
     shared_graph_container_tag,
 )
 from app.agentic.graph import graph_is_complete, pending_weight_questions
@@ -67,12 +68,41 @@ async def agentic_health() -> dict[str, Any]:
         "envFallbackConfigured": bool(env_fallback),
         "providers": LLM_PROVIDERS,
         "sharedGraphContainer": shared_graph_container_tag(),
-        "graphChatMutations": agentic_chat_mutations_enabled(),
+        "graphChatMutations": agentic_chat_mutations_enabled(shared_graph_container_tag()),
     }
 
 
 @router.get("/graph")
-async def agentic_shared_graph() -> dict[str, Any]:
+async def agentic_graph(userSlug: str | None = None) -> dict[str, Any]:
+    slug = (userSlug or "").strip()
+    if slug:
+        container_tag = resolve_container_tag(slug)
+        graph, supermemory_loaded, is_template = await load_user_agentic_graph(slug)
+        return {
+            "ok": True,
+            "containerTag": container_tag,
+            "graph": graph,
+            "supermemoryLoaded": supermemory_loaded,
+            "isTemplate": is_template,
+            "graphComplete": graph_is_complete(graph),
+            "pendingWeights": pending_weight_questions(graph),
+        }
+
+    container_tag = shared_graph_container_tag()
+    graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
+    return {
+        "ok": True,
+        "containerTag": container_tag,
+        "graph": graph,
+        "supermemoryLoaded": supermemory_loaded,
+        "isTemplate": True,
+        "graphComplete": graph_is_complete(graph),
+        "pendingWeights": pending_weight_questions(graph),
+    }
+
+
+@router.get("/graph/template")
+async def agentic_template_graph() -> dict[str, Any]:
     container_tag = shared_graph_container_tag()
     graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
     return {
@@ -118,13 +148,13 @@ async def agentic_chat(body: ChatRequest) -> dict[str, Any]:
         )
 
     container_tag = resolve_container_tag(body.userSlug)
-    return await handle_chat(body.sessionId, message, llm, container_tag)
+    return await handle_chat(body.sessionId, message, llm, container_tag, user_slug=body.userSlug)
 
 
 @router.post("/reset")
 async def agentic_reset(body: ResetRequest) -> dict[str, Any]:
     container_tag = resolve_container_tag(body.userSlug)
-    session = await reset_session(body.sessionId, container_tag, body.fresh)
+    session = await reset_session(body.sessionId, container_tag, body.fresh, user_slug=body.userSlug)
     return {
         "sessionId": session.id,
         "messages": session.messages,

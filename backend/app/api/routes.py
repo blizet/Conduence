@@ -33,7 +33,8 @@ from app.tools.wallet_monitor import fetch_wallet_monitor
 from app.tools.x_monitor import fetch_x_monitor
 from app.orchestrator.graph_registry import GRAPH_CATALOG
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
-from app.services.wallet_graph_builder import build_wallet_graph_preview
+from app.services.user_profile import load_profile, profile_summary
+from app.services.wallet_import import get_user_cot_graph, import_wallet_for_user
 from app.services.workflow_marketplace import (
     delete_workflow,
     get_workflow,
@@ -87,8 +88,58 @@ async def graph_node_detail(graph_id: str, node_id: str, request: Request) -> di
     return detail
 
 
+@router.get("/user/profile/{user_id}")
+async def user_profile(user_id: str) -> dict[str, Any]:
+    profile = load_profile(user_id.strip())
+    return {"ok": True, **profile_summary(profile)}
+
+
+@router.get("/user/graph/{user_id}")
+async def user_graph(user_id: str, request: Request) -> dict[str, Any]:
+    falkordb = request.app.state.falkordb
+    cot = await get_user_cot_graph(user_id.strip(), falkordb)
+    if not cot:
+        raise HTTPException(status_code=404, detail="Wallet not imported for this user")
+    return {"ok": True, "cotGraph": cot}
+
+
+@router.post("/wallet/import")
+async def wallet_import(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    user_id = (body.get("userId") or body.get("user_id") or "").strip()
+    wallet = (body.get("wallet") or "").strip()
+    if not user_id:
+        raise HTTPException(status_code=400, detail="userId is required")
+    if not wallet:
+        raise HTTPException(status_code=400, detail="wallet address is required")
+
+    infra = getattr(request.app.state, "infra_ready", {})
+    if not infra.get("falkordb"):
+        raise HTTPException(
+            status_code=503,
+            detail="FalkorDB unavailable — start docker compose before importing wallet",
+        )
+
+    limit = int(body.get("limit") or 100)
+    kalshi_api_key_id = (body.get("kalshiApiKeyId") or "").strip() or None
+    kalshi_private_key_pem = (body.get("kalshiPrivateKeyPem") or "").strip() or None
+    try:
+        return await import_wallet_for_user(
+            user_id=user_id,
+            wallet=wallet,
+            falkordb=request.app.state.falkordb,
+            limit=limit,
+            kalshi_api_key_id=kalshi_api_key_id,
+            kalshi_private_key_pem=kalshi_private_key_pem,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 @router.post("/wallet/graph-preview")
 async def wallet_graph_preview(body: dict[str, Any]) -> dict[str, Any]:
+    from app.services.wallet_graph_builder import build_wallet_graph_preview
     """Build agentic + CoT graph previews from Polymarket/Kalshi trade history."""
     wallet = (body.get("wallet") or "").strip()
     limit = int(body.get("limit") or 50)
@@ -99,7 +150,7 @@ async def wallet_graph_preview(body: dict[str, Any]) -> dict[str, Any]:
     try:
         return await build_wallet_graph_preview(
             wallet=wallet,
-            limit=max(1, min(limit, 200)),
+            limit=max(1, min(limit, 500)),
             kalshi_api_key_id=kalshi_api_key_id,
             kalshi_private_key_pem=kalshi_private_key_pem,
         )

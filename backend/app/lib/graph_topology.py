@@ -3,7 +3,7 @@ from typing import Literal, Optional
 
 from app.schemas.decision import DecisionEvent
 
-AgentRole = Literal["publisher", "seeker", "main"]
+AgentRole = Literal["publisher", "seeker", "main", "combined"]
 
 
 def user_slug_from_node_id(node_id: str) -> str:
@@ -30,7 +30,7 @@ def graph_id_for(user_slug: str, role: AgentRole, version: str = "v1") -> str:
 
 
 def parse_graph_id(graph_id: str) -> Optional[dict[str, str]]:
-    m = re.match(r"^(.+)\.(publisher|seeker|main)\.(v\d+)$", graph_id)
+    m = re.match(r"^(.+)\.(publisher|seeker|main|combined)\.(v\d+)$", graph_id)
     if not m:
         return None
     return {"userSlug": m.group(1), "role": m.group(2), "version": m.group(3)}

@@ -4659,6 +4659,120 @@ select.node-input {
   border-color: rgba(255, 255, 255, 0.35);
 }
 
+/* ── Unified graph section (playground view) ── */
+
+.graph-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.graph-section--loading,
+.graph-section--onboard {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.graph-onboard {
+  max-width: 32rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.graph-onboard h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.graph-onboard p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.5;
+}
+
+.graph-onboard__hint {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.graph-onboard__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.graph-section__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.graph-section__toggles {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.graph-section__limit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.graph-section__limit input {
+  width: 4rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font-size: 0.78rem;
+}
+
+.graph-section__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.graph-section__canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.graph-section__panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.graph-section__panel--agentic .agentic-graph-root,
+.graph-section__panel--agentic .app-workspace {
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-section__panel .wallet-lab-cot {
+  flex: 1;
+  min-height: 420px;
+}
+
 /* ── Wallet graph lab (/wallet-lab) ── */
 
 .wallet-lab-shell {

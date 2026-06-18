@@ -21,7 +21,12 @@ from app.agentic.graph import (
 )
 from app.agentic.llm_graph import call_graph_llm
 from app.agentic.memory import fetch_supermemory_context, persist_to_supermemory
-from app.agentic.shared_graph import agentic_chat_mutations_enabled, load_shared_agentic_graph
+from app.agentic.shared_graph import (
+    agentic_chat_mutations_enabled,
+    load_shared_agentic_graph,
+    load_user_agentic_graph,
+    shared_graph_container_tag,
+)
 from app.agentic.pricing import estimate_cost_usd
 from app.agentic.tokens import add_turn_usage, empty_conversation_usage, with_cost_usd
 from app.agentic.weight import clamp_weight, parse_batch_weight_answers
@@ -51,24 +56,38 @@ def _welcome_message(
     edge_count: int,
     supermemory_loaded: bool,
     fresh_chat: bool,
+    is_template: bool,
+    mutations_enabled: bool,
 ) -> str:
-    graph_line = (
-        f"The shared macro correlation graph is loaded ({node_count} nodes, {edge_count} edges). "
-        if node_count
-        else "No shared graph is loaded yet — run seed_agentic_graph_supermemory.py after setting SUPERMEMORY_API_KEY. "
-    )
+    if is_template:
+        graph_line = (
+            f"Macro correlation template loaded ({node_count} nodes, {edge_count} edges). "
+            "Chat to extend this graph — your changes save to your personal agentic graph. "
+        )
+    elif node_count:
+        graph_line = f"Your agentic graph ({node_count} nodes, {edge_count} edges). "
+    else:
+        graph_line = "No graph loaded yet. "
+
     sm = "Restored from Supermemory. " if supermemory_loaded else ""
     chat_hint = (
-        "Ask questions about relationships, sectors, or impacts — chat won't reshape this curated graph. "
-        if not agentic_chat_mutations_enabled()
-        else "Describe refinements in chat or click edges to set weights (−1 to 1) in the sidebar. "
+        "Describe relationships or click edges to set weights (−1 to 1). "
+        if mutations_enabled
+        else "Ask questions about the template — this curated graph is read-only. "
     )
     fresh = "New chat session. " if fresh_chat else ""
     return f"{fresh}{sm}{graph_line}{chat_hint}Click any edge to inspect or adjust its weight."
 
 
-async def create_session(container_tag: str, fresh: bool = False) -> Session:
-    graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
+async def create_session(container_tag: str, fresh: bool = False, user_slug: str | None = None) -> Session:
+    is_user = bool(user_slug) and container_tag != shared_graph_container_tag()
+    mutations = agentic_chat_mutations_enabled(container_tag)
+
+    if is_user and user_slug:
+        graph, supermemory_loaded, is_template = await load_user_agentic_graph(user_slug)
+    else:
+        graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
+        is_template = False
 
     session = Session(
         id=str(uuid.uuid4()),
@@ -80,6 +99,8 @@ async def create_session(container_tag: str, fresh: bool = False) -> Session:
                     edge_count=len(graph["edges"]),
                     supermemory_loaded=supermemory_loaded,
                     fresh_chat=fresh,
+                    is_template=is_template,
+                    mutations_enabled=mutations,
                 ),
             }
         ],
@@ -132,14 +153,15 @@ async def handle_chat(
     user_message: str,
     llm_config: LlmConfig,
     container_tag: str,
+    user_slug: str | None = None,
 ) -> dict[str, Any]:
     active = get_session(session_id) if session_id else None
     if not active:
-        active = await create_session(container_tag)
+        active = await create_session(container_tag, user_slug=user_slug)
 
     active.messages.append({"role": "user", "content": user_message})
 
-    if agentic_chat_mutations_enabled():
+    if agentic_chat_mutations_enabled(container_tag):
         active.graph = supplement_graph_from_prose(active.graph, user_message)
         active.graph = supplement_graph_from_text(active.graph, user_message)
         active.graph = apply_weights_from_recent_assistant_messages(active.graph, active.messages, user_message)
@@ -160,7 +182,7 @@ async def handle_chat(
             with_cost_usd(turn_usage, cost_usd),
         )
 
-    if llm_result and agentic_chat_mutations_enabled():
+    if llm_result and agentic_chat_mutations_enabled(container_tag):
         active.graph = apply_llm_delta(active.graph, llm_result)
         active.graph = supplement_graph_from_prose(active.graph, user_message)
         active.graph = supplement_graph_from_text(active.graph, user_message)
@@ -171,7 +193,7 @@ async def handle_chat(
         )
         _apply_local_batch_weight_fallback(active, user_message)
 
-    if agentic_chat_mutations_enabled():
+    if agentic_chat_mutations_enabled(container_tag):
         active.graph = sanitize_graph(active.graph)
     pending = pending_weight_questions(active.graph)
     reply = (llm_result or {}).get("assistant_message", "").strip() or (
@@ -184,7 +206,7 @@ async def handle_chat(
         user_message,
         reply,
         active.graph,
-        persist_graph_snapshot=agentic_chat_mutations_enabled(),
+        persist_graph_snapshot=agentic_chat_mutations_enabled(container_tag),
     )
 
     return {
@@ -198,10 +220,15 @@ async def handle_chat(
     }
 
 
-async def reset_session(session_id: str | None, container_tag: str, fresh: bool = False) -> Session:
+async def reset_session(
+    session_id: str | None,
+    container_tag: str,
+    fresh: bool = False,
+    user_slug: str | None = None,
+) -> Session:
     if session_id:
         _sessions.pop(session_id, None)
-    return await create_session(container_tag, fresh)
+    return await create_session(container_tag, fresh, user_slug=user_slug)
 
 
 async def update_edge_weight(
@@ -232,6 +259,7 @@ async def update_edge_weight(
         f"[graph] Set weight: {src} → {tgt}",
         f"Weight: {clamped}",
         session.graph,
+        persist_graph_snapshot=agentic_chat_mutations_enabled(container_tag),
     )
 
     pending = pending_weight_questions(session.graph)

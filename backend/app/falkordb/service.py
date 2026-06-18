@@ -78,22 +78,28 @@ class FalkorDbService:
         )
         return {"graph": graph_key, **result}
 
-    async def get_graph_snapshot(self, graph_id: str, limit: int = 500) -> dict[str, Any]:
+    async def get_graph_snapshot(self, graph_id: str, limit: int = 10_000) -> dict[str, Any]:
+        node_limit = max(1, min(int(limit), 10_000))
+        edge_limit = max(1, min(int(limit) * 2, 20_000))
         nodes_result = await self._query(
             graph_id,
-            "MATCH (n) WHERE n.node_id IS NOT NULL "
+            "MATCH (n) WHERE n.node_id IS NOT NULL AND n.node_id <> '' "
             "RETURN n.node_id AS id, coalesce(n.node_type, toLower(labels(n)[0])) AS type, "
             "coalesce(n.anchor, false) AS anchor, coalesce(n.correlated_peer, false) AS correlated_peer "
-            f"LIMIT {limit}",
+            f"LIMIT {node_limit}",
         )
         edges_result = await self._query(
             graph_id,
-            "MATCH (a)-[r]->(b) WHERE a.node_id IS NOT NULL AND b.node_id IS NOT NULL "
-            f"RETURN a.node_id AS source, b.node_id AS target, type(r) AS type LIMIT {limit}",
+            "MATCH (a)-[r]->(b) WHERE a.node_id IS NOT NULL AND a.node_id <> '' "
+            "AND b.node_id IS NOT NULL AND b.node_id <> '' "
+            f"RETURN a.node_id AS source, b.node_id AS target, type(r) AS type LIMIT {edge_limit}",
         )
 
-        nodes = []
+        node_map: dict[str, dict[str, Any]] = {}
         for row in parse_falkor_rows(nodes_result):
+            node_id = row_string(row, "id", "n.node_id")
+            if not node_id:
+                continue
             node_type = row_string(row, "type") or "Entity"
             anchor = row_flag(row, "anchor")
             correlated_peer = row_flag(row, "correlated_peer")
@@ -105,13 +111,13 @@ class FalkorDbService:
                     market_role = "correlated_peer"
             elif node_type == "correlated_market":
                 market_role = "correlated_peer"
-            entry = {
-                "id": row_string(row, "id", "n.node_id"),
+            entry: dict[str, Any] = {
+                "id": node_id,
                 "type": node_type,
             }
             if market_role:
                 entry["marketRole"] = market_role
-            nodes.append(entry)
+            node_map[node_id] = entry
 
         edges = [
             {
@@ -120,9 +126,10 @@ class FalkorDbService:
                 "type": row_string(row, "type", "type(r)") or "REL",
             }
             for row in parse_falkor_rows(edges_result)
+            if row_string(row, "source", "a.node_id") and row_string(row, "target", "b.node_id")
         ]
 
-        return {"graph_id": graph_id, "nodes": nodes, "edges": edges}
+        return {"graph_id": graph_id, "nodes": list(node_map.values()), "edges": edges}
 
     async def _node_type(self, graph_id: str, node_id: str) -> str:
         result = await self._query(

@@ -47,9 +47,20 @@ function typeKeyForNode(node: GraphSnapshotNode | undefined, fallback: string): 
   return node.type;
 }
 
+function dedupeSnapshotNodes(nodes: GraphSnapshotNode[]): GraphSnapshotNode[] {
+  const byId = new Map<string, GraphSnapshotNode>();
+  for (const node of nodes) {
+    const id = String(node.id ?? '').trim();
+    if (!id) continue;
+    byId.set(id, node);
+  }
+  return [...byId.values()];
+}
+
 function snapshotToVis(snapshot: GraphSnapshot) {
-  const degrees = computeDegrees(snapshot);
-  const nodes: VisNode[] = snapshot.nodes.map((node) => {
+  const uniqueNodes = dedupeSnapshotNodes(snapshot.nodes);
+  const degrees = computeDegrees({ ...snapshot, nodes: uniqueNodes });
+  const nodes: VisNode[] = uniqueNodes.map((node) => {
     const bg = resolveNodeColor(node);
     const degree = degrees.get(node.id) ?? 0;
     const typeKey = typeKeyForNode(node, node.type);
@@ -102,7 +113,7 @@ export function CotSnapshotCanvas({ snapshot, nodeDetails, emptyMessage }: CotSn
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [neighbors, setNeighbors] = useState<Array<{ id: string; label: string }>>([]);
 
-  const hasGraph = Boolean(snapshot && snapshot.nodes.length > 0);
+  const hasGraph = Boolean(snapshot && dedupeSnapshotNodes(snapshot.nodes).length > 0);
   const legend = useMemo(
     () => (snapshot ? buildTypeLegend(snapshot) : []),
     [snapshot],

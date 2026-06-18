@@ -37,9 +37,17 @@ def shared_graph_seed_path() -> Path:
     )
 
 
-def agentic_chat_mutations_enabled() -> bool:
+def agentic_chat_mutations_enabled(container_tag: str | None = None) -> bool:
+    """User agentic containers allow chat edits; shared template is read-only unless env override."""
+    if container_tag and container_tag.strip() != shared_graph_container_tag():
+        return True
     raw = (os.getenv("AGENTIC_GRAPH_CHAT_MUTATIONS") or "false").strip().lower()
     return raw in {"1", "true", "yes", "on"}
+
+
+def user_agentic_container_tag(user_slug: str) -> str:
+    slug = user_slug.strip().lower().replace(".", "-")
+    return f"{slug}.agentic.v1"
 
 
 def _correlation_node_type(node_id: str, raw_type: str, sector: str) -> NodeType:
@@ -118,6 +126,19 @@ def load_graph_from_seed_file(path: Path | None = None) -> dict[str, list]:
     }:
         return sanitize_graph({"nodes": nodes, "edges": raw.get("edges") or []})
     return correlation_json_to_agentic(raw)
+
+
+async def load_user_agentic_graph(user_slug: str) -> tuple[dict[str, list], bool, bool]:
+    """Load user's agentic graph from Supermemory, or macro template as starting point."""
+    tag = user_agentic_container_tag(user_slug)
+    hydrated = await load_graph_from_supermemory(tag)
+    if hydrated.get("nodes") and hydrated.get("edges"):
+        graph = sanitize_graph(hydrated)
+        if graph["nodes"]:
+            return graph, True, False
+
+    template, template_loaded = await load_shared_agentic_graph()
+    return template, template_loaded, True
 
 
 async def load_shared_agentic_graph(container_tag: str | None = None) -> tuple[dict[str, list], bool]:

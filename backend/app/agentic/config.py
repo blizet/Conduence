@@ -95,8 +95,12 @@ def is_supermemory_configured() -> bool:
 
 
 def resolve_container_tag(user_slug: str | None) -> str:
-    """All users share one agentic graph container in Supermemory."""
-    _ = user_slug
-    from app.agentic.shared_graph import shared_graph_container_tag
+    """Per-user agentic Supermemory container (macro template loaded as fallback)."""
+    slug = (user_slug or "").strip()
+    if not slug:
+        from app.agentic.shared_graph import shared_graph_container_tag
 
-    return shared_graph_container_tag()
+        return shared_graph_container_tag()
+    from app.agentic.shared_graph import user_agentic_container_tag
+
+    return user_agentic_container_tag(slug)

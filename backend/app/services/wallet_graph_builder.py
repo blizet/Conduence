@@ -496,7 +496,9 @@ def build_node_details(
 
     for decision in decisions:
         for node in decision.get("nodes") or []:
-            node_id = str(node["node_id"])
+            node_id = str(node.get("node_id") or "").strip()
+            if not node_id:
+                continue
             node_type = str(node.get("node_type") or "")
             if node_id in details:
                 continue

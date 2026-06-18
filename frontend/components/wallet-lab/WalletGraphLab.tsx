@@ -80,7 +80,7 @@ export function WalletGraphLab() {
             <input
               type="number"
               min={5}
-              max={200}
+              max={500}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value) || 50)}
             />

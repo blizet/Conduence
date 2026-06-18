@@ -30,32 +30,21 @@ import {
 } from '@/lib/workflow-storage';
 import { normalizeWorkflowCanvas } from '@/lib/dnd';
 
-import { DEFAULT_COT_USER_NODE_ID } from '@/nodes/constants';
-
-const CotGraphView = dynamic(
-  () => import('./CotGraphView').then((mod) => mod.CotGraphView),
+const GraphSection = dynamic(
+  () => import('@/components/graph/GraphSection').then((mod) => mod.GraphSection),
   {
     ssr: false,
     loading: () => <div className="cot-graph-view cot-graph-view--loading">Loading graph…</div>,
   },
 );
 
-const AgenticGraphView = dynamic(
-  () => import('@/components/agentic/AgenticGraphView').then((mod) => mod.AgenticGraphView),
-  {
-    ssr: false,
-    loading: () => <div className="cot-graph-view cot-graph-view--loading">Loading agentic graph…</div>,
-  },
-);
-
-type PlaygroundView = 'workflow' | 'cot' | 'agentic';
+type PlaygroundView = 'workflow' | 'graph';
 
 type PlaygroundInnerProps = {
   nodeCount: number;
   viewMode: PlaygroundView;
   showMarketplace: boolean;
-  onToggleCotGraph: () => void;
-  onToggleAgenticGraph: () => void;
+  onToggleGraph: () => void;
   onToggleMarketplace: () => void;
   onCloseMarketplace: () => void;
   onCountsChange: (nodes: number, edges: number) => void;
@@ -86,8 +75,7 @@ function PlaygroundInner({
   nodeCount,
   viewMode,
   showMarketplace,
-  onToggleCotGraph,
-  onToggleAgenticGraph,
+  onToggleGraph,
   onToggleMarketplace,
   onCloseMarketplace,
   onCountsChange,
@@ -152,9 +140,9 @@ function PlaygroundInner({
           ) : null}
           <button
             type="button"
-            className={`graph-view-toggle${viewMode === 'cot' ? ' graph-view-toggle--active' : ''}`}
-            onClick={onToggleCotGraph}
-            title={viewMode === 'cot' ? 'Back to workflow canvas' : 'View CoT knowledge graph'}
+            className={`graph-view-toggle${viewMode === 'graph' ? ' graph-view-toggle--active' : ''}`}
+            onClick={onToggleGraph}
+            title={viewMode === 'graph' ? 'Back to workflow canvas' : 'View user & agentic graphs'}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="4" cy="4" r="2" />
@@ -162,25 +150,7 @@ function PlaygroundInner({
               <circle cx="8" cy="12" r="2" />
               <path d="M5.5 4.5L7 10M10.5 4.5L9 10" />
             </svg>
-            {viewMode === 'cot' ? 'Workflow' : 'CoT Graph'}
-          </button>
-          <button
-            type="button"
-            className={`graph-view-toggle${viewMode === 'agentic' ? ' graph-view-toggle--active' : ''}`}
-            onClick={onToggleAgenticGraph}
-            title={
-              viewMode === 'agentic'
-                ? 'Back to workflow canvas'
-                : 'Build weighted causal graph via LLM chat'
-            }
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="3" cy="8" r="1.75" />
-              <circle cx="13" cy="4" r="1.75" />
-              <circle cx="13" cy="12" r="1.75" />
-              <path d="M4.6 7.2L11.2 4.8M4.6 8.8L11.2 11.2" />
-            </svg>
-            {viewMode === 'agentic' ? 'Workflow' : 'Agentic Graph'}
+            {viewMode === 'graph' ? 'Workflow' : 'Graph'}
           </button>
           <button
             type="button"
@@ -193,19 +163,14 @@ function PlaygroundInner({
           <Link href="/simulate" className="graph-view-toggle" title="Paper trade Polymarket & Kalshi strategies">
             Paper Trading
           </Link>
-          <Link href="/wallet-lab" className="graph-view-toggle" title="Build CoT + agentic graphs from wallet trade history">
-            Wallet lab
-          </Link>
         </div>
       </header>
       <div className="playground-body">
         {viewMode === 'workflow' && storageReady && <NodePalette />}
         {!storageReady ? (
           <div className="playground-canvas playground-canvas--loading">Loading saved workflow…</div>
-        ) : viewMode === 'cot' ? (
-          <CotGraphView />
-        ) : viewMode === 'agentic' ? (
-          <AgenticGraphView userSlug={DEFAULT_COT_USER_NODE_ID} />
+        ) : viewMode === 'graph' ? (
+          <GraphSection />
         ) : (
           <WorkflowCanvas
             key={canvasBootKey}
@@ -297,6 +262,10 @@ function PlaygroundWithState() {
   useEffect(() => {
     const { workflows, activeId } = ensureDefaultWorkflows();
     const urlWorkflowId = searchParams.get('workflow');
+    const urlView = searchParams.get('view');
+    if (urlView === 'graph') {
+      setViewMode('graph');
+    }
     const pickId =
       urlWorkflowId && workflows.some((w) => w.id === urlWorkflowId) ? urlWorkflowId : activeId;
     if (pickId && pickId !== activeId) {
@@ -435,12 +404,8 @@ function PlaygroundWithState() {
     suppressPersistRef.current = false;
   }, []);
 
-  const onToggleCotGraph = useCallback(() => {
-    setViewMode((v) => (v === 'cot' ? 'workflow' : 'cot'));
-  }, []);
-
-  const onToggleAgenticGraph = useCallback(() => {
-    setViewMode((v) => (v === 'agentic' ? 'workflow' : 'agentic'));
+  const onToggleGraph = useCallback(() => {
+    setViewMode((v) => (v === 'graph' ? 'workflow' : 'graph'));
   }, []);
 
   const onToggleMarketplace = useCallback(() => {
@@ -494,8 +459,7 @@ function PlaygroundWithState() {
       nodeCount={nodeCount}
       viewMode={viewMode}
       showMarketplace={showMarketplace}
-      onToggleCotGraph={onToggleCotGraph}
-      onToggleAgenticGraph={onToggleAgenticGraph}
+      onToggleGraph={onToggleGraph}
       onToggleMarketplace={onToggleMarketplace}
       onCloseMarketplace={onCloseMarketplace}
       onCountsChange={onCountsChange}

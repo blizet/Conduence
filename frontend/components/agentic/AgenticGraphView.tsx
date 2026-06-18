@@ -392,9 +392,9 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
                   type="button"
                   className="graph-view-toggle graph-view-toggle--active"
                   onClick={() => reset({ fresh: false })}
-                  title="Reload shared graph from Supermemory"
+                  title="Reload macro template (resets chat session; your saved graph restores from Supermemory)"
                 >
-                  Restore graph
+                  Restore template
                 </button>
               </div>
             ) : null}

@@ -295,7 +295,7 @@ def normalize_decision(raw: DecisionEvent) -> DecisionEvent:
         _remap_legacy_agent(payload, ctx["agentId"])
         if ctx["role"] == "seeker":
             _collapse_agent_into_user(payload, ctx["userNodeId"], ctx["agentId"])
-        else:
+        elif ctx["role"] != "combined":
             _ensure_has_agent_edge(payload, ctx["userNodeId"], ctx["agentId"], ctx["role"])
     else:
         user_node_id = primary_user_node_id(payload.nodes)
