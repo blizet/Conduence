@@ -362,13 +362,10 @@ function PlaygroundWithState() {
     setLiveBusy(true);
     setLiveError(null);
     const { nodes, edges } = canvasSnapshotRef.current;
-    const autoEmitCot = nodes.some(
-      (n) => n.type === 'cotBuilder' && Boolean(n.data?.autoEmit),
-    );
     const result = await startWorkflowLive({
       nodes,
       edges,
-      config: autoEmitCot ? { autoEmitCot: true } : {},
+      config: {},
     });
     setLiveBusy(false);
     if (!result.ok) {

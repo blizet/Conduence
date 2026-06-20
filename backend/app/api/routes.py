@@ -10,7 +10,6 @@ from app.tools.clob import execute_clob_trade, get_clob_quote
 from app.tools.kalshi import execute_kalshi_trade, get_kalshi_quote
 from app.tools.coingecko import fetch_coingecko
 from app.tools.coinmarketcap import fetch_coinmarketcap
-from app.tools.cot_builder import build_cot_decision
 from app.tools.cryptonews import fetch_cryptonews
 from app.tools.cryptoquant import fetch_cryptoquant
 from app.tools.defillama import fetch_defillama
@@ -22,7 +21,6 @@ from app.tools.wallet_monitor import fetch_wallet_monitor
 from app.tools.x_monitor import fetch_x_monitor
 from app.orchestrator.graph_registry import GRAPH_CATALOG
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
-from app.services.cot_emit import publish_cot_decision
 from app.services.user_profile import load_profile, profile_summary
 from app.services.wallet_import import get_user_cot_graph, import_wallet_for_user
 
@@ -146,13 +144,25 @@ async def publish_cot_signal(
     x_publisher_id: str | None = Header(default=None, alias="x-publisher-id"),
 ) -> dict[str, Any]:
     publisher_id = (x_publisher_id or "").strip() or PUBLISHER_AGENT_ID
-    result = await publish_cot_decision(body, falkordb=request.app.state.falkordb)
-    if not result:
-        raise HTTPException(status_code=400, detail="Invalid CoT payload")
+    try:
+        event = DecisionEvent.model_validate(body)
+        normalized = normalize_decision(event).model_dump()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid CoT payload") from exc
+
+    published = False
+    falkordb = request.app.state.falkordb
+    if falkordb is not None:
+        try:
+            await falkordb.merge_cot_delta(event)
+            published = True
+        except Exception:
+            pass
+
     return {
-        "produced": bool(result.get("_published")),
-        "graph_id": result["graph_id"],
-        "decision_id": result["decision_id"],
+        "produced": published,
+        "graph_id": normalized["graph_id"],
+        "decision_id": normalized["decision_id"],
         "publisher_id": publisher_id,
     }
 
@@ -204,25 +214,6 @@ async def kalshi_execute(body: dict[str, Any]) -> dict[str, Any]:
 @tools_router.post("/telegram/send")
 async def telegram_send(body: dict[str, Any]) -> dict[str, Any]:
     return await send_telegram_message(body)
-
-
-@tools_router.post("/cot/build")
-async def cot_build(body: dict[str, Any]) -> dict[str, Any]:
-    decision = body.get("decision") or {}
-    if decision.get("action") == "HOLD":
-        return {"hold": True, "message": "HOLD decisions do not emit CoT"}
-
-    draft = build_cot_decision(
-        decision,
-        body.get("correlated") or {},
-        {"graphId": body.get("graphId"), "userNodeId": body.get("userNodeId")},
-    )
-    if not draft:
-        return {"hold": True, "message": "No CoT produced for this decision"}
-
-    event = DecisionEvent.model_validate(draft)
-    cot = normalize_decision(event)
-    return {"cot": cot.model_dump()}
 
 
 @tools_router.post("/coinmarketcap/fetch")
@@ -358,12 +349,6 @@ def _graph_id_from_canvas(canvas: dict[str, Any]) -> str | None:
         gid = (data.get("graphId") or "").strip()
         if gid:
             return gid
-    for node in canvas.get("nodes") or []:
-        if node.get("type") == "cotBuilder":
-            data = node.get("data") or {}
-            gid = (data.get("graphId") or "").strip()
-            if gid:
-                return gid
     return None
 
 
@@ -396,34 +381,6 @@ async def _enrich_orchestrator_config(request: Request, config: dict[str, Any], 
     return enriched
 
 
-def _canvas_auto_emit_cot(canvas: dict[str, Any]) -> bool:
-    for node in canvas.get("nodes") or []:
-        if node.get("type") != "cotBuilder":
-            continue
-        data = node.get("data") or {}
-        if data.get("autoEmit"):
-            return True
-    return False
-
-
-async def _maybe_publish_orchestrator_cot(
-    request: Request,
-    result: dict[str, Any],
-    canvas: dict[str, Any],
-    config: dict[str, Any],
-) -> dict[str, Any] | None:
-    cot = result.get("cot")
-    if not cot:
-        return None
-    topology = (result.get("workflow_topology") or {})
-    auto_emit = topology.get("auto_emit_cot") or _canvas_auto_emit_cot(canvas) or config.get("autoEmitCot")
-    if not auto_emit:
-        return cot
-
-    published = await publish_cot_decision(cot, falkordb=request.app.state.falkordb)
-    return published
-
-
 @orchestrator_router.post("/run")
 async def orchestrator_run(request: Request, body: dict[str, Any]) -> dict[str, Any]:
     signal = normalize_inbound_signal(body.get("signal") or body)
@@ -434,10 +391,6 @@ async def orchestrator_run(request: Request, body: dict[str, Any]) -> dict[str, 
     if memory is None and stream:
         memory = stream.get_memory()
     result = await run_orchestrator(signal=signal, canvas=canvas, config=config, memory=memory)
-    published_cot = await _maybe_publish_orchestrator_cot(request, result, canvas, config)
-    if published_cot:
-        result["cot"] = published_cot
-        result["cot_published"] = bool(published_cot.get("_published"))
     if stream:
         stream.set_memory(result.get("memory") or stream.get_memory())
         stream._last_result = result

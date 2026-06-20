@@ -26,7 +26,6 @@ PURE_TOOL_NODE_TYPES = frozenset(
         "walletMonitor",
         "clob",
         "kalshi",
-        "cotBuilder",
     }
 )
 SUB_AGENT_NODE_TYPES = frozenset({"newsAgent", "arbitrageAgent", "riskAnalyzer"})
@@ -67,7 +66,7 @@ def _snapped_tools_for_node(
         if not src:
             continue
         node_type = src.get("type") or ""
-        if node_type in PURE_TOOL_NODE_TYPES and node_type not in EXECUTION_TOOL_NODE_TYPES and node_type != "cotBuilder":
+        if node_type in PURE_TOOL_NODE_TYPES and node_type not in EXECUTION_TOOL_NODE_TYPES:
             if node_type not in tools:
                 tools.append(node_type)
     return tools
@@ -148,24 +147,6 @@ def _parse_context_graph(node_data: dict[str, Any]) -> ContextGraphId:
     return "correlation"
 
 
-def _subagent_feeds_cot_directly(
-    subagent_node_id: str,
-    by_id: dict[str, dict[str, Any]],
-    edges: list[dict[str, Any]],
-    llm_id: str | None,
-) -> bool:
-    """True when subagent → cotBuilder without passing through llm."""
-    for tgt_id in _outgoing_targets(edges, subagent_node_id):
-        tgt_type = _node_type(by_id, tgt_id)
-        if tgt_type == "cotBuilder":
-            return True
-        if tgt_type == ORCHESTRATOR_NODE_TYPE:
-            return False
-        if llm_id and tgt_id == llm_id:
-            return False
-    return False
-
-
 def compile_workflow_context(
     nodes: list[dict[str, Any]],
     edges: list[dict[str, Any]],
@@ -225,7 +206,6 @@ def compile_workflow_context(
             "tradeConfidence": data.get("tradeConfidence"),
             "tradePrice": data.get("tradePrice"),
             "tradeVenue": data.get("tradeVenue"),
-            "feeds_cot_directly": _subagent_feeds_cot_directly(node_id, by_id, edges, llm_id),
             "wired_to_orchestrator": bool(
                 llm_id and llm_id in _outgoing_targets(edges, node_id)
             ),
@@ -248,7 +228,7 @@ def compile_workflow_context(
                 if node_type not in connected_subagents:
                     connected_subagents.append(node_type)
                 feed_sources.append(node_type)
-            elif node_type in PURE_TOOL_NODE_TYPES and node_type not in EXECUTION_TOOL_NODE_TYPES and node_type not in ("cotBuilder",):
+            elif node_type in PURE_TOOL_NODE_TYPES and node_type not in EXECUTION_TOOL_NODE_TYPES:
                 if node_type not in orchestrator_execution_tools:
                     orchestrator_execution_tools.append(node_type)
                 data = src.get("data") or {}
@@ -279,15 +259,6 @@ def compile_workflow_context(
             tgt = by_id.get(tgt_id)
             if tgt:
                 output_nodes.append({"id": tgt_id, "type": tgt.get("type"), "data": tgt.get("data") or {}})
-
-    for sa_id, sa_entry in subagent_registry.items():
-        if sa_entry.get("feeds_cot_directly"):
-            for tgt_id in _outgoing_targets(edges, sa_entry["node_id"]):
-                tgt = by_id.get(tgt_id)
-                if tgt and tgt.get("type") == "cotBuilder":
-                    output_nodes.append({"id": tgt_id, "type": "cotBuilder", "data": tgt.get("data") or {}})
-
-    auto_emit_cot = any((o.get("data") or {}).get("autoEmit") for o in output_nodes if o.get("type") == "cotBuilder")
 
     decision_graph_id = config.get("graphId") or llm_config.get("graphId")
     decision_snapshot = config.get("decision_graph_snapshot") or {}
@@ -345,12 +316,6 @@ def compile_workflow_context(
         "orchestrator_registry": orchestrator_registry,
         "topology": {
             "has_orchestrator": llm_node is not None,
-            "auto_emit_cot": auto_emit_cot,
-            "standalone_subagents": [
-                sa_id
-                for sa_id, entry in subagent_registry.items()
-                if entry.get("feeds_cot_directly") and not entry.get("wired_to_orchestrator")
-            ],
         },
     }
 

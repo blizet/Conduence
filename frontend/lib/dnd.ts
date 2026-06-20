@@ -2,10 +2,7 @@ import type { Edge } from '@xyflow/react';
 import { DEFAULT_LLM_PROVIDER, defaultModelForProvider } from '@/lib/llm-providers';
 import type { PaletteItem, WorkflowNodeData } from '@/nodes/types';
 import {
-  DEFAULT_COT_CORRELATED_JSON,
-  DEFAULT_COT_DECISION_JSON,
   DEFAULT_COT_GRAPH_ID,
-  DEFAULT_COT_USER_NODE_ID,
   DEFAULT_LLM_SYSTEM_PROMPT,
   DEFAULT_LLM_USER_PROMPT,
 } from '@/nodes/constants';
@@ -115,13 +112,6 @@ const DEFAULTS: Partial<Record<string, Partial<WorkflowNodeData>>> = {
     telegramUsername: '',
     telegramChatId: '',
     telegramMessagePrefix: '',
-  },
-  cotBuilder: {
-    graphId: DEFAULT_COT_GRAPH_ID,
-    userNodeId: DEFAULT_COT_USER_NODE_ID,
-    autoEmit: false,
-    decisionJson: DEFAULT_COT_DECISION_JSON,
-    correlatedJson: DEFAULT_COT_CORRELATED_JSON,
   },
   coinmarketcap: { apiKey: '' },
   defillama: { apiKey: '', defillamaMode: 'protocols', toolEndpoint: 'protocols' },

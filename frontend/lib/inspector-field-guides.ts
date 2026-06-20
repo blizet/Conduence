@@ -275,42 +275,6 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
     ],
   },
 
-  cotBuilder: {
-    intro: 'Formats orchestrator decision + correlated markets into a DecisionEvent graph JSON.',
-    fields: [
-      {
-        field: 'Graph ID',
-        description: 'FalkorDB / CoT namespace for this workflow (e.g. user_771.main.v1).',
-        howTo: 'Match your user slug and agent role; see AGENTS.md graph_id convention.',
-      },
-      {
-        field: 'User node ID',
-        description: 'User entity node in the graph (e.g. user_771).',
-        howTo: 'Usually your user slug without the role suffix.',
-      },
-      {
-        field: 'Backend URL',
-        description: 'FastAPI backend that builds and optionally emits the CoT payload.',
-        howTo: 'Default http://localhost:4000 when running npm run dev:backend.',
-      },
-      {
-        field: 'Auto-emit to FalkorDB',
-        description: 'MERGE the built DecisionEvent into FalkorDB after build.',
-        howTo: 'Requires docker compose (FalkorDB) and backend running.',
-      },
-      {
-        field: 'Decision JSON',
-        description: 'Trade decision from the Orchestrator (action, market_id, thesis, …).',
-        howTo: 'Auto-filled after Run Workflow when Orchestrator → CoT Builder is wired.',
-      },
-      {
-        field: 'Correlated markets JSON',
-        description: 'Polymarket/Kalshi markets linked to the thesis.',
-        howTo: 'Populated from orchestrator correlated output or edit manually for testing.',
-      },
-    ],
-  },
-
   workflowOutput: {
     intro: 'Terminal node — displays the final JSON from the upstream workflow step.',
     fields: [

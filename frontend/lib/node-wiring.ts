@@ -15,7 +15,6 @@ export const PURE_TOOL_NODE_TYPES = new Set([
   'clob',
   'kalshi',
   'paperTrading',
-  'cotBuilder',
 ]);
 
 export const SUB_AGENT_NODE_TYPES = new Set(['newsAgent', 'arbitrageAgent', 'riskAnalyzer']);

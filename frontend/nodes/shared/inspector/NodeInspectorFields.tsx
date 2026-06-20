@@ -5,7 +5,6 @@ import type { WorkflowNode } from '@/nodes/types';
 import { useNodeData } from '../useNodeData';
 import {
   ArbitrageAgentInspectorFields,
-  CotBuilderInspectorFields,
   LlmInspectorFields,
   NewsAgentInspectorFields,
   OutputInspectorFields,
@@ -99,8 +98,6 @@ export function NodeInspectorFields({ node, nodes, edges, feedSignals }: NodeIns
           onPatch={onPatch}
         />
       );
-    case 'cotBuilder':
-      return <CotBuilderInspectorFields data={data} accent={accent} onPatch={onPatch} />;
     case 'workflowOutput':
     case 'output':
       return (

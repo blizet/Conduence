@@ -14,7 +14,6 @@ export type ToolExecutionResult = {
 };
 
 export type RunnableToolType =
-  | 'cotBuilder'
   | 'coinmarketcap'
   | 'defillama'
   | 'cryptonews'
@@ -27,7 +26,6 @@ export type RunnableToolType =
   | 'walletMonitor';
 
 export const RUNNABLE_TOOL_TYPES: ReadonlySet<string> = new Set<RunnableToolType>([
-  'cotBuilder',
   'coinmarketcap',
   'defillama',
   'cryptonews',
@@ -294,18 +292,6 @@ export async function executeToolNode(type: string, data: WorkflowNodeData): Pro
       data.backendUrl,
     );
     return normalizeResult('walletMonitor', payload, request, response.ok, durationMs);
-  }
-  if (type === 'cotBuilder') {
-    const decision = JSON.parse(data.decisionJson ?? '{}');
-    const correlated = JSON.parse(data.correlatedJson ?? '{}');
-    const request = {
-      decision,
-      correlated,
-      graphId: data.graphId,
-      userNodeId: data.userNodeId,
-    };
-    const { response, payload, durationMs } = await postJson('/api/tools/cot/build', request, data.backendUrl);
-    return normalizeResult('cotBuilder', payload, request, response.ok, durationMs);
   }
   return {
     ok: false,

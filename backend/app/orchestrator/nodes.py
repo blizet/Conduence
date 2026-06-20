@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from app.lib.normalize import normalize_decision
 from app.orchestrator.compile import compile_orchestrator
 from app.orchestrator.decision_engine import DecisionEngine
 from app.orchestrator.graph_registry import match_active_graph, resolve_correlation_graph
@@ -14,10 +13,8 @@ from app.orchestrator.llm_synthesize import synthesize_decision
 from app.orchestrator.planner import plan_tool_calls
 from app.orchestrator.state import OrchestratorState
 from app.orchestrator.tools_registry import ToolRegistry
-from app.schemas.decision import DecisionEvent
-from app.observability.execution_provenance import _langsmith_block, build_execution_provenance, merge_provenance
+from app.observability.execution_provenance import _langsmith_block
 from app.llm.usage_tracker import empty_llm_usage, merge_call, merge_usage
-from app.tools.cot_builder import build_cot_decision
 
 
 def _append_step(state: OrchestratorState, name: str) -> list[str]:
@@ -52,12 +49,11 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
         config=config,
     )
 
-    cot_output = next((o for o in compiled["output_nodes"] if o.get("type") == "cotBuilder"), None)
-    cot_data = (cot_output or {}).get("data") or {}
+    llm_config = compiled.get("llm_config") or {}
 
     graph_registry = dict(compiled.get("graph_registry") or {})
     decision_snapshot = config.get("decision_graph_snapshot")
-    graph_id = config.get("graphId") or cot_data.get("graphId") or graph_registry.get("decision_graph_id")
+    graph_id = config.get("graphId") or llm_config.get("graphId") or graph_registry.get("decision_graph_id")
     if decision_snapshot and graph_id:
         graph_registry = {
             **graph_registry,
@@ -89,8 +85,8 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
             "llm_config": compiled["llm_config"],
             "min_confidence": float(config.get("min_confidence", 0.55)),
             "portfolio_usd": float(config.get("portfolio_usd", 10_000)),
-            "graphId": config.get("graphId") or cot_data.get("graphId") or compiled.get("graph_registry", {}).get("decision_graph_id"),
-            "userNodeId": config.get("userNodeId") or cot_data.get("userNodeId"),
+            "graphId": config.get("graphId") or llm_config.get("graphId") or compiled.get("graph_registry", {}).get("decision_graph_id"),
+            "userNodeId": config.get("userNodeId") or llm_config.get("userNodeId"),
         },
         "recent_signals": state.get("recent_signals") or [],
         "tool_results": {},
@@ -268,39 +264,7 @@ async def llm_synthesize_node(state: OrchestratorState) -> dict[str, Any]:
 
 
 async def publish_outputs(state: OrchestratorState) -> dict[str, Any]:
-    decision = state.get("decision") or {}
-    correlated = state.get("correlated") or {}
-    config = state.get("config") or {}
-    cot = None
-
-    if "cotBuilder" in (state.get("output_nodes") or []) and decision.get("action") != "HOLD":
-        topology = state.get("workflow_topology") or {}
-        execution = build_execution_provenance(
-            steps=state.get("steps") or [],
-            tool_results=state.get("tool_results"),
-            signal=state.get("signal"),
-            workflow_id=topology.get("workflow_id"),
-            path="orchestrator",
-            langsmith=state.get("langsmith"),
-            llm_usage=state.get("llm_usage"),
-        )
-        provenance = merge_provenance(None, execution=execution)
-        draft = build_cot_decision(
-            decision,
-            correlated,
-            {
-                "graphId": config.get("graphId"),
-                "userNodeId": config.get("userNodeId"),
-            },
-            provenance=provenance,
-            signal=state.get("signal"),
-            graph_impacts=state.get("graph_impacts"),
-        )
-        if draft:
-            event = DecisionEvent.model_validate(draft)
-            cot = normalize_decision(event).model_dump()
-
-    return {"cot": cot, "published": True, "steps": _append_step(state, "publish_outputs")}
+    return {"published": True, "steps": _append_step(state, "publish_outputs")}
 
 
 async def context_only(state: OrchestratorState) -> dict[str, Any]:

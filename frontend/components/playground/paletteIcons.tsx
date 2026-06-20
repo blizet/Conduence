@@ -50,14 +50,6 @@ const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
       <path d="M2.5 7.5L13 3.5 10.5 13.5 7.5 9.5 5.5 11.5 4.5 9.5 7.5 7.5 2.5 7.5z" />
     </Svg>
   ),
-  cotBuilder: (p) => (
-    <Svg {...p}>
-      <circle cx="4" cy="4" r="1.8" />
-      <circle cx="12" cy="4" r="1.8" />
-      <circle cx="8" cy="12" r="1.8" />
-      <path d="M5.2 5.3L7 10.3M10.8 5.3L9 10.3" />
-    </Svg>
-  ),
   coinmarketcap: (p) => (
     <Svg {...p}>
       <circle cx="8" cy="8" r="5.5" />

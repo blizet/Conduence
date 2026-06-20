@@ -7,7 +7,6 @@ import { RiskAnalyzerNode } from './subagents/RiskAnalyzerNode';
 import { ClobToolNode } from './tools/ClobToolNode';
 import { CoinGeckoNode } from './tools/CoinGeckoNode';
 import { CoinMarketCapNode } from './tools/CoinMarketCapNode';
-import { CotBuilderNode } from './tools/CotBuilderNode';
 import { CryptoNewsNode } from './tools/CryptoNewsNode';
 import { CryptoQuantNode } from './tools/CryptoQuantNode';
 import { DefiLlamaNode } from './tools/DefiLlamaNode';
@@ -28,7 +27,6 @@ export const nodeTypes: NodeTypes = {
   kalshi: KalshiToolNode,
   paperTrading: PaperTradingNode,
   telegram: TelegramToolNode,
-  cotBuilder: CotBuilderNode,
   coinmarketcap: CoinMarketCapNode,
   defillama: DefiLlamaNode,
   cryptonews: CryptoNewsNode,
@@ -193,14 +191,6 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Monitor Polymarket or Kalshi wallet trades by category with keyword suppression',
     category: 'tool',
     accent: '#14b8a6',
-    toolGroup: 'helpers',
-  },
-  {
-    type: 'cotBuilder',
-    label: 'CoT Builder',
-    description: 'Format LLM decision + markets into graph JSON',
-    category: 'tool',
-    accent: '#34d399',
     toolGroup: 'helpers',
   },
   {

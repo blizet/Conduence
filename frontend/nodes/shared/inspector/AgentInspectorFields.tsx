@@ -14,10 +14,7 @@ import { upstreamAgentFeedId } from '@/lib/node-wiring';
 import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
 import { formatTokens, formatUsd, hasLlmUsage, mergeLlmUsage } from '@/lib/llm-usage';
 import {
-  DEFAULT_COT_CORRELATED_JSON,
-  DEFAULT_COT_DECISION_JSON,
   DEFAULT_COT_GRAPH_ID,
-  DEFAULT_COT_USER_NODE_ID,
   DEFAULT_LLM_SYSTEM_PROMPT,
   DEFAULT_LLM_USER_PROMPT,
 } from '../../constants';
@@ -28,8 +25,6 @@ import { LlmProviderFields } from '../LlmProviderFields';
 import { PromptField } from '../PromptField';
 import { stopNodeKeyPropagation } from '../useNodeData';
 import { MARKET_CATEGORIES, type WorkflowNodeData } from '../../types';
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 type InspectorFieldsProps = {
   data: WorkflowNodeData;
@@ -537,158 +532,6 @@ export function RiskAnalyzerInspectorFields({ data, accent, onPatch }: Inspector
   );
 }
 
-export function CotBuilderInspectorFields({ data, accent, onPatch }: InspectorFieldsProps) {
-  const [busy, setBusy] = useState(false);
-
-  const buildAndEmit = useCallback(async () => {
-    setBusy(true);
-    const started = performance.now();
-    onPatch({ cotStatus: 'Building…', workflowStatus: 'running', workflowResult: '', workflowDurationMs: undefined });
-    try {
-      const backendUrl = (data.backendUrl ?? API).replace(/\/$/, '');
-      let decision: unknown;
-      let correlated: unknown;
-      try {
-        decision = JSON.parse(data.decisionJson ?? DEFAULT_COT_DECISION_JSON);
-      } catch {
-        onPatch({ cotStatus: 'Invalid decision JSON' });
-        return;
-      }
-      try {
-        correlated = JSON.parse(data.correlatedJson ?? DEFAULT_COT_CORRELATED_JSON);
-      } catch {
-        onPatch({ cotStatus: 'Invalid correlated markets JSON' });
-        return;
-      }
-      const buildRes = await fetch(`${backendUrl}/api/tools/cot/build`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          decision,
-          correlated,
-          graphId: data.graphId ?? DEFAULT_COT_GRAPH_ID,
-          userNodeId: data.userNodeId ?? DEFAULT_COT_USER_NODE_ID,
-        }),
-      });
-      const buildBody = (await buildRes.json()) as {
-        hold?: boolean;
-        message?: string;
-        cot?: unknown;
-        error?: string;
-      };
-      if (!buildRes.ok || buildBody.error) {
-        onPatch({ cotStatus: buildBody.error ?? `Build failed (${buildRes.status})` });
-        return;
-      }
-      if (buildBody.hold) {
-        onPatch({ cotOutput: '', cotStatus: buildBody.message ?? 'HOLD — no CoT emitted' });
-        return;
-      }
-      const durationMs = Math.round(performance.now() - started);
-      const cotJson = JSON.stringify(buildBody.cot, null, 2);
-      onPatch({
-        cotOutput: cotJson,
-        cotStatus: 'CoT graph built',
-        workflowStatus: 'success',
-        workflowError: '',
-        workflowResult: cotJson,
-        workflowDurationMs: durationMs,
-      });
-      if (data.autoEmit) {
-        const emitRes = await fetch(`${backendUrl}/api/signals/cot`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(buildBody.cot),
-        });
-        const emitBody = (await emitRes.json()) as { topic?: string; error?: string };
-        if (!emitRes.ok || emitBody.error) {
-          onPatch({ cotStatus: emitBody.error ?? `Emit failed (${emitRes.status})` });
-          return;
-        }
-        onPatch({
-          cotStatus: emitBody.topic ? `Emitted → ${emitBody.topic}` : 'CoT emitted to event stream',
-        });
-      }
-    } catch (err) {
-      onPatch({ cotStatus: err instanceof Error ? err.message : 'Request failed' });
-    } finally {
-      setBusy(false);
-    }
-  }, [data, onPatch]);
-
-  return (
-    <div onKeyDown={stopNodeKeyPropagation}>
-      <LabeledInputRow>
-        <LabeledInput
-          label="Graph ID"
-          inline
-          placeholder="user_771.main.v1"
-          value={data.graphId ?? DEFAULT_COT_GRAPH_ID}
-          onChange={(v) => onPatch({ graphId: v })}
-        />
-        <LabeledInput
-          label="User node ID"
-          inline
-          placeholder="user_771"
-          value={data.userNodeId ?? DEFAULT_COT_USER_NODE_ID}
-          onChange={(v) => onPatch({ userNodeId: v })}
-        />
-      </LabeledInputRow>
-      <LabeledInput
-        label="Backend URL"
-        placeholder="http://localhost:4000"
-        value={data.backendUrl ?? ''}
-        onChange={(v) => onPatch({ backendUrl: v })}
-      />
-      <GuideField field="Auto-emit to Redpanda">
-        <label className="node-checkbox-row">
-          <input
-            type="checkbox"
-            checked={data.autoEmit ?? false}
-            onChange={(e) => onPatch({ autoEmit: e.target.checked })}
-          />
-          <span>Auto-emit to Redpanda after build</span>
-        </label>
-      </GuideField>
-      <PromptField
-        label="Decision JSON (from Orchestrator)"
-        guideField="Decision JSON"
-        value={data.decisionJson ?? DEFAULT_COT_DECISION_JSON}
-        rows={4}
-        onChange={(v) => onPatch({ decisionJson: v })}
-      />
-      <PromptField
-        label="Correlated markets JSON"
-        guideField="Correlated markets JSON"
-        value={data.correlatedJson ?? DEFAULT_COT_CORRELATED_JSON}
-        rows={3}
-        onChange={(v) => onPatch({ correlatedJson: v })}
-      />
-      <button
-        type="button"
-        className="node-add-btn"
-        style={{ borderColor: `${accent}55`, color: accent }}
-        disabled={busy}
-        onClick={() => void buildAndEmit()}
-      >
-        {busy ? 'Building…' : data.autoEmit ? 'Build & emit CoT' : 'Build CoT output'}
-      </button>
-      {data.cotStatus && !data.workflowResult ? (
-        <p className="node-field__hint" style={{ marginTop: 4 }}>
-          {data.cotStatus}
-        </p>
-      ) : null}
-      <FetchResultPanel
-        status={data.workflowStatus}
-        error={data.workflowError ?? data.cotStatus}
-        result={data.workflowResult ?? data.cotOutput}
-        durationMs={data.workflowDurationMs}
-        label="CoT output (DecisionEvent)"
-      />
-    </div>
-  );
-}
-
 export function OutputInspectorFields({
   data,
   node,
@@ -772,8 +615,7 @@ export function OutputInspectorFields({
       {upstreamFeedId && !liveFeed?.running && !hasBatchPayload ? (
         <p className="node-field__hint">
           Wire News Agent → Output (right port to Input), set LLM + feed tools, then Go Live. News
-          signals appear here in real time — they do not build a graph until CoT Builder is in the
-          path.
+          signals appear here in real time.
         </p>
       ) : null}
       {showUsage ? (

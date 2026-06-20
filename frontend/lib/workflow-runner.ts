@@ -265,17 +265,6 @@ export async function runWorkflow({
       correlatedJson: orch.correlated ? JSON.stringify(orch.correlated, null, 2) : undefined,
     });
 
-    for (const cotNode of downstreamNodes(llmNode.id, nodes, edges, 'cotBuilder')) {
-      patchNode(cotNode.id, {
-        decisionJson: orch.decision ? JSON.stringify(orch.decision, null, 2) : cotNode.data.decisionJson,
-        correlatedJson: orch.correlated
-          ? JSON.stringify(orch.correlated, null, 2)
-          : cotNode.data.correlatedJson,
-        cotOutput: orch.cot ? JSON.stringify(orch.cot, null, 2) : '',
-        cotStatus: orch.cot ? 'success' : orch.ok ? 'skipped' : 'error',
-      });
-    }
-
     for (const outNode of downstreamNodes(llmNode.id, nodes, edges, 'workflowOutput')) {
       patchNode(outNode.id, {
         outputStatus: orch.ok ? 'success' : 'error',

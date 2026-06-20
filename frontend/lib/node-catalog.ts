@@ -116,14 +116,6 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
       'Wire any agent output → Input and run workflow to send a formatted message.',
     ],
   },
-  cotBuilder: {
-    summary:
-      'CoT Builder formats orchestrator decisions and correlated markets into a DecisionEvent graph JSON.',
-    helpsWith: [
-      'Emit structured chain-of-thought to the knowledge graph.',
-      'Auto-publish to Redpanda when Go Live or auto-emit is enabled.',
-    ],
-  },
   workflowOutput: {
     summary: 'Terminal node that displays the final payload from a workflow run.',
     helpsWith: ['Inspect the merged result after Run Workflow completes.'],
@@ -133,7 +125,7 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
       'Central router — ingests sub-agent feeds, plans parallel tool calls, runs the decision engine, and LLM-synthesizes a trade thesis for downstream CoT or execution.',
     helpsWith: [
       'Wire Tools (left), Memory, and Feed inputs from sub-agents.',
-      'Route outputs to CoT Builder, execution tools, or Telegram.',
+      'Route outputs to execution tools or Telegram.',
       'Go Live to run continuously with LangGraph + observability.',
     ],
   },
