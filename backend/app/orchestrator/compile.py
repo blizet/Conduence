@@ -1,7 +1,6 @@
 """Compile React Flow canvas topology — re-exports from workflow_context."""
 
 from app.orchestrator.workflow_context import (
-    MIND_AGENT_NODE_TYPES,
     ORCHESTRATOR_NODE_TYPE,
     PURE_TOOL_NODE_TYPES,
     SUB_AGENT_NODE_TYPES,
@@ -24,7 +23,6 @@ __all__ = [
     "ORCHESTRATOR_NODE_TYPE",
     "PURE_TOOL_NODE_TYPES",
     "SUB_AGENT_NODE_TYPES",
-    "MIND_AGENT_NODE_TYPES",
     "compile_canvas",
     "compile_orchestrator",
     "compile_workflow_context",

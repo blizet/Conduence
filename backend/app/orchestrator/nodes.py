@@ -188,7 +188,6 @@ async def plan_tools(state: OrchestratorState) -> dict[str, Any]:
         graph,
         state.get("signal") or {},
         state.get("tool_configs") or {},
-        connected_subagents=state.get("connected_subagents") or [],
     )
     return {"planned_calls": calls, "steps": _append_step(state, "plan_tools")}
 

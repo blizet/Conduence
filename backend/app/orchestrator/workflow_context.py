@@ -148,13 +148,6 @@ def _parse_context_graph(node_data: dict[str, Any]) -> ContextGraphId:
     return "correlation"
 
 
-def _find_subagent_node(nodes: list[dict[str, Any]], subagent_id: str) -> dict[str, Any] | None:
-    for node in nodes:
-        if node.get("type") == subagent_id:
-            return node
-    return None
-
-
 def _subagent_feeds_cot_directly(
     subagent_node_id: str,
     by_id: dict[str, dict[str, Any]],

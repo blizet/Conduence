@@ -62,10 +62,8 @@ def plan_tool_calls(
     signal: dict[str, Any],
     tool_configs: dict[str, dict[str, Any]],
     *,
-    connected_subagents: list[str] | None = None,
     force_enrichment: bool = False,
 ) -> list[dict[str, Any]]:
-    connected_subagents = connected_subagents or []
     calls: list[dict[str, Any]] = []
     keywords = _impacted_search_keywords(graph, signal)
     coingecko_ids = _impacted_coingecko_ids(graph, signal)
