@@ -20,6 +20,8 @@ LABEL_MAP = {
     "protocol": "Protocol",
     "market": "Market",
     "correlated_market": "CorrelatedMarket",
+    "signal": "Signal",
+    "belief": "Belief",
     "trade": "Trade",
     "outcome": "Outcome",
     "feedback": "Feedback",

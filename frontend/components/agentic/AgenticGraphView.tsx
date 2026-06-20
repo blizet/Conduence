@@ -32,8 +32,7 @@ function ChatPanel({
   onLlmSettingsChange,
   providers,
   envFallbackConfigured,
-  supermemoryConfigured,
-  supermemoryLoaded,
+  graphSource,
   open,
   onToggleOpen,
 }: {
@@ -47,8 +46,7 @@ function ChatPanel({
   onLlmSettingsChange: ReturnType<typeof useLlmSettings>[1];
   providers: ProviderOption[];
   envFallbackConfigured: boolean;
-  supermemoryConfigured: boolean;
-  supermemoryLoaded: boolean;
+  graphSource: string;
   open: boolean;
   onToggleOpen: () => void;
 }) {
@@ -113,10 +111,8 @@ function ChatPanel({
           {pendingCount > 0 && (
             <span className="status-pill status-pill--warn">{pendingCount} need weight</span>
           )}
-          {supermemoryConfigured && (
-            <span className="status-pill status-pill--ok">
-              Supermemory {supermemoryLoaded ? '· restored' : '· connected'}
-            </span>
+          {graphSource === 'user' && (
+            <span className="status-pill status-pill--ok">Saved graph</span>
           )}
           {graphComplete && <span className="status-pill status-pill--ok">Graph complete</span>}
         </div>
@@ -252,10 +248,9 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [health, setHealth] = useState<{
     envFallbackConfigured: boolean;
-    supermemoryConfigured: boolean;
     providers: ProviderOption[];
   } | null>(null);
-  const [supermemoryLoaded, setSupermemoryLoaded] = useState(false);
+  const [graphSource, setGraphSource] = useState('seed');
   const [serviceError, setServiceError] = useState<string | null>(null);
   const [highlights, setHighlights] = useState<{ nodes: string[]; edges: string[] }>({
     nodes: [],
@@ -281,12 +276,11 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
         setServiceError(null);
         setHealth({
           envFallbackConfigured: Boolean(data.envFallbackConfigured),
-          supermemoryConfigured: Boolean(data.supermemoryConfigured),
           providers: data.providers ?? [],
         });
       })
       .catch(() => {
-        setHealth({ envFallbackConfigured: false, supermemoryConfigured: false, providers: [] });
+        setHealth({ envFallbackConfigured: false, providers: [] });
         setServiceError('Agentic graph service unavailable. Ensure the backend is running on port 4000.');
       });
 
@@ -307,7 +301,7 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
         setPendingCount((data.pendingWeights ?? []).length);
         setGraphComplete(Boolean(data.graphComplete));
         setTokenUsage(data.tokenUsage ?? emptyConversationUsage());
-        setSupermemoryLoaded(Boolean(data.supermemoryLoaded));
+        setGraphSource(String(data.graphSource ?? 'seed'));
       })
       .catch(() => undefined);
   }, [userSlug]);
@@ -330,7 +324,7 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
         setPendingCount(data.pendingWeights.length);
         setGraphComplete(data.graphComplete);
         setTokenUsage(data.tokenUsage ?? emptyConversationUsage());
-        setSupermemoryLoaded(Boolean(data.supermemoryLoaded));
+        setGraphSource(String(data.graphSource ?? 'seed'));
         applyHighlights(data);
       } catch (err) {
         setMessages((prev) => [
@@ -361,7 +355,7 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
       setPendingCount((data.pendingWeights ?? []).length);
       setGraphComplete(Boolean(data.graphComplete));
       setTokenUsage(data.tokenUsage ?? emptyConversationUsage());
-      setSupermemoryLoaded(Boolean(data.supermemoryLoaded));
+      setGraphSource(String(data.graphSource ?? 'seed'));
     },
     [sessionId, userSlug],
   );
@@ -404,13 +398,13 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
         ) : null}
         <main className="app-workspace">
           <div className="graph-stage">
-            {health?.supermemoryConfigured && graph.nodes.length === 0 ? (
+            {graph.nodes.length === 0 ? (
               <div className="agentic-graph-canvas-actions">
                 <button
                   type="button"
                   className="graph-view-toggle graph-view-toggle--active"
                   onClick={() => reset({ fresh: false })}
-                  title="Reload macro template (resets chat session; your saved graph restores from Supermemory)"
+                  title="Reload macro template from local seed"
                 >
                   Restore template
                 </button>
@@ -434,8 +428,7 @@ export function AgenticGraphView({ userSlug }: AgenticGraphViewProps) {
             onLlmSettingsChange={setLlmSettings}
             providers={health?.providers ?? []}
             envFallbackConfigured={health?.envFallbackConfigured ?? false}
-            supermemoryConfigured={health?.supermemoryConfigured ?? false}
-            supermemoryLoaded={supermemoryLoaded}
+            graphSource={graphSource}
             open={chatOpen}
             onToggleOpen={() => setChatOpen((v) => !v)}
           />

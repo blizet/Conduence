@@ -126,13 +126,15 @@ export function LlmInspectorFields({ data, accent, onPatch }: InspectorFieldsPro
 }
 
 export function NewsAgentInspectorFields({ data, accent, onPatch }: InspectorFieldsProps) {
-  const { latestNews, newsCount, newsStreamRunning, newsStreamError, feedTopic } = useAgentFeed();
+  const { latestNews, newsCount, agentFeeds } = useAgentFeed();
+  const feed = agentFeeds.newsAgent;
   const [workflowLive, setWorkflowLive] = useState(false);
   const llmProvider = normalizeProvider(data.llmProvider);
   const llmApiKey = data.llmApiKey ?? '';
   const llmModel = data.model ?? defaultModelForProvider(llmProvider);
   const llmReady = Boolean(llmProvider && llmApiKey.trim() && llmModel.trim());
   const managedByWorkflow = workflowLive;
+  const running = Boolean(feed?.running || feed?.count);
 
   useEffect(() => {
     void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
@@ -169,16 +171,16 @@ export function NewsAgentInspectorFields({ data, accent, onPatch }: InspectorFie
         <div className="node-field__label">Sub-agent feed</div>
         <div className="node-status-row">
           <span
-            className={`node-live-dot${newsStreamRunning || managedByWorkflow ? ' node-live-dot--on' : ''}`}
-            style={{ color: newsStreamRunning || managedByWorkflow ? accent : undefined }}
+            className={`node-live-dot${running || managedByWorkflow ? ' node-live-dot--on' : ''}`}
+            style={{ color: running || managedByWorkflow ? accent : undefined }}
           />
           <span className="node-field__hint">
             {managedByWorkflow
               ? 'Managed by workflow Go Live'
-              : newsStreamRunning
-                ? `Live · ${feedTopic ?? 'agent.feeds.newsAgent.public'}`
+              : running
+                ? 'Live · streaming via WebSocket'
                 : llmReady
-                  ? 'Use Go Live on the header or Marketplace'
+                  ? 'Use Go Live on the header to start'
                   : 'Set LLM provider, API key, and model'}
           </span>
         </div>
@@ -187,15 +189,15 @@ export function NewsAgentInspectorFields({ data, accent, onPatch }: InspectorFie
             <input
               type="checkbox"
               checked={Boolean(data.simulate)}
-              disabled={newsStreamRunning || managedByWorkflow}
+              disabled={running || managedByWorkflow}
               onChange={(e) => onPatch({ simulate: e.target.checked })}
             />
             Simulate mode — canned headlines, still calls LLM
           </label>
         </GuideField>
-        {newsStreamError ? (
+        {feed?.error ? (
           <p className="node-field__hint" style={{ color: '#f87171', marginTop: 4 }}>
-            {newsStreamError}
+            {feed.error}
           </p>
         ) : null}
       </div>
@@ -224,10 +226,10 @@ function isArbitrageEvent(value: unknown): value is ArbitrageEvent {
 }
 
 export function ArbitrageAgentInspectorFields({ data, accent, onPatch }: InspectorFieldsProps) {
-  const { agentFeeds, refreshAgentStatus } = useAgentFeed();
+  const { agentFeeds } = useAgentFeed();
   const [workflowLive, setWorkflowLive] = useState(false);
   const feed = agentFeeds.arbitrageAgent;
-  const running = feed?.running ?? false;
+  const running = Boolean(feed?.running || feed?.count);
   const latest = isArbitrageEvent(feed?.latest) ? feed.latest : null;
   const llmProvider = normalizeProvider(data.llmProvider);
   const llmApiKey = data.llmApiKey ?? '';
@@ -236,13 +238,12 @@ export function ArbitrageAgentInspectorFields({ data, accent, onPatch }: Inspect
   const managedByWorkflow = workflowLive;
 
   useEffect(() => {
-    void refreshAgentStatus('arbitrageAgent');
     void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
     const t = setInterval(() => {
       void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
     }, 8000);
     return () => clearInterval(t);
-  }, [refreshAgentStatus]);
+  }, []);
 
   return (
     <div onKeyDown={stopNodeKeyPropagation}>
@@ -278,7 +279,7 @@ export function ArbitrageAgentInspectorFields({ data, accent, onPatch }: Inspect
             {managedByWorkflow
               ? 'Managed by workflow Go Live'
               : running
-                ? `Live · ${feed?.feedTopic ?? 'agent.feeds.arbitrageAgent.public'}`
+                ? 'Live · streaming via WebSocket'
                 : llmReady
                   ? 'Use Go Live on the header to start scanning'
                   : 'Set LLM provider, API key, and model to enable'}
@@ -338,21 +339,20 @@ function isRiskEvent(value: unknown): value is RiskEvent {
 }
 
 export function RiskAnalyzerInspectorFields({ data, accent, onPatch }: InspectorFieldsProps) {
-  const { agentFeeds, refreshAgentStatus } = useAgentFeed();
+  const { agentFeeds } = useAgentFeed();
   const [workflowLive, setWorkflowLive] = useState(false);
   const feed = agentFeeds.riskAnalyzer;
-  const running = feed?.running ?? false;
+  const running = Boolean(feed?.running || feed?.count);
   const latest = isRiskEvent(feed?.latest) ? feed.latest : null;
   const managedByWorkflow = workflowLive;
 
   useEffect(() => {
-    void refreshAgentStatus('riskAnalyzer');
     void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
     const t = setInterval(() => {
       void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
     }, 8000);
     return () => clearInterval(t);
-  }, [refreshAgentStatus]);
+  }, []);
 
   return (
     <div onKeyDown={stopNodeKeyPropagation}>
@@ -490,7 +490,7 @@ export function RiskAnalyzerInspectorFields({ data, accent, onPatch }: Inspector
             {managedByWorkflow
               ? 'Managed by workflow Go Live'
               : running
-                ? `Live · ${feed?.feedTopic ?? 'agent.feeds.riskAnalyzer.public'}`
+                ? 'Live · streaming via WebSocket'
                 : 'Use Go Live on the header to start sizing'}
           </span>
         </div>
@@ -532,70 +532,6 @@ export function RiskAnalyzerInspectorFields({ data, accent, onPatch }: Inspector
       ) : null}
       <p className="node-field__hint">
         Snap Polymarket Markets / Wallet or Kalshi for live liquidity and exposure caps
-      </p>
-    </div>
-  );
-}
-
-type SportsSignal = {
-  type?: string;
-  ticker?: string;
-  thesis?: string;
-  summary?: string;
-  side_team?: string;
-  filter_report?: string[];
-};
-
-function isSportsSignal(value: unknown): value is SportsSignal {
-  return Boolean(value) && typeof value === 'object';
-}
-
-export function SportsScannerInspectorFields({ accent }: InspectorFieldsProps) {
-  const { agentFeeds, refreshAgentStatus } = useAgentFeed();
-  const feed = agentFeeds['sportsScanner.user_demo'];
-  const live = feed?.running ?? false;
-  const latest = isSportsSignal(feed?.latest) ? feed.latest : null;
-
-  useEffect(() => {
-    void refreshAgentStatus('sportsScanner.user_demo');
-    const timer = setInterval(() => void refreshAgentStatus('sportsScanner.user_demo'), 10000);
-    return () => clearInterval(timer);
-  }, [refreshAgentStatus]);
-
-  return (
-    <div onKeyDown={stopNodeKeyPropagation}>
-      <div className="node-panel-section">
-        <div className="node-status-row">
-          <span className={`node-pill ${live ? 'node-pill--live' : 'node-pill--idle'}`}>
-            {live ? 'Live · receiving' : 'Offline · waiting for publisher'}
-          </span>
-          {feed?.count ? <span className="node-meta">{feed.count} signals</span> : null}
-        </div>
-        {latest ? (
-          <div className="node-feed-preview">
-            <p className="node-feed-preview__title">
-              {latest.ticker ?? '—'} · {latest.type ?? 'signal'}
-              {latest.side_team ? ` · ${latest.side_team}` : ''}
-            </p>
-            <p className="node-feed-preview__body">
-              {latest.thesis ?? latest.summary ?? 'No thesis on last signal'}
-            </p>
-            {latest.filter_report?.length ? (
-              <ul className="node-feed-preview__list">
-                {latest.filter_report.slice(0, 3).map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : (
-          <p className="node-hint">
-            Publisher runs kalshiSports with the HTTP wrapper. Install from marketplace to subscribe.
-          </p>
-        )}
-      </div>
-      <p className="node-field__hint" style={{ color: accent }}>
-        No configurable parameters — signals arrive from the external publisher.
       </p>
     </div>
   );

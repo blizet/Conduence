@@ -20,22 +20,19 @@ export const PURE_TOOL_NODE_TYPES = new Set([
 
 export const SUB_AGENT_NODE_TYPES = new Set(['newsAgent', 'arbitrageAgent', 'riskAnalyzer']);
 
-export const MIND_AGENT_NODE_TYPES = new Set(['sportsScanner']);
-
 export const ORCHESTRATOR_NODE_TYPE = 'llm';
 
 export type WiredInput = {
   id: string;
   type: string;
   label: string;
-  category: 'tool' | 'subagent' | 'mindagent' | 'orchestrator' | 'other';
+  category: 'tool' | 'subagent' | 'orchestrator' | 'other';
 };
 
 function categoryForType(type: string | undefined): WiredInput['category'] {
   if (!type) return 'other';
   if (PURE_TOOL_NODE_TYPES.has(type)) return 'tool';
   if (SUB_AGENT_NODE_TYPES.has(type)) return 'subagent';
-  if (MIND_AGENT_NODE_TYPES.has(type)) return 'mindagent';
   if (type === ORCHESTRATOR_NODE_TYPE) return 'orchestrator';
   return 'other';
 }
@@ -69,26 +66,19 @@ export function wiredInputsForNode(
 export function partitionWiredInputs(inputs: WiredInput[]) {
   return {
     tools: inputs.filter((i) => i.category === 'tool'),
-    feeds: inputs.filter((i) => i.category === 'subagent' || i.category === 'mindagent'),
-    other: inputs.filter(
-      (i) => i.category !== 'tool' && i.category !== 'subagent' && i.category !== 'mindagent',
-    ),
+    feeds: inputs.filter((i) => i.category === 'subagent'),
+    other: inputs.filter((i) => i.category !== 'tool' && i.category !== 'subagent'),
   };
 }
 
-/** Marketplace / Kafka feed id for a sub-agent or mind-agent source node. */
 export function agentFeedIdForSourceNode(node: WorkflowNode | undefined): string | null {
   if (!node?.type) return null;
   if (node.type === 'newsAgent') return 'newsAgent';
   if (node.type === 'arbitrageAgent') return 'arbitrageAgent';
   if (node.type === 'riskAnalyzer') return 'riskAnalyzer';
-  if (node.type === 'sportsScanner') {
-    return String(node.data?.agentId ?? 'sportsScanner.user_demo');
-  }
   return null;
 }
 
-/** When Output is wired from a live sub-agent, return its feed agent id. */
 export function upstreamAgentFeedId(
   outputNodeId: string,
   nodes: WorkflowNode[],

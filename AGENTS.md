@@ -30,11 +30,7 @@ Optional (recommended): `decision_id`, `schema_version`, `operation`, `provenanc
 
 1. Every `edge.source` / `target` must exist in `nodes` (legacy `Publisher Agent` / `publisher_agent` normalize to `{user_slug}.publisher`).
 2. **Graph namespace:** `{user_slug}.{agent_role}.v1` (e.g. `user_771.publisher.v1`, `user_771.seeker.v1`).
-3. **Kafka (event-sourced):** CoT deltas produce to `market.signals.public` (key=`graph_id`, header `publisher_id`). **PublisherWorker** and **SeekerWorker** consume and MERGE into isolated FalkorDB graphs (`user_117.publisher.v1`, `user_902.seeker.v1`) via Cypher only. No Redis Stack mirror (`cotn:`/`cote:`/`cotd:`), no DB CDC.
-4. **User registry (Redis):** `cot:registry:{User_id}:agents`, `cot:registry:{User_id}:graph:{role}`, `cot:registry:{User_id}:topic:{role}`.
-5. Trade thesis lives on the `market → trade` edge (`Action` + `metadata.thesis`).
-6. Correlated markets use `targets[]` and `direction: "bi-directional"`.
-7. Never edit files in `data/raw/`.
+3. **CoT persistence:** Decision events MERGE directly into FalkorDB via the FastAPI backend (`POST /api/signals/cot` or orchestrator auto-emit). WebSocket broadcasts live sub-agent feeds to the playground.
 
 ## Workflows
 
@@ -64,7 +60,7 @@ Periodically check: contradictions, stale claims, orphan wiki pages, missing con
 docker compose up -d
 npm install
 npm run install:backend  # pip install -r backend/requirements.txt
-npm run dev:backend      # FastAPI :4000 + Kafka consumer + WS
+npm run dev:backend      # FastAPI :4000 + WebSocket + FalkorDB
 npm run dev:frontend     # Next.js dashboard :3001
 ```
 
@@ -82,33 +78,13 @@ Legacy Python `cot` CLI still available under `src/cot_kb/` for Redis/Neo4j sync
 ## FalkorDB (graph GUI)
 
 - **FalkorDB Browser**: http://localhost:3000
-- Graph name: `eth_market_v1` (from `eth.market.v1`)
-- Sync: `cot falkordb-sync`
 - API: `redis://localhost:6380`
-
-## Redpanda (event stream GUI)
-
-- **Redpanda Console**: http://localhost:8080
-- Topic: `market.signals.public` — `PublisherWorker` / `SeekerWorker` consumer groups
-- Sync: `cot redpanda-sync`
-- Kafka: `localhost:19092`
+- Agentic seed graph: `data/agentic/macro_correlation_graph.json`
+- User agentic edits: `data/agentic/users/{user_slug}.json`
 
 ## All GUIs
 
 Run `cot services` for the full URL table. See `docs/services.md`.
-
-## Neo4j
-
-- Start: `docker compose up -d`
-- Browser: http://localhost:7474 (neo4j / cot-kb-password)
-- Ingest passes full JSON as `$payload` — see `cypher/ingest.cypher`
-
-Example query:
-
-```cypher
-MATCH (d:Decision)-[:ASSERTED]->(r)-[:BUY_YES|SELL_YES|BUY_NO|SELL_NO*0..1]-()
-RETURN d.decision_id, d.updated_at ORDER BY d.updated_at
-```
 
 ## Obsidian
 

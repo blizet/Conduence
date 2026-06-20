@@ -161,14 +161,6 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
       'Emit sized trade payloads wired to execution tools or the orchestrator.',
     ],
   },
-  sportsScanner: {
-    summary:
-      'External Kalshi soccer scanner — receives late-game signals from the kalshiSports publisher via HTTP wrapper.',
-    helpsWith: [
-      'Specialized sports feed for Kalshi soccer markets.',
-      'Wire into the orchestrator feed for late-game signals.',
-    ],
-  },
 };
 
 const CATEGORY_DEFAULTS: Record<NodeCategory, NodeCatalogEntry> = {
@@ -177,16 +169,12 @@ const CATEGORY_DEFAULTS: Record<NodeCategory, NodeCatalogEntry> = {
     helpsWith: ['Wire into the orchestrator or sub-agents for live context.'],
   },
   subagent: {
-    summary: 'Autonomous sub-agent that runs on Go Live and publishes to the agent feed.',
+    summary: 'Autonomous sub-agent that runs on Go Live and streams via WebSocket.',
     helpsWith: ['Snap venue tools and stream signals into the orchestrator.'],
   },
   orchestrator: {
-    summary: 'Central mind agent that synthesizes inputs into decisions.',
+    summary: 'Central orchestrator that synthesizes inputs into decisions.',
     helpsWith: ['Connect tools, sub-agents, and CoT builder outputs.'],
-  },
-  mindagent: {
-    summary: 'Mind agent node for specialized autonomous workflows.',
-    helpsWith: ['Extend the canvas with custom agent logic.'],
   },
 };
 

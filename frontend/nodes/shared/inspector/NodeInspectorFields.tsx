@@ -10,7 +10,6 @@ import {
   NewsAgentInspectorFields,
   OutputInspectorFields,
   RiskAnalyzerInspectorFields,
-  SportsScannerInspectorFields,
 } from './AgentInspectorFields';
 import { CatalogToolFields } from './CatalogToolFields';
 import { MonitorToolFields } from './MonitorToolFields';
@@ -121,8 +120,6 @@ export function NodeInspectorFields({ node, nodes, edges, feedSignals }: NodeIns
       return <ArbitrageAgentInspectorFields data={data} accent={accent} onPatch={onPatch} />;
     case 'riskAnalyzer':
       return <RiskAnalyzerInspectorFields data={data} accent={accent} onPatch={onPatch} />;
-    case 'sportsScanner':
-      return <SportsScannerInspectorFields data={data} accent={accent} onPatch={onPatch} />;
     default:
       return <p className="node-field__hint">No configurable parameters for this node type.</p>;
   }

@@ -3,8 +3,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from app.signal_registry import get_signal_producer
-from app.kafka.producer import SignalProducerService
+from app.subagents.registry import get_signal_producer
 from app.ws.events import EventsManager
 from app.llm.usage_tracker import empty_llm_usage, merge_call
 from app.observability.execution_provenance import _langsmith_block
@@ -15,15 +14,13 @@ logger = logging.getLogger(__name__)
 class AutonomousAgentStreamService:
     def __init__(
         self,
-        producer: SignalProducerService,
         events: EventsManager,
         orchestrator: Any | None = None,
-        ingress: Any | None = None,
+        falkordb: Any | None = None,
     ) -> None:
-        self._producer = producer
         self._events = events
         self._orchestrator = orchestrator
-        self._ingress = ingress
+        self._falkordb = falkordb
         self._sessions: dict[str, dict[str, Any]] = {}
         self._stop_flags: dict[str, bool] = {}
         self._tasks: dict[str, asyncio.Task] = {}
@@ -45,12 +42,11 @@ class AutonomousAgentStreamService:
         return {
             "ok": True,
             "agentId": agent_id,
-            "category": defn.get("category", "mindagent"),
+            "category": defn.get("category", "subagent"),
             "running": session.get("running", False) if session else False,
             "emittedCount": session.get("emittedCount", 0) if session else 0,
             "lastSignal": session.get("lastSignal") if session else None,
             "lastError": session.get("lastError") if session else None,
-            "feedTopic": defn["feedTopic"],
             "eventType": defn["eventType"],
             "llmUsage": session.get("llmUsage") if session else empty_llm_usage(),
             "langsmith": session.get("langsmith") if session else _langsmith_block(),
@@ -64,7 +60,7 @@ class AutonomousAgentStreamService:
 
         existing = self._sessions.get(agent_id)
         if existing and existing.get("running"):
-            return {"ok": True, "running": True, "feedTopic": defn["feedTopic"]}
+            return {"ok": True, "running": True}
 
         try:
             await defn["validateConfig"](config)
@@ -76,15 +72,13 @@ class AutonomousAgentStreamService:
             "running": True,
             "emittedCount": 0,
             "lastSignal": None,
-            "feedTopic": defn["feedTopic"],
             "eventType": defn["eventType"],
             "llmUsage": empty_llm_usage(),
             "langsmith": _langsmith_block(),
         }
-        run_config = {**config, "ingress": self._ingress}
-        self._tasks[agent_id] = asyncio.create_task(self._run_loop(agent_id, defn, run_config))
-        logger.info("Autonomous stream started agent=%s topic=%s", agent_id, defn["feedTopic"])
-        return {"ok": True, "running": True, "feedTopic": defn["feedTopic"]}
+        self._tasks[agent_id] = asyncio.create_task(self._run_loop(agent_id, defn, config))
+        logger.info("Autonomous stream started agent=%s", agent_id)
+        return {"ok": True, "running": True}
 
     def stop(self, agent_id: str) -> dict[str, Any]:
         self._stop_flags[agent_id] = True
@@ -102,7 +96,7 @@ class AutonomousAgentStreamService:
             async for signal in defn["streamSignals"](config):
                 if self._stop_flags.get(agent_id):
                     break
-                await self._emit(agent_id, defn["feedTopic"], defn["eventType"], signal, config)
+                await self._emit(agent_id, defn["eventType"], signal, config)
         except asyncio.CancelledError:
             pass
         except Exception as exc:
@@ -120,7 +114,6 @@ class AutonomousAgentStreamService:
     async def _emit(
         self,
         agent_id: str,
-        feed_topic: str,
         event_type: str,
         signal: Any,
         config: dict[str, Any] | None = None,
@@ -140,26 +133,12 @@ class AutonomousAgentStreamService:
             session["lastError"] = None
 
         updated_at = datetime.now(timezone.utc).isoformat()
-        envelope = {
-            "event_type": event_type,
-            "agent_id": agent_id,
-            "updated_at": updated_at,
-            "payload": payload,
-        }
-
-        try:
-            await self._producer.publish_agent_feed(envelope, feed_topic)
-        except Exception as exc:
-            logger.warning("Kafka publish failed agent=%s: %s", agent_id, exc)
-            if session:
-                session["lastError"] = str(exc)
 
         await self._events.broadcast(
             {
                 "type": "agent.feed",
                 "agent_id": agent_id,
                 "event_type": event_type,
-                "topic": feed_topic,
                 "updated_at": updated_at,
                 "payload": payload,
                 "llm_usage": session.get("llmUsage") if session else empty_llm_usage(),
@@ -180,12 +159,12 @@ class AutonomousAgentStreamService:
                 logger.warning("Orchestrator enqueue failed: %s", exc)
 
         wc = (config or {}).get("workflow_context")
-        if wc and self._ingress:
+        if wc and self._falkordb:
             from app.subagents.cot_emit import maybe_emit_cot_for_subagent
 
             await maybe_emit_cot_for_subagent(
                 payload if isinstance(payload, dict) else {},
                 agent_id=agent_id,
                 workflow_context=wc,
-                ingress=self._ingress,
+                falkordb=self._falkordb,
             )

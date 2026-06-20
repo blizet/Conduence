@@ -1,20 +1,4 @@
 services:
-  neo4j:
-    image: neo4j:5.26-community
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    environment:
-      NEO4J_AUTH: neo4j/cot-kb-password
-      NEO4J_PLUGINS: '["apoc"]'
-      NEO4J_apoc_export_file_enabled: "true"
-      NEO4J_apoc_import_file_enabled: "true"
-      NEO4J_apoc_import_file_use__neo4j__config: "true"
-    volumes:
-      - neo4j_data:/data
-    networks:
-      - cot
-
   redis:
     image: redis/redis-stack:latest
     ports:
@@ -59,61 +43,10 @@ services:
     networks:
       - cot
 
-  redpanda:
-    image: docker.redpanda.com/redpandadata/redpanda:v24.3.1
-    container_name: redpanda-0
-    command:
-      - redpanda
-      - start
-      - --mode
-      - dev-container
-      - --smp
-      - "1"
-      - --kafka-addr
-      - internal://0.0.0.0:9092,external://0.0.0.0:19092
-      - --advertise-kafka-addr
-      - internal://redpanda-0:9092,external://localhost:19092
-    ports:
-      - "19092:19092"
-      - "19644:9644"
-    volumes:
-      - redpanda_data:/var/lib/redpanda/data
-    healthcheck:
-      test: ["CMD-SHELL", "rpk cluster info || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 15
-      start_period: 45s
-    networks:
-      - cot
-
-  redpanda-console:
-    image: docker.redpanda.com/redpandadata/console:v2.7.2
-    ports:
-      - "8080:8080"
-    entrypoint: /bin/sh
-    command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml && /app/console'
-    environment:
-      CONFIG_FILEPATH: /tmp/config.yml
-      CONSOLE_CONFIG_FILE: |
-        kafka:
-          brokers: ["redpanda-0:9092"]
-        redpanda:
-          adminApi:
-            enabled: true
-            urls: ["http://redpanda-0:9644"]
-    depends_on:
-      redpanda:
-        condition: service_healthy
-    networks:
-      - cot
-
 networks:
   cot:
     driver: bridge
 
 volumes:
-  neo4j_data:
   redis_data:
   falkordb_data:
-  redpanda_data:

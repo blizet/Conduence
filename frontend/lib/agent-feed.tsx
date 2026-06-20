@@ -6,14 +6,11 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import type { NewsSignalPayload } from '@/lib/news-signal';
 import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
 
-const API_KEY_STORAGE = 'cot-coindesk-api-key';
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4000/ws';
 const NEWS_AGENT_ID = 'newsAgent';
 
@@ -22,9 +19,6 @@ export type AgentFeedState = {
   count: number;
   running: boolean;
   error: string | null;
-  feedTopic: string | null;
-  source?: 'hosted' | 'external';
-  lastSeen?: string | null;
   llmUsage?: GraphObservabilityLlmUsage;
   langsmith?: GraphObservability['langsmith'];
 };
@@ -33,43 +27,13 @@ type AgentFeedContextValue = {
   latestNews: NewsSignalPayload | null;
   newsCount: number;
   wsConnected: boolean;
-  newsStreamRunning: boolean;
-  newsStreamError: string | null;
-  feedTopic: string | null;
   agentFeeds: Record<string, AgentFeedState>;
   orchestratorUsage: GraphObservabilityLlmUsage | null;
   orchestratorLangsmith: GraphObservability['langsmith'] | null;
-  startAgent: (
-    agentId: string,
-    config?: Record<string, unknown>,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  stopAgent: (agentId: string) => void;
-  refreshAgentStatus: (agentId: string) => Promise<void>;
   filterByCategories: (categories: string[]) => NewsSignalPayload | null;
-  startNewsStream: (
-    apiKey?: string,
-    options?: {
-      simulate?: boolean;
-      llmProvider?: string;
-      llmApiKey?: string;
-      model?: string;
-    },
-  ) => Promise<{ ok: boolean; error?: string }>;
-  stopNewsStream: () => void;
-  saveApiKey: (key: string) => void;
-  getStoredApiKey: () => string;
 };
 
 const AgentFeedContext = createContext<AgentFeedContextValue | null>(null);
-
-function loadStoredApiKey(): string {
-  if (typeof window === 'undefined') return '';
-  return (
-    localStorage.getItem(API_KEY_STORAGE) ??
-    process.env.NEXT_PUBLIC_COINDESK_API_KEY ??
-    ''
-  );
-}
 
 function isNewsPayload(payload: unknown): payload is NewsSignalPayload {
   if (!payload || typeof payload !== 'object') return false;
@@ -81,9 +45,6 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
   const [latestNews, setLatestNews] = useState<NewsSignalPayload | null>(null);
   const [newsCount, setNewsCount] = useState(0);
   const [wsConnected, setWsConnected] = useState(false);
-  const [newsStreamRunning, setNewsStreamRunning] = useState(false);
-  const [newsStreamError, setNewsStreamError] = useState<string | null>(null);
-  const [feedTopic, setFeedTopic] = useState<string | null>(null);
   const [history, setHistory] = useState<NewsSignalPayload[]>([]);
   const [agentFeeds, setAgentFeeds] = useState<Record<string, AgentFeedState>>({});
   const [orchestratorUsage, setOrchestratorUsage] = useState<GraphObservabilityLlmUsage | null>(
@@ -106,20 +67,18 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
         count: 0,
         running: false,
         error: null,
-        feedTopic: null,
       };
       return { ...feeds, [agentId]: { ...prev, ...patch } };
     });
   }, []);
 
-  const pushAgentSignal = useCallback((agentId: string, payload: unknown, topic?: string) => {
+  const pushAgentSignal = useCallback((agentId: string, payload: unknown) => {
     setAgentFeeds((feeds) => {
       const prev = feeds[agentId] ?? {
         latest: null,
         count: 0,
         running: false,
         error: null,
-        feedTopic: null,
       };
       return {
         ...feeds,
@@ -129,34 +88,10 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
           count: prev.count + 1,
           running: true,
           error: null,
-          feedTopic: topic ?? prev.feedTopic,
         },
       };
     });
   }, []);
-
-  const syncStatus = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/marketplace/agents/${NEWS_AGENT_ID}/status`, {
-        cache: 'no-store',
-      });
-      if (!res.ok) return;
-      const body = (await res.json()) as {
-        running?: boolean;
-        feedTopic?: string;
-        lastError?: string;
-      };
-      setNewsStreamRunning(Boolean(body.running));
-      setFeedTopic(body.feedTopic ?? null);
-      if (body.lastError) setNewsStreamError(body.lastError);
-    } catch {
-      /* backend optional on first paint */
-    }
-  }, []);
-
-  useEffect(() => {
-    void syncStatus();
-  }, [syncStatus]);
 
   useEffect(() => {
     let ws: WebSocket | null = null;
@@ -178,11 +113,9 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
           const msg = JSON.parse(event.data as string) as {
             type?: string;
             agent_id?: string;
-            topic?: string;
             payload?: unknown;
             llm_usage?: GraphObservabilityLlmUsage;
             langsmith?: GraphObservability['langsmith'];
-            result?: unknown;
           };
           if (msg.type === 'orchestrator.result') {
             if (msg.llm_usage) setOrchestratorUsage(msg.llm_usage);
@@ -190,7 +123,7 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           if (msg.type !== 'agent.feed' || !msg.agent_id) return;
-          pushAgentSignal(msg.agent_id, msg.payload, msg.topic);
+          pushAgentSignal(msg.agent_id, msg.payload);
           if (msg.llm_usage || msg.langsmith) {
             patchAgentFeed(msg.agent_id, {
               ...(msg.llm_usage ? { llmUsage: msg.llm_usage } : {}),
@@ -199,7 +132,6 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
           }
           if (msg.agent_id === NEWS_AGENT_ID && isNewsPayload(msg.payload)) {
             pushSignal(msg.payload);
-            setNewsStreamError(null);
           }
         } catch {
           /* ignore malformed WS frames */
@@ -214,168 +146,6 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
       ws?.close();
     };
   }, [pushSignal, pushAgentSignal, patchAgentFeed]);
-
-  const refreshAgentStatus = useCallback(
-    async (agentId: string) => {
-      try {
-        const res = await fetch(`${API_URL}/api/marketplace/agents/${agentId}/status`, {
-          cache: 'no-store',
-        });
-        if (!res.ok) return;
-        const body = (await res.json()) as {
-          running?: boolean;
-          live?: boolean;
-          source?: 'hosted' | 'external';
-          feedTopic?: string;
-          lastError?: string;
-          lastSignal?: unknown;
-          emittedCount?: number;
-          lastSeen?: string | null;
-          llmUsage?: GraphObservabilityLlmUsage;
-          langsmith?: GraphObservability['langsmith'];
-        };
-        const isExternal = body.source === 'external';
-        const isLive = isExternal ? Boolean(body.live) : Boolean(body.running);
-        patchAgentFeed(agentId, {
-          running: isLive,
-          source: body.source,
-          feedTopic: body.feedTopic ?? null,
-          error: body.lastError ?? null,
-          lastSeen: body.lastSeen ?? null,
-          ...(body.lastSignal !== undefined && body.lastSignal !== null
-            ? { latest: body.lastSignal }
-            : {}),
-          ...(typeof body.emittedCount === 'number' ? { count: body.emittedCount } : {}),
-          ...(body.llmUsage ? { llmUsage: body.llmUsage } : {}),
-          ...(body.langsmith ? { langsmith: body.langsmith } : {}),
-        });
-      } catch {
-        /* backend optional */
-      }
-    },
-    [patchAgentFeed],
-  );
-
-  const startAgent = useCallback(
-    async (agentId: string, config?: Record<string, unknown>) => {
-      try {
-        const res = await fetch(`${API_URL}/api/marketplace/agents/${agentId}/start`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(config ?? {}),
-        });
-        const body = (await res.json()) as {
-          ok?: boolean;
-          running?: boolean;
-          feedTopic?: string;
-          error?: string;
-        };
-        if (!res.ok || body.ok === false || body.error) {
-          const message = body.error ?? `Start failed (${res.status})`;
-          patchAgentFeed(agentId, { running: false, error: message });
-          return { ok: false, error: message };
-        }
-        patchAgentFeed(agentId, {
-          running: true,
-          error: null,
-          feedTopic: body.feedTopic ?? `agent.feeds.${agentId}.public`,
-        });
-        return { ok: true };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Backend unreachable — start dev:backend';
-        patchAgentFeed(agentId, { running: false, error: message });
-        return { ok: false, error: message };
-      }
-    },
-    [patchAgentFeed],
-  );
-
-  const stopAgent = useCallback(
-    (agentId: string) => {
-      void fetch(`${API_URL}/api/marketplace/agents/${agentId}/stop`, { method: 'POST' }).finally(
-        () => {
-          patchAgentFeed(agentId, { running: false });
-        },
-      );
-    },
-    [patchAgentFeed],
-  );
-
-  const startNewsStream = useCallback(
-    async (
-      apiKey?: string,
-      options?: {
-        simulate?: boolean;
-        llmProvider?: string;
-        llmApiKey?: string;
-        model?: string;
-      },
-    ) => {
-      const simulate = Boolean(options?.simulate);
-      const key = (apiKey ?? loadStoredApiKey()).trim();
-      if (!key && !simulate) {
-        return {
-          ok: false,
-          error: 'CoinDesk API key required — set on News Agent node or COINDESK_API_KEY in .env',
-        };
-      }
-
-      if (key) localStorage.setItem(API_KEY_STORAGE, key);
-
-      try {
-        const res = await fetch(`${API_URL}/api/marketplace/agents/${NEWS_AGENT_ID}/start`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            apiKey: key,
-            limit: 20,
-            simulate,
-            llmProvider: options?.llmProvider,
-            llmApiKey: options?.llmApiKey,
-            model: options?.model,
-          }),
-        });
-        const body = (await res.json()) as {
-          ok?: boolean;
-          running?: boolean;
-          feedTopic?: string;
-          error?: string;
-        };
-
-        if (!res.ok || body.ok === false || body.error) {
-          const message = body.error ?? `Start failed (${res.status})`;
-          setNewsStreamError(message);
-          setNewsStreamRunning(false);
-          return { ok: false, error: message };
-        }
-
-        setNewsStreamRunning(true);
-        setFeedTopic(body.feedTopic ?? `agent.feeds.${NEWS_AGENT_ID}.public`);
-        setNewsStreamError(null);
-        return { ok: true };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Backend unreachable — start dev:backend';
-        setNewsStreamError(message);
-        setNewsStreamRunning(false);
-        return { ok: false, error: message };
-      }
-    },
-    [],
-  );
-
-  const stopNewsStream = useCallback(() => {
-    void fetch(`${API_URL}/api/marketplace/agents/${NEWS_AGENT_ID}/stop`, {
-      method: 'POST',
-    }).finally(() => {
-      setNewsStreamRunning(false);
-    });
-  }, []);
-
-  const saveApiKey = useCallback((key: string) => {
-    localStorage.setItem(API_KEY_STORAGE, key);
-  }, []);
-
-  const getStoredApiKey = useCallback(() => loadStoredApiKey(), []);
 
   const filterByCategories = useCallback(
     (categories: string[]) => {
@@ -394,39 +164,19 @@ export function AgentFeedProvider({ children }: { children: React.ReactNode }) {
       latestNews,
       newsCount,
       wsConnected,
-      newsStreamRunning,
-      newsStreamError,
-      feedTopic,
       agentFeeds,
       orchestratorUsage,
       orchestratorLangsmith,
-      startAgent,
-      stopAgent,
-      refreshAgentStatus,
       filterByCategories,
-      startNewsStream,
-      stopNewsStream,
-      saveApiKey,
-      getStoredApiKey,
     }),
     [
       latestNews,
       newsCount,
       wsConnected,
-      newsStreamRunning,
-      newsStreamError,
-      feedTopic,
       agentFeeds,
       orchestratorUsage,
       orchestratorLangsmith,
-      startAgent,
-      stopAgent,
-      refreshAgentStatus,
       filterByCategories,
-      startNewsStream,
-      stopNewsStream,
-      saveApiKey,
-      getStoredApiKey,
     ],
   );
 

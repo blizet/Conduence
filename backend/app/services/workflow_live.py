@@ -11,10 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class WorkflowLiveService:
-    def __init__(self, orchestrator_stream: Any, autonomous_streams: Any, ingress: Any | None = None) -> None:
+    def __init__(
+        self,
+        orchestrator_stream: Any,
+        autonomous_streams: Any,
+        falkordb: Any | None = None,
+    ) -> None:
         self._orchestrator = orchestrator_stream
         self._autonomous = autonomous_streams
-        self._ingress = ingress
+        self._falkordb = falkordb
         self._running = False
         self._workflow_context: dict[str, Any] | None = None
         self._started_subagents: list[str] = []
@@ -63,9 +68,6 @@ class WorkflowLiveService:
             sub_config = {
                 **entry,
                 "workflow_context": self._workflow_context,
-                "mind_agent_live": bool(
-                    topology.get("publish_as_mind_agent") or config.get("mind_agent_live")
-                ),
             }
             result = await self._autonomous.start(agent_id, sub_config)
             if not result.get("ok"):

@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.lib.normalize import normalize_decision
-from app.schemas.decision import DecisionEvent
 from app.observability.execution_provenance import build_execution_provenance, merge_provenance
 from app.tools.cot_builder import build_cot_decision
 
@@ -150,6 +148,8 @@ def build_cot_from_signal(
             "userNodeId": output_node_data.get("userNodeId"),
         },
         provenance=provenance,
+        signal=signal,
+        graph_impacts=None,
     )
     return draft
 
@@ -159,11 +159,11 @@ async def maybe_emit_cot_for_subagent(
     *,
     agent_id: str,
     workflow_context: dict[str, Any],
-    ingress: Any,
+    falkordb: Any,
 ) -> dict[str, Any] | None:
     """Build and optionally publish CoT when subagent feeds cotBuilder directly."""
     topology = workflow_context.get("topology") or {}
-    if not topology.get("auto_emit_cot") and not topology.get("publish_as_mind_agent"):
+    if not topology.get("auto_emit_cot"):
         return None
 
     subagent_registry = workflow_context.get("subagent_registry") or {}
@@ -174,7 +174,7 @@ async def maybe_emit_cot_for_subagent(
     output_nodes = workflow_context.get("output_nodes") or []
     cot_node = next((o for o in output_nodes if o.get("type") == "cotBuilder"), None)
     cot_data = (cot_node or {}).get("data") or {}
-    if not cot_data.get("autoEmit") and not topology.get("publish_as_mind_agent"):
+    if not cot_data.get("autoEmit"):
         return None
 
     draft = build_cot_from_signal(
@@ -186,14 +186,12 @@ async def maybe_emit_cot_for_subagent(
     if not draft:
         return None
 
-    if ingress is None:
-        return draft
-
     try:
-        event = DecisionEvent.model_validate(draft)
-        normalized = normalize_decision(event).model_dump()
-        await ingress.publish_publisher_cot_delta(normalized)
-        logger.info("Subagent %s emitted CoT %s", agent_id, normalized.get("decision_id"))
+        from app.services.cot_emit import publish_cot_decision
+
+        normalized = await publish_cot_decision(draft, falkordb=falkordb)
+        if normalized:
+            logger.info("Subagent %s emitted CoT %s", agent_id, normalized.get("decision_id"))
         return normalized
     except Exception as exc:
         logger.warning("Subagent CoT emit failed agent=%s: %s", agent_id, exc)

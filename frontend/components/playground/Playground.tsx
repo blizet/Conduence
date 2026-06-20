@@ -9,9 +9,7 @@ import { ReactFlowProvider } from '@xyflow/react';
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
 import { NodePalette } from './NodePalette';
-import { AgentMarketplace } from './AgentMarketplace';
 import { WorkflowCanvas } from './WorkflowCanvas';
-import { InstalledAgentsProvider } from '@/lib/marketplace';
 import { AgentFeedProvider } from '@/lib/agent-feed';
 import {
   fetchWorkflowLiveStatus,
@@ -43,10 +41,7 @@ type PlaygroundView = 'workflow' | 'graph';
 type PlaygroundInnerProps = {
   nodeCount: number;
   viewMode: PlaygroundView;
-  showMarketplace: boolean;
   onToggleGraph: () => void;
-  onToggleMarketplace: () => void;
-  onCloseMarketplace: () => void;
   onCountsChange: (nodes: number, edges: number) => void;
   onGoLive: () => void;
   onStopLive: () => void;
@@ -54,12 +49,9 @@ type PlaygroundInnerProps = {
   liveBusy: boolean;
   liveError: string | null;
   onCanvasChange: (nodes: WorkflowNode[], edges: Edge[]) => void;
-  canvasSnapshot: { nodes: WorkflowNode[]; edges: Edge[] };
-  onInstallWorkflow: (canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => void;
   loadCanvas: { key: number; nodes: WorkflowNode[]; edges: Edge[] } | null;
   canvasBootKey: string;
   storageReady: boolean;
-  workflowRefreshSignal: number;
   activeWorkflowName: string;
   workflowIndex: number;
   workflowCount: number;
@@ -74,10 +66,7 @@ type PlaygroundInnerProps = {
 function PlaygroundInner({
   nodeCount,
   viewMode,
-  showMarketplace,
   onToggleGraph,
-  onToggleMarketplace,
-  onCloseMarketplace,
   onCountsChange,
   onGoLive,
   onStopLive,
@@ -85,12 +74,9 @@ function PlaygroundInner({
   liveBusy,
   liveError,
   onCanvasChange,
-  canvasSnapshot,
-  onInstallWorkflow,
   loadCanvas,
   canvasBootKey,
   storageReady,
-  workflowRefreshSignal,
   activeWorkflowName,
   workflowIndex,
   workflowCount,
@@ -103,13 +89,6 @@ function PlaygroundInner({
 }: PlaygroundInnerProps) {
   return (
     <div className="playground-shell">
-      <AgentMarketplace
-        open={showMarketplace}
-        onClose={onCloseMarketplace}
-        onInstallWorkflow={onInstallWorkflow}
-        workflowRefreshSignal={workflowRefreshSignal}
-        canvas={canvasSnapshot}
-      />
       <header className="playground-header">
         <Image
           src="/conduence-logo.png"
@@ -151,14 +130,6 @@ function PlaygroundInner({
               <path d="M5.5 4.5L7 10M10.5 4.5L9 10" />
             </svg>
             {viewMode === 'graph' ? 'Workflow' : 'Graph'}
-          </button>
-          <button
-            type="button"
-            className={`graph-view-toggle${showMarketplace ? ' graph-view-toggle--active' : ''}`}
-            onClick={onToggleMarketplace}
-            title="Install agents and publish workflows to the marketplace"
-          >
-            Marketplace
           </button>
           <Link href="/simulate" className="graph-view-toggle" title="Paper trade Polymarket & Kalshi strategies">
             Paper Trading
@@ -204,11 +175,9 @@ function PlaygroundWithState() {
   const searchParams = useSearchParams();
   const [nodeCount, setNodeCount] = useState(0);
   const [viewMode, setViewMode] = useState<PlaygroundView>('workflow');
-  const [showMarketplace, setShowMarketplace] = useState(false);
   const [workflowLive, setWorkflowLive] = useState(false);
   const [liveBusy, setLiveBusy] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
-  const [workflowRefreshSignal, setWorkflowRefreshSignal] = useState(0);
   const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflow[]>([]);
   const [activeWorkflowId, setActiveWorkflowIdState] = useState('');
   const [activeWorkflowName, setActiveWorkflowName] = useState('Workflow');
@@ -389,37 +358,6 @@ function PlaygroundWithState() {
     if (next) loadWorkflowIntoCanvas(next);
   }, [flushPersist, loadWorkflowIntoCanvas, persistActiveCanvas]);
 
-  const onInstallWorkflow = useCallback((canvas: { nodes: WorkflowNode[]; edges: Edge[] }) => {
-    setViewMode('workflow');
-    setShowMarketplace(false);
-    suppressPersistRef.current = true;
-    canvasSnapshotRef.current = canvas;
-    setNodeCount(canvas.nodes.length);
-    setLoadCanvas({ key: Date.now(), ...canvas });
-    const id = activeWorkflowIdRef.current;
-    if (id) {
-      const next = upsertWorkflowCanvas(id, canvas);
-      setSavedWorkflows(next);
-    }
-    suppressPersistRef.current = false;
-  }, []);
-
-  const onToggleGraph = useCallback(() => {
-    setViewMode((v) => (v === 'graph' ? 'workflow' : 'graph'));
-  }, []);
-
-  const onToggleMarketplace = useCallback(() => {
-    setShowMarketplace((v) => !v);
-  }, []);
-
-  const onCloseMarketplace = useCallback(() => {
-    setShowMarketplace(false);
-  }, []);
-
-  useEffect(() => {
-    void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
-  }, []);
-
   const onGoLive = useCallback(async () => {
     setLiveBusy(true);
     setLiveError(null);
@@ -430,9 +368,7 @@ function PlaygroundWithState() {
     const result = await startWorkflowLive({
       nodes,
       edges,
-      config: autoEmitCot
-        ? { mind_agent_live: true, publishAsMindAgent: true }
-        : {},
+      config: autoEmitCot ? { autoEmitCot: true } : {},
     });
     setLiveBusy(false);
     if (!result.ok) {
@@ -454,14 +390,19 @@ function PlaygroundWithState() {
     setWorkflowLive(false);
   }, []);
 
+  const onToggleGraph = useCallback(() => {
+    setViewMode((v) => (v === 'graph' ? 'workflow' : 'graph'));
+  }, []);
+
+  useEffect(() => {
+    void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
+  }, []);
+
   return (
     <PlaygroundInner
       nodeCount={nodeCount}
       viewMode={viewMode}
-      showMarketplace={showMarketplace}
       onToggleGraph={onToggleGraph}
-      onToggleMarketplace={onToggleMarketplace}
-      onCloseMarketplace={onCloseMarketplace}
       onCountsChange={onCountsChange}
       onGoLive={onGoLive}
       onStopLive={onStopLive}
@@ -469,12 +410,9 @@ function PlaygroundWithState() {
       liveBusy={liveBusy}
       liveError={liveError}
       onCanvasChange={onCanvasChange}
-      canvasSnapshot={canvasSnapshotRef.current}
-      onInstallWorkflow={onInstallWorkflow}
       loadCanvas={loadCanvas}
       canvasBootKey={canvasBootKey}
       storageReady={storageReady}
-      workflowRefreshSignal={workflowRefreshSignal}
       activeWorkflowName={activeWorkflowName}
       workflowIndex={workflowIndex}
       workflowCount={workflowCount}
@@ -490,12 +428,10 @@ function PlaygroundWithState() {
 
 export function Playground() {
   return (
-    <InstalledAgentsProvider>
-      <AgentFeedProvider>
-        <ReactFlowProvider>
-          <PlaygroundWithState />
-        </ReactFlowProvider>
-      </AgentFeedProvider>
-    </InstalledAgentsProvider>
+    <AgentFeedProvider>
+      <ReactFlowProvider>
+        <PlaygroundWithState />
+      </ReactFlowProvider>
+    </AgentFeedProvider>
   );
 }

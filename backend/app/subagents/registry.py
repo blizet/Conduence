@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from typing import Any, AsyncIterator
 
-from app.signal_registry import agent_feed_topic
 from app.subagents.arbitrage_subagent import (
     stream_arbitrage_signals,
     validate_arbitrage_config,
 )
 from app.subagents.news_subagent import stream_news_signals, validate_news_config
 from app.subagents.risk_analyzer_subagent import stream_risk_signals, validate_risk_config
+
+
+def agent_feed_id(agent_id: str) -> str:
+    return agent_id
 
 
 async def _stream_risk(config: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
@@ -34,7 +37,6 @@ SUB_AGENT_REGISTRY: dict[str, dict[str, Any]] = {
         "nodeType": "newsAgent",
         "category": "subagent",
         "eventType": "news.signal",
-        "feedTopic": agent_feed_topic("newsAgent"),
         "validateConfig": validate_news_config,
         "streamSignals": _stream_news,
     },
@@ -43,7 +45,6 @@ SUB_AGENT_REGISTRY: dict[str, dict[str, Any]] = {
         "nodeType": "arbitrageAgent",
         "category": "subagent",
         "eventType": "arbitrage.signal",
-        "feedTopic": agent_feed_topic("arbitrageAgent"),
         "validateConfig": validate_arbitrage_config,
         "streamSignals": _stream_arbitrage,
     },
@@ -52,7 +53,6 @@ SUB_AGENT_REGISTRY: dict[str, dict[str, Any]] = {
         "nodeType": "riskAnalyzer",
         "category": "subagent",
         "eventType": "risk.signal",
-        "feedTopic": agent_feed_topic("riskAnalyzer"),
         "validateConfig": validate_risk_config,
         "streamSignals": _stream_risk,
     },
@@ -63,5 +63,5 @@ def get_sub_agent(agent_id: str) -> dict[str, Any] | None:
     return SUB_AGENT_REGISTRY.get(agent_id)
 
 
-def list_sub_agent_feed_topics() -> list[str]:
-    return [defn["feedTopic"] for defn in SUB_AGENT_REGISTRY.values()]
+def get_signal_producer(agent_id: str) -> dict[str, Any] | None:
+    return SUB_AGENT_REGISTRY.get(agent_id)

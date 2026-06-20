@@ -160,7 +160,7 @@ export function getPaletteIcon(type: string, size?: number): React.ReactNode {
 
 /** Mini silhouette matching the canvas shape language, so the palette teaches the grammar. */
 export function getChipShapeClass(item: PaletteItem): string {
-  if (item.category === 'orchestrator' || item.category === 'mindagent') return 'palette-chip--agent';
+  if (item.category === 'orchestrator') return 'palette-chip--agent';
   if (item.category === 'subagent') return 'palette-chip--subagent';
   if (item.toolGroup === 'execution' || item.toolGroup === 'socials') return 'palette-chip--execution';
   return 'palette-chip--tool';

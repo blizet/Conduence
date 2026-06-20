@@ -21,52 +21,55 @@ def _resolve_graph_path(raw: str | Path) -> Path:
 
 
 DEFAULT_GRAPH_PATH = _resolve_graph_path(
-    os.getenv("CORRELATION_GRAPH_PATH", "data/correlation/correlation_graph.json")
+    os.getenv("CORRELATION_GRAPH_PATH", "data/agentic/macro_correlation_graph.json")
 )
 HOP_DECAY = 0.6
-
-_BUILTIN_GRAPH: dict = {
-    "nodes": [
-        {
-            "id": "ethereum",
-            "type": "asset",
-            "label": "Ethereum",
-            "keywords": ["eth", "ethereum"],
-            "coingecko_id": "ethereum",
-        },
-        {
-            "id": "bitcoin",
-            "type": "asset",
-            "label": "Bitcoin",
-            "keywords": ["btc", "bitcoin"],
-            "coingecko_id": "bitcoin",
-        },
-    ],
-    "edges": [
-        {
-            "source": "bitcoin",
-            "target": "ethereum",
-            "weight": 0.75,
-            "direction": "bi",
-            "rationale": "BTC-ETH beta",
-        }
-    ],
-}
 
 
 def _load_graph_json(path: Path | str) -> dict:
     graph_path = Path(path)
     try:
-        return json.loads(graph_path.read_text(encoding="utf-8"))
+        raw = json.loads(graph_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        logger.warning(
-            "Correlation graph not found at %s — using built-in minimal graph",
-            graph_path,
-        )
-        return _BUILTIN_GRAPH
+        logger.warning("Correlation graph not found at %s — empty graph", graph_path)
+        return {"nodes": [], "edges": []}
     except json.JSONDecodeError as exc:
-        logger.warning("Invalid correlation graph JSON at %s (%s) — using built-in", graph_path, exc)
-        return _BUILTIN_GRAPH
+        logger.warning("Invalid correlation graph JSON at %s (%s) — empty graph", graph_path, exc)
+        return {"nodes": [], "edges": []}
+
+    nodes = raw.get("nodes") or []
+    edges = raw.get("edges") or []
+    if nodes and isinstance(nodes[0], dict) and nodes[0].get("type") in {
+        "event",
+        "asset",
+        "market",
+        "concept",
+    }:
+        converted_nodes = []
+        for node in nodes:
+            node_id = str(node["id"])
+            label = str(node.get("label") or node_id)
+            converted_nodes.append(
+                {
+                    "id": node_id,
+                    "type": node.get("type", "asset"),
+                    "label": label,
+                    "keywords": [label.lower(), node_id.replace("_", " ")],
+                }
+            )
+        converted_edges = []
+        for edge in edges:
+            converted_edges.append(
+                {
+                    "source": str(edge["source"]),
+                    "target": str(edge["target"]),
+                    "weight": float(edge.get("weight") or 0),
+                    "direction": "bi",
+                    "rationale": edge.get("label") or "",
+                }
+            )
+        return {"nodes": converted_nodes, "edges": converted_edges}
+    return raw
 
 
 @dataclass

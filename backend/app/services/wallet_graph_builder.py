@@ -12,6 +12,11 @@ from typing import Any, Literal
 import httpx
 
 from app.agentic.graph import sanitize_graph
+from app.decisions.experience_chain import (
+    build_experience_decision,
+    build_outcome_properties,
+    infer_agentic_anchors,
+)
 from app.agentic.weight import clamp_weight
 from app.config import TOOL_FETCH_TIMEOUT_MS
 from app.tools.endpoints import DATA_BASE
@@ -293,6 +298,7 @@ def _decision_from_trade(
     graph_id: str,
     user_node_id: str,
     trade_index: int,
+    agentic_anchors: list[str] | None = None,
 ) -> dict[str, Any]:
     platform = str(trade.get("platform") or "polymarket")
     protocol_id = "Polymarket" if platform == "polymarket" else "Kalshi"
@@ -305,72 +311,78 @@ def _decision_from_trade(
     timestamp = trade.get("timestamp") or now
     thesis = (
         f"Historical {platform} trade: {_action_label(action)} on «{title}» "
-        f"(origin=extracted, wallet={wallet[:10]}…)"
+        f"(wallet={wallet[:10]}…)"
     )
+    reasoning = f"Extracted from on-chain trade history — {platform} {action.replace('_', ' ')}"
+    categories = _infer_categories(title)
+    tags = [f"#{c}" for c in categories[:4]]
+    anchors = list(agentic_anchors or [])
+    for cat in categories:
+        slug = _slugify(cat, prefix="cat_")
+        if slug not in anchors:
+            anchors.append(slug)
 
-    nodes = [
-        {"node_id": user_node_id, "node_type": "user"},
-        {"node_id": protocol_id, "node_type": "protocol"},
-        {"node_id": market_id, "node_type": "market", "properties": {"label": title, "origin": "extracted"}},
-        {"node_id": trade_id, "node_type": "trade", "properties": {
-            "origin": "extracted",
+    wallet_signal = {
+        "type": "wallet_trade",
+        "agent": "wallet_import",
+        "headline": title,
+        "summary": f"{_action_label(action)} on {title}",
+        "keywords": categories + title.lower().split()[:6],
+        "origin": "extracted",
+    }
+
+    return build_experience_decision(
+        graph_id=graph_id,
+        user_node_id=user_node_id,
+        trade_id=trade_id,
+        decision_id=decision_id,
+        market_id=market_id,
+        protocol_id=protocol_id,
+        action=action,
+        action_label=_action_label(action),
+        thesis=thesis,
+        reasoning=reasoning,
+        conviction_level=6,
+        tags=tags,
+        signal=wallet_signal,
+        trade_properties={
             "market_id": market_id,
             "market_label": title,
             "platform": platform,
-            "action": action,
             "side": trade.get("side"),
             "outcome": trade.get("outcome"),
             "price": trade.get("price"),
             "size": trade.get("size"),
             "usd": trade.get("usd"),
-            "volume": trade.get("size"),
-            "capital": trade.get("usd"),
             "timestamp": timestamp,
             "tx_hash": trade.get("txHash"),
-        }},
-        {"node_id": f"FB_{trade_id}", "node_type": "feedback"},
-    ]
-    edges = [
-        {"source": user_node_id, "target": protocol_id},
-        {
-            "source": protocol_id,
-            "target": market_id,
-            "metadata": {"platform": platform, "origin": "extracted"},
         },
-        {
-            "source": market_id,
-            "target": trade_id,
-            "Action": _action_label(action),
-            "metadata": {
-                "thesis": thesis,
-                "origin": "extracted",
-                "timestamp": timestamp,
-                "decision_id": decision_id,
-                "price": trade.get("price"),
-                "size": trade.get("size"),
-                "usd": trade.get("usd"),
-                "side": trade.get("side"),
-                "outcome": trade.get("outcome"),
-            },
+        market_properties={"label": title, "origin": "extracted", "platform": platform},
+        market_edge_metadata={
+            "origin": "extracted",
+            "timestamp": timestamp,
+            "price": trade.get("price"),
+            "size": trade.get("size"),
+            "usd": trade.get("usd"),
+            "side": trade.get("side"),
+            "outcome": trade.get("outcome"),
         },
-        {"source": trade_id, "target": f"FB_{trade_id}"},
-    ]
-
-    return {
-        "schema_version": "1.0",
-        "operation": "assert",
-        "graph_id": graph_id,
-        "decision_id": decision_id,
-        "updated_at": now,
-        "nodes": nodes,
-        "edges": edges,
-        "provenance": {
+        outcome=build_outcome_properties(
+            trade_id=trade_id,
+            status="historical",
+            entry_price=_float_or_zero(trade.get("price")) or None,
+            origin="extracted",
+        ),
+        agentic_anchors=anchors,
+        provenance={
             "origin": "extracted",
             "source": platform,
             "wallet": wallet,
             "tx_hash": trade.get("txHash"),
         },
-    }
+        updated_at=now,
+        origin="extracted",
+    )
 
 
 def build_node_details(
@@ -508,6 +520,29 @@ def build_node_details(
                     "linkedTradeId": node_id.replace("FB_", ""),
                     "origin": "extracted",
                 }
+            elif node_type == "signal":
+                props = node.get("properties") or {}
+                details[node_id] = {
+                    "nodeType": "signal",
+                    "label": props.get("label") or props.get("summary"),
+                    "origin": props.get("origin", "extracted"),
+                }
+            elif node_type == "belief":
+                props = node.get("properties") or {}
+                details[node_id] = {
+                    "nodeType": "belief",
+                    "thesis": props.get("thesis"),
+                    "conviction": props.get("conviction_level"),
+                    "origin": props.get("origin", "extracted"),
+                }
+            elif node_type == "outcome":
+                props = node.get("properties") or {}
+                details[node_id] = {
+                    "nodeType": "outcome",
+                    "status": props.get("status"),
+                    "pnl_pct": props.get("pnl_pct"),
+                    "origin": props.get("origin", "extracted"),
+                }
 
     return details
 
@@ -540,6 +575,8 @@ def decisions_to_snapshot(
                 label = props.get("label") or props.get("market_label")
                 if label:
                     entry["label"] = label
+                if node_type in ("signal", "belief", "outcome") and props.get("label"):
+                    entry["label"] = props.get("label")
                 if node_type == "market":
                     if node_id in correlated_market_ids and len(correlated_market_ids) > 1:
                         entry["marketRole"] = "correlated_peer"
@@ -611,14 +648,35 @@ def decisions_to_snapshot(
 def build_cot_graph(trades: list[dict[str, Any]], wallet: str) -> dict[str, Any]:
     graph_id = combined_graph_id(wallet)
     user_node_id = wallet_user_slug(wallet)
+    agentic = build_agentic_graph(trades)
+    anchor_index: dict[str, list[str]] = {}
+    for edge in agentic.get("edges") or []:
+        src = str(edge.get("source") or "")
+        tgt = str(edge.get("target") or "")
+        if src and tgt:
+            anchor_index.setdefault(src, []).append(tgt)
+            anchor_index.setdefault(tgt, []).append(src)
+
     market_nodes, market_trades, trade_market_ids = _index_markets_from_trades(trades)
     market_correlations = _compute_market_correlations(
         market_trades, market_nodes, trades, trade_market_ids
     )
-    decisions = [
-        _decision_from_trade(trade, wallet=wallet, graph_id=graph_id, user_node_id=user_node_id, trade_index=i + 1)
-        for i, trade in enumerate(trades)
-    ]
+    decisions = []
+    for i, trade in enumerate(trades):
+        platform = str(trade.get("platform") or "polymarket")
+        title = str(trade.get("title") or "").strip()
+        market_id = _slugify(title, prefix=f"{platform[:2]}_") if title else ""
+        anchors = list(dict.fromkeys(anchor_index.get(market_id, [])[:8]))
+        decisions.append(
+            _decision_from_trade(
+                trade,
+                wallet=wallet,
+                graph_id=graph_id,
+                user_node_id=user_node_id,
+                trade_index=i + 1,
+                agentic_anchors=anchors,
+            )
+        )
     snapshot = decisions_to_snapshot(
         graph_id,
         decisions,

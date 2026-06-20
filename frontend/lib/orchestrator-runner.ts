@@ -4,6 +4,7 @@ import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
 import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
 import { API_BASE } from './workflow-tools';
+import { getOrCreateUserId } from '@/lib/user-profile';
 
 const DEMO_SIGNAL = {
   type: 'news',
@@ -65,16 +66,6 @@ function pickSignal(feeds: Record<string, { latest?: unknown }> | undefined): Re
   if (risk && typeof risk === 'object') {
     return { type: 'risk', agent: 'riskAnalyzer', ...(risk as Record<string, unknown>) };
   }
-  const sports = feeds?.['sportsScanner.user_demo']?.latest;
-  if (sports && typeof sports === 'object') {
-    const payload = sports as Record<string, unknown>;
-    return {
-      type: payload.type ?? 'market_tick',
-      agent: 'sportsScanner',
-      ...payload,
-      summary: payload.summary ?? payload.thesis,
-    };
-  }
   return DEMO_SIGNAL;
 }
 
@@ -97,7 +88,10 @@ export async function runOrchestrator({
   const body = {
     signal: signal ?? pickSignal(feedSignals),
     canvas: canvasPayload(nodes, edges),
-    config: config ?? {},
+    config: {
+      userId: getOrCreateUserId(),
+      ...(config ?? {}),
+    },
   };
 
   const started = performance.now();

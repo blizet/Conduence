@@ -94,7 +94,7 @@ def build_skills_registry(compiled: dict[str, Any]) -> dict[str, Any]:
             SkillSpec(
                 id=feed,
                 skill=skill,
-                category="mindagent" if feed.endswith("Agent") else "feed",
+                category="subagent" if feed.endswith("Agent") else "feed",
                 source="canvas_feed",
                 label=_label_for(feed),
             )

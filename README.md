@@ -1,15 +1,15 @@
 # CoT Knowledge Base
 
-Decision graph platform: **Redpanda** (events) → **FastAPI** (orchestration) → **FalkorDB** (graph) → **Next.js** (dashboard).
+Decision graph platform: **FastAPI** (orchestration) → **FalkorDB** (graph) → **Next.js** (playground).
 
 ## Tech stack
 
 | Layer | Technology |
 |-------|------------|
-| Event streaming | Redpanda + KafkaJS |
-| Graph memory | FalkorDB + `@falkordb/falkordb` (openCypher) |
+| Graph memory | FalkorDB + openCypher |
 | Backend | FastAPI, Pydantic validation, WebSockets |
 | Frontend | Next.js, React Flow, WebSocket live feed |
+| Agentic graph | Local seed JSON + per-user files under `data/agentic/users/` |
 
 Legacy Python CLI (`src/cot_kb/`) is optional — the primary path is `backend/` + `frontend/`.
 
@@ -29,64 +29,36 @@ npm run install:backend
 copy backend\.env.example backend\.env
 copy frontend\.env.example frontend\.env.local
 
-# 4. Terminal A — backend (Kafka consumer + FalkorDB + WS)
+# 4. Terminal A — backend (FalkorDB + WS)
 npm run dev:backend
 
-# 5. Terminal B — dashboard
+# 5. Terminal B — playground
 npm run dev:frontend
-
-# 6. Terminal C — seed (after backend is up)
-npm run seed
-
-# 7. Terminal D — publisher emits every 8s to ONE topic
-npm run publisher-agent
-
-# 8. Terminal E — seeker reads publisher topic, writes seeker graph
-npm run seeker-agent
 ```
 
-Open **http://localhost:3001** (your dashboard). Default graph: `user_771.publisher.v1`.
+Open **http://localhost:3001**. Use **Go Live** on the workflow canvas to run sub-agents and the orchestrator; CoT decisions MERGE directly into FalkorDB.
 
-**Full walkthrough** (kalshiSports publisher, marketplace, orchestrator workflow, CoT graph): **[docs/run-setup.md](docs/run-setup.md)**.
-
-**Important:** Start **backend before** `npm run seed`, or messages are published with no consumer and FalkorDB/Redis stay empty.
-
-## Agents
-
-| Agent | Command | Kafka |
-|-------|---------|-------|
-| Publisher | `npm run publisher-agent` | POST `/api/signals/cot` → `market.signals.public` |
-| Seeker | `npm run seeker-agent` | No-op (SeekerWorker in backend) |
-| Backend | `npm run dev:backend` | Ingress producer + Publisher/Seeker workers → FalkorDB |
-
-`npm run dummy-agent` is an alias for `publisher-agent`.
-
-## Service GUIs (infra)
+## Service GUIs
 
 | UI | URL | Notes |
 |----|-----|-------|
-| **CoT Dashboard** | http://localhost:3001 | Next.js + React Flow |
-| FalkorDB Browser | http://localhost:3000 | Login: `redis://falkordb-server:6379` |
-| Redpanda Console | http://localhost:8080 | Topic `market.signals.public` |
-| RedisInsight | http://localhost:8001 | Not used by FastAPI graph ingest (optional legacy Python only) |
-| Neo4j Browser | http://localhost:7474 | Optional (legacy Python sync) |
-
-See [docs/services.md](docs/services.md) (if present) and **[docs/run-setup.md](docs/run-setup.md)** for the full playground + kalshiSports + marketplace walkthrough.
+| **Playground** | http://localhost:3001 | Next.js + React Flow |
+| FalkorDB Browser | http://localhost:3000 | Graph visualization |
+| RedisInsight | http://localhost:8001 | Optional (Redis Stack) |
 
 ## Architecture
 
 ```text
-POST /api/signals/cot  (npm run seed / publisher-agent / main-agent)
+Go Live (playground)
         │
         ▼
-Redpanda  market.signals.public  (key=graph_id, header publisher_id)
-        │
-        ├─ PublisherWorker ──► MERGE user_117.publisher.v1
-        ├─ SeekerWorker    ──► MERGE user_902.seeker.v1 (publisher whale mirror)
-        └─ MainWorker      ──► MERGE user_771.main.v1 (main-agent CoT)
+Sub-agents + Orchestrator (FastAPI, in-process + WebSocket)
         │
         ▼
-Next.js dashboard (:3001) — REST snapshot + WS feed
+CoT emit ──► FalkorDB MERGE (direct, no message bus)
+        │
+        ▼
+Playground graph view + FalkorDB Browser
 ```
 
 ## API
@@ -95,20 +67,18 @@ Next.js dashboard (:3001) — REST snapshot + WS feed
 |--------|------|-------------|
 | GET | `/api/health` | Health check |
 | GET | `/api/graphs/:graphId/snapshot` | Nodes + edges for React Flow |
-| POST | `/api/signals/cot` | Event-sourced produce (Redpanda only) |
+| POST | `/api/signals/cot` | MERGE CoT decision into FalkorDB |
 | POST | `/api/decisions` | Alias for `/api/signals/cot` |
 | WS | `/ws` | Real-time `decision.ingested` events |
 
 ## Project layout
 
 ```
-backend/           FastAPI + aiokafka + FalkorDB
-frontend/          Next.js dashboard (React Flow)
-config/            Runtime config (e.g. whale-wallets.json)
+backend/           FastAPI + FalkorDB
+frontend/          Next.js playground (React Flow)
+data/agentic/      Macro correlation seed + per-user graph files
 data/decisions/    One JSON per decision event
-data/logs/         Main-agent log — one JSONL with cycles + CoT (gitignored)
-schema/            JSON Schema (mirrored by Zod in backend)
-docker-compose.yml Redpanda, FalkorDB, Redis, Neo4j
+docker-compose.yml FalkorDB, Redis Stack
 AGENTS.md          LLM wiki maintainer instructions
 ```
 

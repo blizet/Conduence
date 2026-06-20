@@ -9,6 +9,7 @@ from app.lib.normalize import normalize_decision
 from app.orchestrator.compile import compile_orchestrator
 from app.orchestrator.decision_engine import DecisionEngine
 from app.orchestrator.graph_registry import match_active_graph, resolve_correlation_graph
+from app.decisions.experience_retrieval import enrich_rag_with_experiences
 from app.orchestrator.llm_synthesize import synthesize_decision
 from app.orchestrator.planner import plan_tool_calls
 from app.orchestrator.state import OrchestratorState
@@ -54,6 +55,18 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
     cot_output = next((o for o in compiled["output_nodes"] if o.get("type") == "cotBuilder"), None)
     cot_data = (cot_output or {}).get("data") or {}
 
+    graph_registry = dict(compiled.get("graph_registry") or {})
+    decision_snapshot = config.get("decision_graph_snapshot")
+    graph_id = config.get("graphId") or cot_data.get("graphId") or graph_registry.get("decision_graph_id")
+    if decision_snapshot and graph_id:
+        graph_registry = {
+            **graph_registry,
+            "decision_graph_id": graph_id,
+            "decision_snapshot": {**decision_snapshot, "graph_id": graph_id},
+        }
+        if config.get("contextGraph") == "decision" or compiled.get("context_graph") == "decision":
+            graph_registry["active_id"] = "decision"
+
     return {
         "signal": signal,
         "connected_tools": compiled["connected_tools"],
@@ -63,12 +76,11 @@ async def ingest_signal(state: OrchestratorState) -> dict[str, Any]:
         "subagent_tools": compiled.get("subagent_tools") or {},
         "output_nodes": [o["type"] for o in compiled["output_nodes"] if o.get("type")],
         "tool_registry": compiled.get("tool_registry") or {},
-        "graph_registry": compiled.get("graph_registry") or {},
+        "graph_registry": graph_registry,
         "skills_registry": compiled.get("skills_registry") or {},
         "skills": (compiled.get("skills_registry") or {}).get("skills") or [],
         "context_graph": compiled.get("context_graph") or "correlation",
         "subagent_registry": compiled.get("subagent_registry") or {},
-        "mind_agent_registry": compiled.get("mind_agent_registry") or {},
         "orchestrator_registry": compiled.get("orchestrator_registry") or {},
         "workflow_topology": compiled.get("topology") or {},
         "config": {
@@ -157,6 +169,9 @@ async def match_graph(state: OrchestratorState) -> dict[str, Any]:
         signal,
         state.get("recent_signals") or [],
     )
+    snapshot = registry.get("decision_snapshot") or {}
+    rag = enrich_rag_with_experiences(rag, signal, snapshot, graph_impacts=impacts)
+
     return {
         "graph_impacts": impacts,
         "rag_context": rag,
@@ -241,7 +256,6 @@ async def llm_synthesize_node(state: OrchestratorState) -> dict[str, Any]:
         skills=state.get("skills") or [],
         graph_registry=state.get("graph_registry") or {},
         subagent_registry_entry=subagent_entry,
-        mind_agent_registry=state.get("mind_agent_registry") or {},
     )
     llm_usage = merge_usage(state.get("llm_usage"), synth_usage)
     langsmith = _langsmith_block()
@@ -280,6 +294,8 @@ async def publish_outputs(state: OrchestratorState) -> dict[str, Any]:
                 "userNodeId": config.get("userNodeId"),
             },
             provenance=provenance,
+            signal=state.get("signal"),
+            graph_impacts=state.get("graph_impacts"),
         )
         if draft:
             event = DecisionEvent.model_validate(draft)

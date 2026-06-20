@@ -399,7 +399,20 @@ def _decision_summary(
             "timestamp": decision_edge.get("timestamp"),
             "market_id": decision_edge.get("source"),
         }
-    if provenance and node_type in ("trade", "market", "agent", "outcome", "feedback"):
+    if node_type == "signal":
+        return {
+            "summary": node.get("label") or node.get("summary"),
+            "signal_type": node.get("signal_type"),
+            "headline": node.get("headline"),
+        }
+    if node_type == "belief":
+        return {
+            "thesis": node.get("thesis") or node.get("label"),
+            "conviction_level": node.get("conviction_level"),
+            "tags": node.get("tags") or [],
+            "agentic_anchors": node.get("agentic_anchors") or [],
+        }
+    if provenance and node_type in ("trade", "market", "agent", "outcome", "feedback", "signal", "belief"):
         execution = provenance.get("execution") if isinstance(provenance.get("execution"), dict) else None
         if execution:
             return {

@@ -23,11 +23,11 @@ from app.agentic.graph import (
     supplement_graph_from_text,
 )
 from app.agentic.llm_graph import call_graph_llm
-from app.agentic.memory import fetch_supermemory_context, persist_to_supermemory
 from app.agentic.shared_graph import (
     agentic_chat_mutations_enabled,
     load_shared_agentic_graph,
     load_user_agentic_graph,
+    persist_user_agentic_graph,
     shared_graph_container_tag,
 )
 from app.agentic.pricing import estimate_cost_usd
@@ -43,7 +43,7 @@ class Session:
     messages: list[dict[str, str]] = field(default_factory=list)
     graph: dict = field(default_factory=create_empty_graph)
     token_usage: dict = field(default_factory=empty_conversation_usage)
-    supermemory_loaded: bool = False
+    graph_source: str = "seed"
 
 
 _sessions: dict[str, Session] = {}
@@ -57,7 +57,7 @@ def _welcome_message(
     *,
     node_count: int,
     edge_count: int,
-    supermemory_loaded: bool,
+    graph_source: str,
     fresh_chat: bool,
     is_template: bool,
     mutations_enabled: bool,
@@ -72,14 +72,14 @@ def _welcome_message(
     else:
         graph_line = "No graph loaded yet. "
 
-    sm = "Restored from Supermemory. " if supermemory_loaded else ""
+    source_hint = "Restored from your saved graph. " if graph_source == "user" else ""
     chat_hint = (
         "Describe relationships or click edges to set weights (−1 to 1). "
         if mutations_enabled
         else "Ask questions about the template — this curated graph is read-only. "
     )
     fresh = "New chat session. " if fresh_chat else ""
-    return f"{fresh}{sm}{graph_line}{chat_hint}Click any edge to inspect or adjust its weight."
+    return f"{fresh}{source_hint}{graph_line}{chat_hint}Click any edge to inspect or adjust its weight."
 
 
 async def create_session(container_tag: str, fresh: bool = False, user_slug: str | None = None) -> Session:
@@ -87,10 +87,10 @@ async def create_session(container_tag: str, fresh: bool = False, user_slug: str
     mutations = agentic_chat_mutations_enabled(container_tag)
 
     if is_user and user_slug:
-        graph, supermemory_loaded, is_template = await load_user_agentic_graph(user_slug)
+        graph, graph_source, is_template = await load_user_agentic_graph(user_slug)
     else:
-        graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
-        is_template = False
+        graph, graph_source = await load_shared_agentic_graph(container_tag)
+        is_template = True
 
     session = Session(
         id=str(uuid.uuid4()),
@@ -100,7 +100,7 @@ async def create_session(container_tag: str, fresh: bool = False, user_slug: str
                 "content": _welcome_message(
                     node_count=len(graph["nodes"]),
                     edge_count=len(graph["edges"]),
-                    supermemory_loaded=supermemory_loaded,
+                    graph_source=graph_source,
                     fresh_chat=fresh,
                     is_template=is_template,
                     mutations_enabled=mutations,
@@ -108,7 +108,7 @@ async def create_session(container_tag: str, fresh: bool = False, user_slug: str
             }
         ],
         graph=graph,
-        supermemory_loaded=supermemory_loaded,
+        graph_source=graph_source,
     )
     _sessions[session.id] = session
     return session
@@ -120,7 +120,7 @@ def _trim_history(messages: list[dict[str, str]]) -> list[dict[str, str]]:
     return messages[-MAX_HISTORY_MESSAGES:]
 
 
-def _build_context_block(session: Session, memory_context: str | None) -> str:
+def _build_context_block(session: Session) -> str:
     pending = pending_weight_questions(session.graph)
     pending_lines = (
         "\n".join(
@@ -132,13 +132,12 @@ def _build_context_block(session: Session, memory_context: str | None) -> str:
         else "none"
     )
     parts = [
-        f"Supermemory context:\n{memory_context}" if memory_context else None,
         f"Current graph:\n{graph_summary(session.graph)}",
         f"Edges still needing a weight:\n{pending_lines}",
         "Graph UI: the user can click any edge on the live graph to open a weight slider "
         "in the sidebar and apply a value in [-1, 1] without typing in chat.",
     ]
-    return "\n\n".join(p for p in parts if p)
+    return "\n\n".join(parts)
 
 
 def _apply_local_batch_weight_fallback(session: Session, user_message: str) -> None:
@@ -173,10 +172,9 @@ async def handle_chat(
         _apply_local_batch_weight_fallback(active, user_message)
         active.graph = sanitize_graph(active.graph)
 
-    memory_context, _ = await fetch_supermemory_context(container_tag, user_message)
     llm_result, turn_usage = await call_graph_llm(
         llm_config,
-        _build_context_block(active, memory_context),
+        _build_context_block(active),
         _trim_history(active.messages),
     )
 
@@ -206,13 +204,10 @@ async def handle_chat(
     )
 
     active.messages.append({"role": "assistant", "content": reply})
-    await persist_to_supermemory(
-        container_tag,
-        user_message,
-        reply,
-        active.graph,
-        persist_graph_snapshot=agentic_chat_mutations_enabled(container_tag),
-    )
+
+    if agentic_chat_mutations_enabled(container_tag) and user_slug:
+        await persist_user_agentic_graph(user_slug, active.graph)
+        active.graph_source = "user"
 
     changes = (
         compute_graph_changes(graph_at_turn_start, active.graph).as_response()
@@ -227,7 +222,7 @@ async def handle_chat(
         "pendingWeights": pending,
         "graphComplete": graph_is_complete(active.graph),
         "tokenUsage": active.token_usage,
-        "supermemoryLoaded": active.supermemory_loaded,
+        "graphSource": active.graph_source,
         **changes,
     }
 
@@ -248,6 +243,7 @@ async def update_edge_weight(
     edge_id: str,
     weight: float,
     container_tag: str,
+    user_slug: str | None = None,
 ) -> dict[str, Any] | None:
     session = get_session(session_id)
     if not session:
@@ -263,18 +259,12 @@ async def update_edge_weight(
         session.graph,
         {"assistant_message": "", "weight_updates": [{"edge_id": edge_id, "weight": clamped}]},
     )
-    label_by_id = {n["id"]: n["label"] for n in session.graph["nodes"]}
-    src = label_by_id.get(edge["source"], edge["source"])
-    tgt = label_by_id.get(edge["target"], edge["target"])
     session.graph = sanitize_graph(session.graph)
     changes = compute_graph_changes(graph_before, session.graph).as_response()
-    await persist_to_supermemory(
-        container_tag,
-        f"[graph] Set weight: {src} → {tgt}",
-        f"Weight: {clamped}",
-        session.graph,
-        persist_graph_snapshot=agentic_chat_mutations_enabled(container_tag),
-    )
+
+    if agentic_chat_mutations_enabled(container_tag) and user_slug:
+        await persist_user_agentic_graph(user_slug, session.graph)
+        session.graph_source = "user"
 
     pending = pending_weight_questions(session.graph)
     return {
@@ -284,6 +274,6 @@ async def update_edge_weight(
         "pendingWeights": pending,
         "graphComplete": graph_is_complete(session.graph),
         "tokenUsage": session.token_usage,
-        "supermemoryLoaded": session.supermemory_loaded,
+        "graphSource": session.graph_source,
         **changes,
     }

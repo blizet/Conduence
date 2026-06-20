@@ -159,22 +159,6 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
     ],
   },
 
-  sportsScanner: {
-    intro: 'External mind-agent — receives late-game soccer signals from the kalshiSports publisher.',
-    fields: [
-      {
-        field: 'Publisher',
-        description: 'Signals arrive via HTTP wrapper; no local parameters.',
-        howTo: 'Install “Kalshi Sports Scanner” from the Agent Marketplace, then start the publisher or enable Go Live.',
-      },
-      {
-        field: 'Feed topic',
-        description: 'Kafka/Redpanda topic: agent.feeds.sportsScanner.user_demo.public',
-        howTo: 'See kalshiSports/cot_wrapper.py for the signal schema (market_tick, trade_enter, trade_exit).',
-      },
-    ],
-  },
-
   clob: {
     intro: 'Execution sink — maps agent trade JSON to a Polymarket CLOB limit order.',
     fields: [
@@ -310,9 +294,9 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
         howTo: 'Default http://localhost:4000 when running npm run dev:backend.',
       },
       {
-        field: 'Auto-emit to Redpanda',
-        description: 'POST the built DecisionEvent to market.signals.public after build.',
-        howTo: 'Requires docker compose (Redpanda) and backend consumer running.',
+        field: 'Auto-emit to FalkorDB',
+        description: 'MERGE the built DecisionEvent into FalkorDB after build.',
+        howTo: 'Requires docker compose (FalkorDB) and backend running.',
       },
       {
         field: 'Decision JSON',

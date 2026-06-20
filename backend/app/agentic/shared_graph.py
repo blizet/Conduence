@@ -1,15 +1,14 @@
-"""Shared macro correlation graph — seed file, Supermemory, and agentic schema."""
+"""Shared macro correlation graph — local seed file and agentic schema."""
 
 from __future__ import annotations
 
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Any, Literal
 
 from app.agentic.graph import sanitize_graph
-from app.agentic.memory import format_graph_snapshot, load_graph_from_supermemory
+from app.agentic.memory import load_user_graph_file, save_user_graph_file
 from app.agentic.weight import clamp_weight
 
 logger = logging.getLogger(__name__)
@@ -17,32 +16,22 @@ logger = logging.getLogger(__name__)
 NodeType = Literal["event", "asset", "market", "concept"]
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-
-
-def _resolve_path(raw: str) -> Path:
-    path = Path(raw)
-    return path if path.is_absolute() else _REPO_ROOT / path
+SEED_PATH = _REPO_ROOT / "data" / "agentic" / "macro_correlation_graph.json"
 
 
 def shared_graph_container_tag() -> str:
-    return os.getenv("AGENTIC_SHARED_GRAPH_TAG", "cot-macro-graph-v1").strip()
+    return "cot-macro-graph-v1"
 
 
 def shared_graph_seed_path() -> Path:
-    agentic_cache = _resolve_path("data/agentic/macro_correlation_graph.json")
-    if agentic_cache.is_file():
-        return agentic_cache
-    return _resolve_path(
-        os.getenv("AGENTIC_GRAPH_SEED_PATH", "data/correlation/gemini_macro_graph.json")
-    )
+    return SEED_PATH
 
 
 def agentic_chat_mutations_enabled(container_tag: str | None = None) -> bool:
-    """User agentic containers allow chat edits; shared template is read-only unless env override."""
+    """User agentic containers allow chat edits; shared template is read-only."""
     if container_tag and container_tag.strip() != shared_graph_container_tag():
         return True
-    raw = (os.getenv("AGENTIC_GRAPH_CHAT_MUTATIONS") or "false").strip().lower()
-    return raw in {"1", "true", "yes", "on"}
+    return False
 
 
 def user_agentic_container_tag(user_slug: str) -> str:
@@ -128,58 +117,34 @@ def load_graph_from_seed_file(path: Path | None = None) -> dict[str, list]:
     return correlation_json_to_agentic(raw)
 
 
-async def load_user_agentic_graph(user_slug: str) -> tuple[dict[str, list], bool, bool]:
-    """Load user's agentic graph from Supermemory, or macro template as starting point."""
-    tag = user_agentic_container_tag(user_slug)
-    hydrated = await load_graph_from_supermemory(tag)
-    if hydrated.get("nodes") and hydrated.get("edges"):
-        graph = sanitize_graph(hydrated)
-        if graph["nodes"]:
-            return graph, True, False
+async def load_user_agentic_graph(user_slug: str) -> tuple[dict[str, list], str, bool]:
+    """Load user's saved graph, or macro template as starting point."""
+    saved = load_user_graph_file(user_slug)
+    if saved:
+        return saved, "user", False
 
-    template, template_loaded = await load_shared_agentic_graph()
-    return template, template_loaded, True
+    template = load_graph_from_seed_file()
+    return template, "seed", True
 
 
-async def load_shared_agentic_graph(container_tag: str | None = None) -> tuple[dict[str, list], bool]:
-    """Load the global agentic graph from Supermemory, falling back to the seed file."""
-    tag = (container_tag or shared_graph_container_tag()).strip()
-    snapshot_path = _resolve_path("data/agentic/shared_graph_snapshot.txt")
-    seeded_locally = snapshot_path.is_file()
-
-    hydrated = await load_graph_from_supermemory(tag)
-    if hydrated.get("nodes") and hydrated.get("edges"):
-        graph = sanitize_graph(hydrated)
-        if graph["nodes"] and graph["edges"]:
-            return graph, True
-
+async def load_shared_agentic_graph(_container_tag: str | None = None) -> tuple[dict[str, list], str]:
+    """Load the global agentic graph from the local seed file."""
     seed_graph = load_graph_from_seed_file()
     if seed_graph["nodes"] and seed_graph["edges"]:
-        if seeded_locally:
-            logger.info(
-                "Loaded shared graph from local agentic seed (%s nodes, %s edges) — Supermemory seeded",
-                len(seed_graph["nodes"]),
-                len(seed_graph["edges"]),
-            )
-            return seed_graph, True
         logger.info(
-            "Using local seed graph (%s nodes, %s edges) — run seed_agentic_graph_supermemory.py to publish",
+            "Loaded shared agentic graph from seed (%s nodes, %s edges)",
             len(seed_graph["nodes"]),
             len(seed_graph["edges"]),
         )
-        return seed_graph, False
+        return seed_graph, "seed"
+    return {"nodes": [], "edges": []}, "seed"
 
-    if snapshot_path.is_file():
-        snapshot_text = snapshot_path.read_text(encoding="utf-8")
-        from app.agentic.memory import graph_from_memories
 
-        cached = graph_from_memories([snapshot_text])
-        if cached.get("nodes") and cached.get("edges"):
-            logger.info("Loaded shared graph from local Supermemory snapshot cache")
-            return sanitize_graph(cached), True
-
-    return {"nodes": [], "edges": []}, False
+async def persist_user_agentic_graph(user_slug: str, graph: dict[str, Any]) -> None:
+    save_user_graph_file(user_slug, graph)
 
 
 def graph_snapshot_content(graph: dict[str, list]) -> str:
+    from app.agentic.memory import format_graph_snapshot
+
     return format_graph_snapshot(graph)

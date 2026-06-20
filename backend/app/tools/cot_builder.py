@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from app.decisions.experience_chain import build_experience_decision, infer_agentic_anchors
+
 DEFAULT_GRAPH_ID = "user_771.main.v1"
 DEFAULT_USER_NODE_ID = "user_771"
 _trade_counter = 0
@@ -17,6 +19,10 @@ def _action_label(action: str) -> str:
         return "Buy YES"
     if action == "BUY_NO":
         return "Buy NO"
+    if action == "SELL_YES":
+        return "Sell YES"
+    if action == "SELL_NO":
+        return "Sell NO"
     return "Hold"
 
 
@@ -26,6 +32,8 @@ def build_cot_decision(
     options: dict[str, Any] | None = None,
     *,
     provenance: dict[str, Any] | None = None,
+    signal: dict[str, Any] | None = None,
+    graph_impacts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     options = options or {}
     if decision.get("action") == "HOLD" or decision.get("market_id") == "NONE":
@@ -37,7 +45,9 @@ def build_cot_decision(
     decision_id = options.get("decisionId") or f"dec-{trade_id.lower()}-open"
     market_id = decision["market_id"]
     now = datetime.now(timezone.utc).isoformat()
-    action = _action_label(decision["action"])
+    action = str(decision["action"])
+    action_label = _action_label(action)
+    tags = decision.get("tags") or []
 
     pm_markets = correlated.get("polymarket", [])
     pm_market = next((m for m in pm_markets if m.get("id") == market_id), None)
@@ -49,68 +59,45 @@ def build_cot_decision(
     other_pm_peers = [m["id"] for m in pm_markets if m.get("id") != market_id][:2]
     targets = list(dict.fromkeys([*correlated_targets, *other_pm_peers]))
 
-    nodes = [
-        {"node_id": user_node_id, "node_type": "user"},
-        {"node_id": "Polymarket", "node_type": "protocol"},
-        {"node_id": market_id, "node_type": "market"},
-        {"node_id": trade_id, "node_type": "trade"},
-        {"node_id": f"FB_{trade_id}", "node_type": "feedback"},
-    ]
-    for kal_id in correlated_targets:
-        if not any(n["node_id"] == kal_id for n in nodes):
-            nodes.append({"node_id": kal_id, "node_type": "market"})
-
     pm_url = (pm_market or {}).get("url", "https://polymarket.com")
-    edges = [
-        {"source": user_node_id, "target": "Polymarket"},
-        {
-            "source": "Polymarket",
-            "target": market_id,
-            "metadata": {
-                "source_url": pm_url,
-                "confidence_score": 1.0,
-                "slug": decision.get("market_slug") or (pm_market or {}).get("slug"),
-                "condition_id": decision.get("condition_id") or (pm_market or {}).get("conditionId"),
-            },
-        },
-        {
-            "source": market_id,
-            "target": trade_id,
-            "Action": action,
-            "metadata": {
-                "thesis": decision["thesis"],
-                "conviction_level": decision["conviction_level"],
-                "tags": decision["tags"],
-                "reasoning": decision["reasoning"],
-                "source_url": pm_url,
-                "confidence_score": decision["conviction_level"] / 10,
-                "timestamp": now,
-                "decision_id": decision_id,
-            },
-        },
-        {"source": trade_id, "target": f"FB_{trade_id}", "metadata": {"source_url": pm_url}},
-    ]
-    if targets:
-        edges.append(
-            {
-                "source": market_id,
-                "targets": targets,
-                "direction": "bi-directional",
-                "metadata": {"relationship_type": "correlated_market"},
-            }
-        )
-
-    base_provenance = provenance or {"raw_sources": [pm_url]}
+    base_provenance = dict(provenance or {"raw_sources": [pm_url]})
     if "raw_sources" not in base_provenance:
         base_provenance = {**base_provenance, "raw_sources": [pm_url]}
 
-    return {
-        "schema_version": "1.0",
-        "operation": "assert",
-        "graph_id": graph_id,
-        "decision_id": decision_id,
-        "updated_at": now,
-        "nodes": nodes,
-        "edges": edges,
-        "provenance": base_provenance,
+    synth_signal = signal or {
+        "type": "orchestrator",
+        "agent": "orchestrator",
+        "summary": decision.get("thesis") or decision.get("reasoning"),
+        "thesis": decision.get("thesis"),
+        "keywords": [str(t).lstrip("#") for t in tags[:6]],
     }
+
+    anchors = infer_agentic_anchors(synth_signal, graph_impacts=graph_impacts, tags=tags)
+
+    return build_experience_decision(
+        graph_id=graph_id,
+        user_node_id=user_node_id,
+        trade_id=trade_id,
+        decision_id=decision_id,
+        market_id=market_id,
+        protocol_id="Polymarket",
+        action=action,
+        action_label=action_label,
+        thesis=str(decision.get("thesis") or ""),
+        reasoning=str(decision.get("reasoning") or ""),
+        conviction_level=int(decision.get("conviction_level") or 5),
+        tags=tags,
+        signal=synth_signal,
+        market_properties={"slug": decision.get("market_slug") or (pm_market or {}).get("slug")},
+        market_edge_metadata={
+            "source_url": pm_url,
+            "confidence_score": float(decision.get("conviction_level", 5)) / 10,
+            "slug": decision.get("market_slug") or (pm_market or {}).get("slug"),
+            "condition_id": decision.get("condition_id") or (pm_market or {}).get("conditionId"),
+        },
+        agentic_anchors=anchors,
+        correlated_targets=targets or None,
+        provenance=base_provenance,
+        updated_at=now,
+        origin="live",
+    )

@@ -1,7 +1,6 @@
 import type { NodeTypes } from '@xyflow/react';
 import type { PaletteItem, PaletteToolGroup } from './types';
-import { LlmNode } from './mindagents/LlmNode';
-import { SportsScannerNode } from './mindagents/SportsScannerNode';
+import { LlmNode } from './orchestrator/LlmNode';
 import { ArbitrageAgentNode } from './subagents/ArbitrageAgentNode';
 import { NewsAgentNode } from './subagents/NewsAgentNode';
 import { RiskAnalyzerNode } from './subagents/RiskAnalyzerNode';
@@ -44,7 +43,6 @@ export const nodeTypes: NodeTypes = {
   newsAgent: NewsAgentNode,
   arbitrageAgent: ArbitrageAgentNode,
   riskAnalyzer: RiskAnalyzerNode,
-  sportsScanner: SportsScannerNode,
 };
 
 export type PaletteGroupConfig = {
@@ -92,13 +90,6 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     description: 'Size trades from portfolio limits — snap market/wallet tools',
     category: 'subagent',
     accent: '#fbbf24',
-  },
-  {
-    type: 'sportsScanner',
-    label: 'Kalshi Sports Scanner',
-    description: 'External late-game soccer feed — publisher runs kalshiSports + HTTP wrapper',
-    category: 'mindagent',
-    accent: '#4ade80',
   },
   {
     type: 'polymarketGamma',

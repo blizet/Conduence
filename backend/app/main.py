@@ -6,8 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
     agents_router,
-    feeds_router,
-    marketplace_router,
     orchestrator_router,
     router,
     tools_router,
@@ -15,11 +13,7 @@ from app.api.routes import (
 from app.agentic.routes import router as agentic_router
 from app.config import PORT
 from app.falkordb.service import FalkorDbService
-from app.kafka.producer import SignalProducerService
-from app.kafka.worker import MainWorkerService
 from app.services.autonomous_stream import AutonomousAgentStreamService
-from app.services.external_feed import ExternalFeedService
-from app.services.ingress import SignalIngressService
 from app.services.orchestrator_stream import OrchestratorStreamService
 from app.services.workflow_live import WorkflowLiveService
 from app.ws.events import EventsManager
@@ -32,40 +26,26 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     events = EventsManager()
     falkordb = FalkorDbService()
-    producer = SignalProducerService()
-    ingress = SignalIngressService(producer, events)
     orchestrator_stream = OrchestratorStreamService(events)
-    external_feeds = ExternalFeedService(producer, events, orchestrator_stream)
-    autonomous_streams = AutonomousAgentStreamService(
-        producer, events, orchestrator_stream, ingress=ingress
-    )
-    workflow_live = WorkflowLiveService(orchestrator_stream, autonomous_streams, ingress=ingress)
-    main_worker = MainWorkerService(falkordb, events)
+    autonomous_streams = AutonomousAgentStreamService(events, orchestrator_stream, falkordb=falkordb)
+    workflow_live = WorkflowLiveService(orchestrator_stream, autonomous_streams, falkordb=falkordb)
 
-    app.state.infra_ready = {"falkordb": False, "kafka": False}
+    app.state.infra_ready = {"falkordb": False}
 
     try:
         await falkordb.connect()
         app.state.infra_ready["falkordb"] = True
     except Exception as exc:
-        logger.warning("FalkorDB unavailable (%s) — graph endpoints disabled until docker compose is up", exc)
-
-    try:
-        await producer.start()
-        app.state.infra_ready["kafka"] = True
-        await main_worker.start()
-    except Exception as exc:
-        logger.warning("Kafka unavailable (%s) — signal ingest/workers disabled until docker compose is up", exc)
+        logger.warning(
+            "FalkorDB unavailable (%s) — graph endpoints disabled until docker compose is up",
+            exc,
+        )
 
     app.state.events = events
     app.state.falkordb = falkordb
-    app.state.producer = producer
-    app.state.ingress = ingress
     app.state.autonomous_streams = autonomous_streams
-    app.state.external_feeds = external_feeds
     app.state.orchestrator_stream = orchestrator_stream
     app.state.workflow_live = workflow_live
-    app.state.main_worker = main_worker
 
     logger.info("CoT backend (FastAPI) listening on http://localhost:%s", PORT)
     logger.info("WebSocket: ws://localhost:%s/ws", PORT)
@@ -75,8 +55,6 @@ async def lifespan(app: FastAPI):
     orchestrator_stream.stop()
     await workflow_live.stop()
     await autonomous_streams.shutdown()
-    await main_worker.stop()
-    await producer.stop()
     await falkordb.close()
 
 
@@ -92,8 +70,6 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(tools_router)
 app.include_router(agents_router)
-app.include_router(marketplace_router)
-app.include_router(feeds_router)
 app.include_router(orchestrator_router)
 app.include_router(agentic_router)
 

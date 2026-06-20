@@ -7,6 +7,8 @@ NodeType = Literal[
     "protocol",
     "market",
     "correlated_market",
+    "signal",
+    "belief",
     "trade",
     "outcome",
     "feedback",

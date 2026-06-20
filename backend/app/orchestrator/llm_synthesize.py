@@ -70,8 +70,7 @@ async def synthesize_decision(
     rag_context: dict[str, Any] | None = None,
     skills: list[str] | None = None,
     graph_registry: dict[str, Any] | None = None,
-    subagent_registry_entry: dict[str, Any] | None = None,
-    mind_agent_registry: dict[str, Any] | None = None,
+    subagent_registry: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     import json
 
@@ -96,14 +95,6 @@ async def synthesize_decision(
                 "transparent": True,
                 "execution_tools": subagent_registry_entry.get("execution_tools") or [],
                 "userPrompt": subagent_registry_entry.get("userPrompt") or "",
-            }
-        )
-    elif agent_id and (mind_agent_registry or {}).get(agent_id):
-        feed_meta.update(
-            {
-                "source": "mind_agent",
-                "black_box": True,
-                "publisher": (mind_agent_registry or {}).get(agent_id, {}).get("publisher"),
             }
         )
 

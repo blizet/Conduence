@@ -8,7 +8,6 @@ import {
   filterGraphsForUser,
   type ContextGraphSpec,
 } from '@/lib/graph-catalog';
-import { useInstalledNodeTypes } from '@/lib/marketplace';
 import { DEFAULT_COT_USER_NODE_ID } from '@/nodes/constants';
 import {
   EXECUTION_TOOL_GROUPS,
@@ -208,14 +207,8 @@ function PaletteGraphsSection({
   );
 }
 
-function isSubagentVisible(item: PaletteItem, installed: Set<string>) {
-  if (item.category !== 'subagent') return false;
-  if (item.requiresInstall) return installed.has(item.type);
-  return true;
-}
-
-function isMindAgentVisible(item: PaletteItem) {
-  return item.category === 'mindagent';
+function isSubagentVisible(item: PaletteItem) {
+  return item.category === 'subagent';
 }
 
 export function NodePalette() {
@@ -227,7 +220,6 @@ export function NodePalette() {
   const [contextGraphs, setContextGraphs] = useState<ContextGraphSpec[]>([]);
   const [userGraphs, setUserGraphs] = useState<string[]>([]);
   const [graphsLoading, setGraphsLoading] = useState(true);
-  const installedNodeTypes = useInstalledNodeTypes();
   const userSlug = DEFAULT_COT_USER_NODE_ID;
 
   useEffect(() => {
@@ -260,18 +252,13 @@ export function NodePalette() {
         )
       : PALETTE_ITEMS;
     return base.filter((item) => {
-      if (item.category === 'subagent') return isSubagentVisible(item, installedNodeTypes);
-      if (item.category === 'mindagent') return isMindAgentVisible(item);
+      if (item.category === 'subagent') return isSubagentVisible(item);
       return true;
     });
-  }, [query, installedNodeTypes]);
+  }, [query]);
 
   const mainAgentItems = useMemo(
     () => filtered.filter((item) => item.category === 'orchestrator'),
-    [filtered],
-  );
-  const mainAgentsItems = useMemo(
-    () => filtered.filter((item) => item.category === 'mindagent'),
     [filtered],
   );
   const subagentItems = useMemo(
@@ -360,18 +347,6 @@ export function NodePalette() {
               </div>
             )}
 
-            {mainAgentsItems.length > 0 && (
-              <div className="palette-section">
-                <div className="palette-section-title palette-section-title--mindagents">
-                  <span className="palette-section-title__text">Mind Agent</span>
-                  <span className="palette-section-title__rule" aria-hidden />
-                </div>
-                {mainAgentsItems.map((item) => (
-                  <PaletteEntry key={item.type} item={item} />
-                ))}
-              </div>
-            )}
-
             {subagentItems.length > 0 && (
               <div className="palette-section">
                 <div className="palette-section-title palette-section-title--subagents">
@@ -454,13 +429,6 @@ export function NodePalette() {
           {mainAgentItems.length > 0 && (
             <div className="palette-rail-group">
               {mainAgentItems.map((item) => (
-                <RailEntry key={item.type} item={item} />
-              ))}
-            </div>
-          )}
-          {mainAgentsItems.length > 0 && (
-            <div className="palette-rail-group">
-              {mainAgentsItems.map((item) => (
                 <RailEntry key={item.type} item={item} />
               ))}
             </div>

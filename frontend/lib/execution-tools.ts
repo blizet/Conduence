@@ -8,7 +8,7 @@ import { executePaperTradingForSession } from './paper-trading';
 
 export const EXECUTION_TOOL_TYPES = new Set(['clob', 'kalshi', 'telegram', 'paperTrading']);
 
-const AGENT_SOURCE_TYPES = new Set(['llm', 'newsAgent', 'arbitrageAgent', 'riskAnalyzer', 'sportsScanner']);
+const AGENT_SOURCE_TYPES = new Set(['llm', 'newsAgent', 'arbitrageAgent', 'riskAnalyzer']);
 
 export type AgentTradeInput = Record<string, unknown>;
 
@@ -119,10 +119,7 @@ export function resolveAgentTradePayload(
     return null;
   }
 
-  const feedKey =
-    sourceNode.type === 'sportsScanner'
-      ? String(sourceNode.data.agentId ?? 'sportsScanner.user_demo')
-      : (sourceNode.type ?? '');
+  const feedKey = sourceNode.type ?? '';
   const feed = feedSignals?.[feedKey]?.latest;
   if (feed && typeof feed === 'object') {
     return feed as AgentTradeInput;

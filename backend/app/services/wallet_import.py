@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from app.agentic.shared_graph import persist_user_agentic_graph
 from app.falkordb.service import FalkorDbService
+from app.lib.normalize import normalize_decision
 from app.schemas.decision import DecisionEvent
 from app.services.user_profile import load_profile, save_profile
 from app.services.wallet_graph_builder import (
@@ -39,10 +41,18 @@ async def import_wallet_for_user(
     for decision in preview["cotGraph"].get("decisions") or []:
         try:
             event = DecisionEvent.model_validate(decision)
-            result = await falkordb.merge_cot_delta(event)
+            normalized = normalize_decision(event)
+            result = await falkordb.merge_cot_delta(normalized)
             ingest_stats.append(result)
         except Exception as exc:
             ingest_errors.append(str(exc))
+
+    agentic_graph = preview.get("agenticGraph") or {}
+    if agentic_graph.get("nodes"):
+        try:
+            await persist_user_agentic_graph(user_slug, agentic_graph)
+        except Exception:
+            pass
 
     snapshot = preview["cotGraph"]["snapshot"]
     snapshot_limit = _snapshot_limit_for_trades(len(preview["cotGraph"].get("decisions") or []))

@@ -1,16 +1,15 @@
-"""Agentic graph chat API — LLM-driven weighted causal graphs with Supermemory persistence."""
+"""Agentic graph chat API — LLM-driven weighted causal graphs with local persistence."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.agentic.config import (
     LLM_PROVIDERS,
     env_llm_defaults,
-    is_supermemory_configured,
     resolve_container_tag,
     resolve_llm_config,
 )
@@ -28,7 +27,6 @@ from app.agentic.session import (
     reset_session,
     update_edge_weight,
 )
-from app.agentic.tokens import empty_conversation_usage
 
 router = APIRouter(prefix="/api/agentic", tags=["agentic"])
 
@@ -64,7 +62,6 @@ async def agentic_health() -> dict[str, Any]:
     env_fallback = resolve_llm_config(None, env_llm_defaults())
     return {
         "ok": True,
-        "supermemoryConfigured": is_supermemory_configured(),
         "envFallbackConfigured": bool(env_fallback),
         "providers": LLM_PROVIDERS,
         "sharedGraphContainer": shared_graph_container_tag(),
@@ -77,24 +74,24 @@ async def agentic_graph(userSlug: str | None = None) -> dict[str, Any]:
     slug = (userSlug or "").strip()
     if slug:
         container_tag = resolve_container_tag(slug)
-        graph, supermemory_loaded, is_template = await load_user_agentic_graph(slug)
+        graph, graph_source, is_template = await load_user_agentic_graph(slug)
         return {
             "ok": True,
             "containerTag": container_tag,
             "graph": graph,
-            "supermemoryLoaded": supermemory_loaded,
+            "graphSource": graph_source,
             "isTemplate": is_template,
             "graphComplete": graph_is_complete(graph),
             "pendingWeights": pending_weight_questions(graph),
         }
 
     container_tag = shared_graph_container_tag()
-    graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
+    graph, graph_source = await load_shared_agentic_graph(container_tag)
     return {
         "ok": True,
         "containerTag": container_tag,
         "graph": graph,
-        "supermemoryLoaded": supermemory_loaded,
+        "graphSource": graph_source,
         "isTemplate": True,
         "graphComplete": graph_is_complete(graph),
         "pendingWeights": pending_weight_questions(graph),
@@ -104,12 +101,12 @@ async def agentic_graph(userSlug: str | None = None) -> dict[str, Any]:
 @router.get("/graph/template")
 async def agentic_template_graph() -> dict[str, Any]:
     container_tag = shared_graph_container_tag()
-    graph, supermemory_loaded = await load_shared_agentic_graph(container_tag)
+    graph, graph_source = await load_shared_agentic_graph(container_tag)
     return {
         "ok": True,
         "containerTag": container_tag,
         "graph": graph,
-        "supermemoryLoaded": supermemory_loaded,
+        "graphSource": graph_source,
         "graphComplete": graph_is_complete(graph),
         "pendingWeights": pending_weight_questions(graph),
     }
@@ -125,6 +122,7 @@ async def agentic_session(id: str) -> dict[str, Any]:
         "messages": session.messages,
         "graph": session.graph,
         "tokenUsage": session.token_usage,
+        "graphSource": session.graph_source,
     }
 
 
@@ -160,7 +158,7 @@ async def agentic_reset(body: ResetRequest) -> dict[str, Any]:
         "messages": session.messages,
         "graph": session.graph,
         "tokenUsage": session.token_usage,
-        "supermemoryLoaded": session.supermemory_loaded,
+        "graphSource": session.graph_source,
         "graphComplete": graph_is_complete(session.graph),
         "pendingWeights": pending_weight_questions(session.graph),
     }
@@ -174,7 +172,13 @@ async def agentic_edge_weight(body: EdgeWeightRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="edgeId is required")
 
     container_tag = resolve_container_tag(body.userSlug)
-    result = await update_edge_weight(body.sessionId, body.edgeId, body.weight, container_tag)
+    result = await update_edge_weight(
+        body.sessionId,
+        body.edgeId,
+        body.weight,
+        container_tag,
+        user_slug=body.userSlug,
+    )
     if not result:
         raise HTTPException(status_code=404, detail="Session or edge not found")
     return result

@@ -90,12 +90,8 @@ def resolve_llm_config(
     return {"provider": provider, "apiKey": api_key, "model": model}
 
 
-def is_supermemory_configured() -> bool:
-    return bool(os.getenv("SUPERMEMORY_API_KEY", "").strip())
-
-
 def resolve_container_tag(user_slug: str | None) -> str:
-    """Per-user agentic Supermemory container (macro template loaded as fallback)."""
+    """Per-user agentic graph namespace."""
     slug = (user_slug or "").strip()
     if not slug:
         from app.agentic.shared_graph import shared_graph_container_tag

@@ -30,13 +30,7 @@ PURE_TOOL_NODE_TYPES = frozenset(
     }
 )
 SUB_AGENT_NODE_TYPES = frozenset({"newsAgent", "arbitrageAgent", "riskAnalyzer"})
-MIND_AGENT_NODE_TYPES = frozenset({"sportsScanner"})
 ORCHESTRATOR_NODE_TYPE = "llm"
-
-# Default marketplace agent ids for mind-agent node types
-MIND_AGENT_DEFAULT_IDS: dict[str, str] = {
-    "sportsScanner": "sportsScanner.user_demo",
-}
 
 
 def _index_nodes(nodes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -196,6 +190,9 @@ def compile_workflow_context(
     llm_id = llm_node["id"] if llm_node else None
     llm_config = (llm_node or {}).get("data") or {}
     active_graph = _parse_context_graph(llm_config)
+    ctx_override = config.get("contextGraph") or config.get("context_graph")
+    if ctx_override:
+        active_graph = _parse_context_graph({"contextGraph": ctx_override})
 
     # --- Subagent registry (all subagent nodes on canvas) ---
     subagent_registry: dict[str, dict[str, Any]] = {}
@@ -241,28 +238,6 @@ def compile_workflow_context(
             ),
         }
 
-    # --- Mind agent registry (marketplace feeds on canvas) ---
-    mind_agent_registry: dict[str, dict[str, Any]] = {}
-    connected_mind_agents: list[str] = []
-    for node in nodes:
-        node_type = node.get("type") or ""
-        if node_type not in MIND_AGENT_NODE_TYPES:
-            continue
-        data = node.get("data") or {}
-        agent_id = (data.get("agentId") or MIND_AGENT_DEFAULT_IDS.get(node_type) or node_type).strip()
-        if agent_id not in connected_mind_agents:
-            connected_mind_agents.append(agent_id)
-        mind_agent_registry[agent_id] = {
-            "id": agent_id,
-            "node_type": node_type,
-            "node_id": node["id"],
-            "black_box": True,
-            "source": "external",
-            "wired_to_orchestrator": bool(
-                llm_id and llm_id in _outgoing_targets(edges, node["id"])
-            ),
-        }
-
     # --- Orchestrator registry ---
     orchestrator_execution_tools: list[str] = []
     orchestrator_tool_configs: dict[str, dict[str, Any]] = {}
@@ -280,13 +255,6 @@ def compile_workflow_context(
                 if node_type not in connected_subagents:
                     connected_subagents.append(node_type)
                 feed_sources.append(node_type)
-            elif node_type in MIND_AGENT_NODE_TYPES:
-                agent_id = (
-                    (src.get("data") or {}).get("agentId")
-                    or MIND_AGENT_DEFAULT_IDS.get(node_type)
-                    or node_type
-                )
-                feed_sources.append(agent_id)
             elif node_type in PURE_TOOL_NODE_TYPES and node_type not in EXECUTION_TOOL_NODE_TYPES and node_type not in ("cotBuilder",):
                 if node_type not in orchestrator_execution_tools:
                     orchestrator_execution_tools.append(node_type)
@@ -327,7 +295,6 @@ def compile_workflow_context(
                     output_nodes.append({"id": tgt_id, "type": "cotBuilder", "data": tgt.get("data") or {}})
 
     auto_emit_cot = any((o.get("data") or {}).get("autoEmit") for o in output_nodes if o.get("type") == "cotBuilder")
-    publish_as_mind_agent = bool(config.get("publishAsMindAgent") or config.get("mind_agent_live"))
 
     decision_graph_id = config.get("graphId") or llm_config.get("graphId")
     decision_snapshot = config.get("decision_graph_snapshot") or {}
@@ -352,11 +319,9 @@ def compile_workflow_context(
         "tool_configs": orchestrator_tool_configs,
         "tool_registry": build_tool_registry_payload(orchestrator_execution_tools),
         "connected_subagents": connected_subagents,
-        "connected_mind_agents": connected_mind_agents,
         "subagent_registry": {
             k: v for k, v in subagent_registry.items() if k in connected_subagents
         },
-        "mind_agent_registry": mind_agent_registry,
         "graph_registry": graph_registry,
         "llm_config": llm_config,
     }
@@ -384,12 +349,10 @@ def compile_workflow_context(
         "skills_registry": skills_registry,
         "graph_registry": graph_registry,
         "subagent_registry": subagent_registry,
-        "mind_agent_registry": mind_agent_registry,
         "orchestrator_registry": orchestrator_registry,
         "topology": {
             "has_orchestrator": llm_node is not None,
             "auto_emit_cot": auto_emit_cot,
-            "publish_as_mind_agent": publish_as_mind_agent,
             "standalone_subagents": [
                 sa_id
                 for sa_id, entry in subagent_registry.items()

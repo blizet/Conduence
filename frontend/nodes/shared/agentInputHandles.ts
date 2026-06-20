@@ -1,26 +1,5 @@
 import type { HandleConfig } from '../types';
 
-/** Mind agent — bottom input ports without Tools/Memory labels. */
-export function mindagentInputHandles(outputId: string): HandleConfig[] {
-  return [
-    { type: 'target', position: 'left', id: 'in-main' },
-    {
-      type: 'target',
-      position: 'bottom',
-      id: 'in-tools',
-      multiConnect: true,
-      style: { left: '38%' },
-    },
-    {
-      type: 'target',
-      position: 'bottom',
-      id: 'in-memory',
-      style: { left: '62%' },
-    },
-    { type: 'source', position: 'right', id: outputId },
-  ];
-}
-
 /** Bottom Tools + Memory ports; main workflow input on the left (no chat-model port). */
 export function subagentInputHandles(outputId: string): HandleConfig[] {
   return [

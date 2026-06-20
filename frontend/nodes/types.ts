@@ -2,7 +2,7 @@ import type { Node } from '@xyflow/react';
 import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
 import type { LlmProvider } from '@/lib/llm-providers';
 
-export type NodeCategory = 'tool' | 'subagent' | 'orchestrator' | 'mindagent';
+export type NodeCategory = 'tool' | 'subagent' | 'orchestrator';
 
 export type ToolAccessMode = 'public' | 'private';
 

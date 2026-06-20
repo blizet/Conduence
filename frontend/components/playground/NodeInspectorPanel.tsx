@@ -21,7 +21,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   tool: 'Tool',
   subagent: 'Sub-agent',
   orchestrator: 'Orchestrator',
-  mindagent: 'Mind agent',
 };
 
 export function NodeInspectorPanel({ node, nodes, edges, feedSignals }: NodeInspectorPanelProps) {

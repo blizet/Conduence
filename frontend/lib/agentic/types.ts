@@ -63,7 +63,7 @@ export interface ChatApiResponse {
   pendingWeights: PendingWeightQuestion[];
   graphComplete: boolean;
   tokenUsage: ConversationTokenUsage;
-  supermemoryLoaded?: boolean;
+  graphSource?: string;
   changedNodeIds?: string[];
   addedNodeIds?: string[];
   updatedNodeIds?: string[];

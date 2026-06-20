@@ -57,6 +57,7 @@ async def run_orchestrator(
         "skills_registry": final_state.get("skills_registry"),
         "tool_registry": final_state.get("tool_registry"),
         "rag_context": final_state.get("rag_context"),
+        "workflow_topology": final_state.get("workflow_topology"),
         "llm_usage": final_state.get("llm_usage") or empty_llm_usage(),
         "langsmith": final_state.get("langsmith") or _langsmith_block(),
         "memory": {

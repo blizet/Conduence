@@ -12,7 +12,6 @@ const POSITION_MAP: Record<HandleConfig['position'], Position> = {
 
 const CATEGORY_LABEL: Record<NodeCategory, string> = {
   tool: 'tool',
-  mindagent: 'mind',
   subagent: 'sub',
   orchestrator: 'main',
 };
@@ -66,7 +65,7 @@ export function GlassNode({
       ? 'circle'
       : category === 'subagent'
         ? 'card'
-        : category === 'mindagent' || category === 'orchestrator'
+        : category === 'orchestrator'
           ? 'agent'
           : 'card');
 
@@ -78,7 +77,7 @@ export function GlassNode({
   const isTriangle = isTriangleRight || isTriangleUp;
   const isCompact = isCircle || isExecution || isTriangle;
   const isAgentCard =
-    (category === 'subagent' || category === 'mindagent') && resolvedShape === 'card';
+    category === 'subagent' && resolvedShape === 'card';
 
   const leftPorts = handles.filter((h) => isLabeledPort(h, 'left'));
   const rightPorts = handles.filter((h) => isLabeledPort(h, 'right'));
