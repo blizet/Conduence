@@ -13,7 +13,6 @@ from app.api.routes import (
 from app.agentic.routes import router as agentic_router
 from app.config import PORT
 from app.falkordb.service import FalkorDbService
-from app.services.autonomous_stream import AutonomousAgentStreamService
 from app.services.orchestrator_stream import OrchestratorStreamService
 from app.services.workflow_live import WorkflowLiveService
 from app.ws.events import EventsManager
@@ -27,8 +26,7 @@ async def lifespan(app: FastAPI):
     events = EventsManager()
     falkordb = FalkorDbService()
     orchestrator_stream = OrchestratorStreamService(events)
-    autonomous_streams = AutonomousAgentStreamService(events, orchestrator_stream, falkordb=falkordb)
-    workflow_live = WorkflowLiveService(orchestrator_stream, autonomous_streams, falkordb=falkordb)
+    workflow_live = WorkflowLiveService(orchestrator_stream, falkordb=falkordb)
 
     app.state.infra_ready = {"falkordb": False}
 
@@ -43,7 +41,6 @@ async def lifespan(app: FastAPI):
 
     app.state.events = events
     app.state.falkordb = falkordb
-    app.state.autonomous_streams = autonomous_streams
     app.state.orchestrator_stream = orchestrator_stream
     app.state.workflow_live = workflow_live
 
@@ -54,7 +51,6 @@ async def lifespan(app: FastAPI):
 
     orchestrator_stream.stop()
     await workflow_live.stop()
-    await autonomous_streams.shutdown()
     await falkordb.close()
 
 

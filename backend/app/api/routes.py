@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-from app.subagents import news_coindesk as coindesk
+from app.tools import coindesk
 from app.lib.normalize import normalize_decision
 from app.lib.pipeline_config import PUBLISHER_AGENT_ID
 from app.schemas.decision import DecisionEvent
