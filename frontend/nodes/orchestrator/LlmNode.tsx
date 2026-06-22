@@ -6,11 +6,11 @@ import { GlassNode } from '../shared/GlassNode';
 import { LLM_OUTPUT_COUNT, type WorkflowNode } from '../types';
 
 const ORCHESTRATOR_DESCRIPTION =
-  'Combines sub-agent feeds, tool data, and prompts into a trade decision.';
+  'Combines tool data and prompts into a trade decision.';
 
 const ORCHESTRATOR_STEPS = [
-  'Ingest Feed + Memory signals',
-  'Plan & invoke wired Tools',
+  'Ingest wired Tools + Memory',
+  'Plan & invoke tool calls',
   'Evaluate → LLM → decision JSON',
 ] as const;
 

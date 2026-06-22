@@ -17,21 +17,18 @@ export const PURE_TOOL_NODE_TYPES = new Set([
   'paperTrading',
 ]);
 
-export const SUB_AGENT_NODE_TYPES = new Set(['newsAgent', 'arbitrageAgent', 'riskAnalyzer']);
-
 export const ORCHESTRATOR_NODE_TYPE = 'llm';
 
 export type WiredInput = {
   id: string;
   type: string;
   label: string;
-  category: 'tool' | 'subagent' | 'orchestrator' | 'other';
+  category: 'tool' | 'orchestrator' | 'other';
 };
 
 function categoryForType(type: string | undefined): WiredInput['category'] {
   if (!type) return 'other';
   if (PURE_TOOL_NODE_TYPES.has(type)) return 'tool';
-  if (SUB_AGENT_NODE_TYPES.has(type)) return 'subagent';
   if (type === ORCHESTRATOR_NODE_TYPE) return 'orchestrator';
   return 'other';
 }
@@ -65,29 +62,6 @@ export function wiredInputsForNode(
 export function partitionWiredInputs(inputs: WiredInput[]) {
   return {
     tools: inputs.filter((i) => i.category === 'tool'),
-    feeds: inputs.filter((i) => i.category === 'subagent'),
-    other: inputs.filter((i) => i.category !== 'tool' && i.category !== 'subagent'),
+    other: inputs.filter((i) => i.category !== 'tool'),
   };
-}
-
-export function agentFeedIdForSourceNode(node: WorkflowNode | undefined): string | null {
-  if (!node?.type) return null;
-  if (node.type === 'newsAgent') return 'newsAgent';
-  if (node.type === 'arbitrageAgent') return 'arbitrageAgent';
-  if (node.type === 'riskAnalyzer') return 'riskAnalyzer';
-  return null;
-}
-
-export function upstreamAgentFeedId(
-  outputNodeId: string,
-  nodes: WorkflowNode[],
-  edges: Edge[],
-): string | null {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  for (const edge of edges) {
-    if (edge.target !== outputNodeId) continue;
-    const feedId = agentFeedIdForSourceNode(byId.get(edge.source));
-    if (feedId) return feedId;
-  }
-  return null;
 }

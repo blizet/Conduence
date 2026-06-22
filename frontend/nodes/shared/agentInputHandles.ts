@@ -1,28 +1,5 @@
 import type { HandleConfig } from '../types';
 
-/** Bottom Tools + Memory ports; main workflow input on the left (no chat-model port). */
-export function subagentInputHandles(outputId: string): HandleConfig[] {
-  return [
-    { type: 'target', position: 'left', id: 'in-main' },
-    {
-      type: 'target',
-      position: 'bottom',
-      id: 'in-tools',
-      label: 'Tools',
-      multiConnect: true,
-      style: { left: '38%' },
-    },
-    {
-      type: 'target',
-      position: 'bottom',
-      id: 'in-memory',
-      label: 'Memory',
-      style: { left: '62%' },
-    },
-    { type: 'source', position: 'right', id: outputId },
-  ];
-}
-
 export function orchestratorInputHandles(outputCount: number): HandleConfig[] {
   const outputs: HandleConfig[] = Array.from({ length: outputCount }, (_, i) => {
     const pct = ((i + 1) / (outputCount + 1)) * 100;

@@ -1,9 +1,6 @@
 import type { NodeTypes } from '@xyflow/react';
 import type { PaletteItem, PaletteToolGroup } from './types';
 import { LlmNode } from './orchestrator/LlmNode';
-import { ArbitrageAgentNode } from './subagents/ArbitrageAgentNode';
-import { NewsAgentNode } from './subagents/NewsAgentNode';
-import { RiskAnalyzerNode } from './subagents/RiskAnalyzerNode';
 import { ClobToolNode } from './tools/ClobToolNode';
 import { CoinGeckoNode } from './tools/CoinGeckoNode';
 import { CoinMarketCapNode } from './tools/CoinMarketCapNode';
@@ -38,9 +35,6 @@ export const nodeTypes: NodeTypes = {
   xMonitor: XMonitorNode,
   walletMonitor: WalletMonitorNode,
   llm: LlmNode,
-  newsAgent: NewsAgentNode,
-  arbitrageAgent: ArbitrageAgentNode,
-  riskAnalyzer: RiskAnalyzerNode,
 };
 
 export type PaletteGroupConfig = {
@@ -64,30 +58,9 @@ export const PALETTE_ITEMS: PaletteItem[] = [
   {
     type: 'llm',
     label: 'Orchestrator',
-    description: 'Combines sub-agent feeds, tool data, and prompts into a trade decision.',
+    description: 'Combines tool data and prompts into a trade decision.',
     category: 'orchestrator',
     accent: '#f472b6',
-  },
-  {
-    type: 'newsAgent',
-    label: 'News Agent',
-    description: 'CoinDesk news feed — snap CryptoNews + Tavily tools',
-    category: 'subagent',
-    accent: '#fb923c',
-  },
-  {
-    type: 'arbitrageAgent',
-    label: 'Arbitrage Agent',
-    description: 'Polymarket × Kalshi arb scanner — snap venue tools',
-    category: 'subagent',
-    accent: '#c084fc',
-  },
-  {
-    type: 'riskAnalyzer',
-    label: 'Risk Analyzer',
-    description: 'Size trades from portfolio limits — snap market/wallet tools',
-    category: 'subagent',
-    accent: '#fbbf24',
   },
   {
     type: 'polymarketGamma',

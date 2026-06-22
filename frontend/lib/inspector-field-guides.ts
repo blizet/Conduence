@@ -71,91 +71,6 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
         description: 'Task framing appended to the live signal + tool context.',
         howTo: 'Describe what to prioritize — e.g. “only act on ETF headlines with conviction ≥ 7”.',
       },
-      {
-        field: 'News filter',
-        description: 'Optional category chips to filter the live news feed before synthesis.',
-        howTo: 'Leave empty to accept all categories; select chips to narrow the orchestrator input.',
-      },
-    ],
-  },
-
-  newsAgent: {
-    intro: 'Polls wired feed tools, runs LLM on each headline batch, and publishes structured signals.',
-    fields: [
-      ...LLM_FIELDS,
-      {
-        field: 'User prompt (strategy focus)',
-        description: 'Extra instructions layered on the fixed news-analysis system prompt.',
-        howTo: 'Example: “Weight regulation and ETF flow headlines; ignore celebrity crypto tweets.”',
-      },
-      {
-        field: 'Simulate mode',
-        description: 'Uses canned headlines instead of live CryptoNews/Tavily feeds.',
-        howTo: 'Enable for local testing without API keys on feed tools; LLM is still called.',
-      },
-      {
-        field: 'Snap tools (bottom port)',
-        description: 'Wire CryptoNews and/or Tavily into the Tools port for live headline polling.',
-        howTo: 'Drag market-data / helper tools onto the sub-agent’s bottom Tools diamond.',
-      },
-    ],
-  },
-
-  arbitrageAgent: {
-    intro: 'Scans Polymarket × Kalshi for same-event opportunities and verifies with LLM.',
-    fields: [
-      ...LLM_FIELDS,
-      {
-        field: 'User prompt (strategy focus)',
-        description: 'Filters which arb candidates the LLM should verify.',
-        howTo: 'Example: “Only crypto threshold markets with >$50K liquidity and net edge ≥ 2¢.”',
-      },
-      {
-        field: 'Simulate mode',
-        description: 'Uses offline fixture markets instead of live Gamma/Kalshi lists.',
-        howTo: 'Good for demo workflows; disable for production scanning.',
-      },
-      {
-        field: 'Snap tools (bottom port)',
-        description: 'Wire Polymarket Markets + Kalshi quote/list tools for live market discovery.',
-        howTo: 'Both venues must be snapped so the scanner can fetch comparable markets.',
-      },
-    ],
-  },
-
-  riskAnalyzer: {
-    intro: 'Sizes a user-defined trade from portfolio limits, confidence, and optional live liquidity.',
-    fields: [
-      {
-        field: 'Portfolio (USD)',
-        description: 'Total bankroll used to compute position size percentages.',
-        howTo: 'Example: 10000 for a $10K paper portfolio.',
-      },
-      {
-        field: 'Risk % min / max',
-        description: 'Minimum and maximum fraction of portfolio to risk per trade.',
-        howTo: 'Default 2%–5% — higher confidence maps linearly toward the max.',
-      },
-      {
-        field: 'Min confidence',
-        description: 'Trades below this conviction are rejected (HOLD).',
-        howTo: 'Set trade confidence above this threshold for sized output.',
-      },
-      {
-        field: 'Trade action / market / price',
-        description: 'The proposed trade — action, market ID or title, entry price, and confidence.',
-        howTo: 'Fill market slug or ticker, side (BUY YES/NO), limit price, and your conviction 0–1.',
-      },
-      {
-        field: 'Simulate mode',
-        description: 'Uses fixture market liquidity instead of live tool data.',
-        howTo: 'Enable for demos without wiring Polymarket Gamma or Kalshi.',
-      },
-      {
-        field: 'Snap tools (bottom port)',
-        description: 'Optional Polymarket Markets, Wallet, or Kalshi for live liquidity and exposure.',
-        howTo: 'Wire helpers to auto-fetch liquidity and cap size against open positions.',
-      },
     ],
   },
 
@@ -164,7 +79,7 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
     fields: [
       {
         field: 'Input port',
-        description: 'Wire Orchestrator or sub-agent output here.',
+        description: 'Wire Orchestrator output here.',
         howTo: 'Agent payload needs action, tokenId, size, and price. Run workflow first to populate the preview.',
       },
       {
@@ -201,7 +116,7 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
     fields: [
       {
         field: 'Input port',
-        description: 'Wire Orchestrator or sub-agent output here.',
+        description: 'Wire Orchestrator output here.',
         howTo: 'Agent payload needs action, ticker, side (yes/no), count, and price in cents.',
       },
       {
@@ -233,7 +148,7 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
     fields: [
       {
         field: 'Input port',
-        description: 'Wire Orchestrator or sub-agent output here.',
+        description: 'Wire Orchestrator output here.',
         howTo: 'Agent payload needs action (BUY_YES, BUY_NO, etc.), market, price, and conviction.',
       },
       {
@@ -254,7 +169,7 @@ export const INSPECTOR_FIELD_GUIDES: Record<string, NodeFieldGuide> = {
     fields: [
       {
         field: 'Input port',
-        description: 'Wire Orchestrator or sub-agent output here.',
+        description: 'Wire Orchestrator output here.',
         howTo: 'Any agent JSON works — thesis, summary, action, and trade fields are formatted into the message.',
       },
       {

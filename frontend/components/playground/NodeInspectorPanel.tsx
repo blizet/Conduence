@@ -19,7 +19,6 @@ type NodeInspectorPanelProps = {
 
 const CATEGORY_LABEL: Record<string, string> = {
   tool: 'Tool',
-  subagent: 'Sub-agent',
   orchestrator: 'Orchestrator',
 };
 

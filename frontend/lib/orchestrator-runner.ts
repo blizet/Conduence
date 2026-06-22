@@ -7,8 +7,7 @@ import { API_BASE } from './workflow-tools';
 import { getOrCreateUserId } from '@/lib/user-id';
 
 const DEMO_SIGNAL = {
-  type: 'news',
-  agent: 'newsAgent',
+  type: 'demo',
   headline: 'Bitcoin ETF sees record daily inflow as institutions accumulate',
   sentiment: 'bullish',
   keywords: ['bitcoin', 'etf', 'inflow'],
@@ -47,25 +46,7 @@ function canvasPayload(nodes: WorkflowNode[], edges: Edge[]) {
   };
 }
 
-function pickSignal(feeds: Record<string, { latest?: unknown }> | undefined): Record<string, unknown> {
-  const news = feeds?.newsAgent?.latest;
-  if (news && typeof news === 'object') {
-    const payload = news as Record<string, unknown>;
-    return {
-      type: 'news',
-      agent: 'newsAgent',
-      ...payload,
-      direction: payload.sentiment ?? payload.direction,
-    };
-  }
-  const arb = feeds?.arbitrageAgent?.latest;
-  if (arb && typeof arb === 'object') {
-    return { type: 'arbitrage', agent: 'arbitrageAgent', ...(arb as Record<string, unknown>) };
-  }
-  const risk = feeds?.riskAnalyzer?.latest;
-  if (risk && typeof risk === 'object') {
-    return { type: 'risk', agent: 'riskAnalyzer', ...(risk as Record<string, unknown>) };
-  }
+function pickSignal(_feeds: Record<string, { latest?: unknown }> | undefined): Record<string, unknown> {
   return DEMO_SIGNAL;
 }
 

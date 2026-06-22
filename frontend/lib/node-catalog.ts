@@ -122,35 +122,11 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
   },
   llm: {
     summary:
-      'Central router — ingests sub-agent feeds, plans parallel tool calls, runs the decision engine, and LLM-synthesizes a trade thesis for downstream CoT or execution.',
+      'Central router — ingests tool results, runs the decision engine, and LLM-synthesizes a trade thesis for downstream execution.',
     helpsWith: [
-      'Wire Tools (left), Memory, and Feed inputs from sub-agents.',
+      'Wire Tools (left) and Memory inputs.',
       'Route outputs to execution tools or Telegram.',
       'Go Live to run continuously with LangGraph + observability.',
-    ],
-  },
-  newsAgent: {
-    summary:
-      'News sub-agent streams CoinDesk headlines, runs LLM inference for sentiment and thesis, and publishes to the agent feed.',
-    helpsWith: [
-      'Continuous news monitoring when workflow is Go Live.',
-      'Structured news signals wired into the orchestrator.',
-    ],
-  },
-  arbitrageAgent: {
-    summary:
-      'Arbitrage sub-agent scans Polymarket × Kalshi for same-event opportunities with LLM verification.',
-    helpsWith: [
-      'Surface cross-venue arb with fee-adjusted edge.',
-      'Verify two markets resolve on the same fact before trading.',
-    ],
-  },
-  riskAnalyzer: {
-    summary:
-      'Risk sub-agent sizes a user-defined trade from portfolio limits, confidence, and live liquidity.',
-    helpsWith: [
-      'Deterministic position sizing from bankroll and risk parameters.',
-      'Emit sized trade payloads wired to execution tools or the orchestrator.',
     ],
   },
 };
@@ -158,15 +134,11 @@ const EXTENDED: Partial<Record<string, NodeCatalogEntry>> = {
 const CATEGORY_DEFAULTS: Record<NodeCategory, NodeCatalogEntry> = {
   tool: {
     summary: 'Workflow tool node — fetches structured data or executes venue actions.',
-    helpsWith: ['Wire into the orchestrator or sub-agents for live context.'],
-  },
-  subagent: {
-    summary: 'Autonomous sub-agent that runs on Go Live and streams via WebSocket.',
-    helpsWith: ['Snap venue tools and stream signals into the orchestrator.'],
+    helpsWith: ['Wire into the orchestrator for live context.'],
   },
   orchestrator: {
     summary: 'Central orchestrator that synthesizes inputs into decisions.',
-    helpsWith: ['Connect tools, sub-agents, and CoT builder outputs.'],
+    helpsWith: ['Connect tools and route to execution sinks.'],
   },
 };
 

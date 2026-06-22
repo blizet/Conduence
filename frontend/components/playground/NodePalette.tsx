@@ -105,10 +105,6 @@ function PaletteToolGroup({
   );
 }
 
-function isSubagentVisible(item: PaletteItem) {
-  return item.category === 'subagent';
-}
-
 export function NodePalette() {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
@@ -125,18 +121,11 @@ export function NodePalette() {
             (item.toolGroup?.includes(q) ?? false),
         )
       : PALETTE_ITEMS;
-    return base.filter((item) => {
-      if (item.category === 'subagent') return isSubagentVisible(item);
-      return true;
-    });
+    return base;
   }, [query]);
 
   const mainAgentItems = useMemo(
     () => filtered.filter((item) => item.category === 'orchestrator'),
-    [filtered],
-  );
-  const subagentItems = useMemo(
-    () => filtered.filter((item) => item.category === 'subagent'),
     [filtered],
   );
   const executionToolItems = useMemo(
@@ -221,18 +210,6 @@ export function NodePalette() {
               </div>
             )}
 
-            {subagentItems.length > 0 && (
-              <div className="palette-section">
-                <div className="palette-section-title palette-section-title--subagents">
-                  <span className="palette-section-title__text">Subagents</span>
-                  <span className="palette-section-title__rule" aria-hidden />
-                </div>
-                {subagentItems.map((item) => (
-                  <PaletteEntry key={item.type} item={item} />
-                ))}
-              </div>
-            )}
-
             {executionToolItems.length > 0 && (
               <div className="palette-section palette-section--execution">
                 <div className="palette-section-title palette-section-title--execution">
@@ -288,13 +265,6 @@ export function NodePalette() {
           {mainAgentItems.length > 0 && (
             <div className="palette-rail-group">
               {mainAgentItems.map((item) => (
-                <RailEntry key={item.type} item={item} />
-              ))}
-            </div>
-          )}
-          {subagentItems.length > 0 && (
-            <div className="palette-rail-group">
-              {subagentItems.map((item) => (
                 <RailEntry key={item.type} item={item} />
               ))}
             </div>

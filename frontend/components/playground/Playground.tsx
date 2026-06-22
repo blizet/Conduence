@@ -91,8 +91,8 @@ function PlaygroundInner({
             disabled={liveBusy || nodeCount === 0}
             title={
               workflowLive
-                ? 'Stop workflow — orchestrator and subagents go offline'
-                : 'Go Live — run wired subagents and orchestrator continuously'
+                ? 'Stop workflow — orchestrator goes offline'
+                : 'Go Live — run orchestrator continuously'
             }
           >
             {liveBusy ? '…' : workflowLive ? 'Stop Live' : 'Go Live'}

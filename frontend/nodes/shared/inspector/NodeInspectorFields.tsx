@@ -4,11 +4,8 @@ import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
 import { useNodeData } from '../useNodeData';
 import {
-  ArbitrageAgentInspectorFields,
   LlmInspectorFields,
-  NewsAgentInspectorFields,
   OutputInspectorFields,
-  RiskAnalyzerInspectorFields,
 } from './AgentInspectorFields';
 import { CatalogToolFields } from './CatalogToolFields';
 import { MonitorToolFields } from './MonitorToolFields';
@@ -111,12 +108,6 @@ export function NodeInspectorFields({ node, nodes, edges, feedSignals }: NodeIns
       );
     case 'llm':
       return <LlmInspectorFields data={data} accent={accent} onPatch={onPatch} />;
-    case 'newsAgent':
-      return <NewsAgentInspectorFields data={data} accent={accent} onPatch={onPatch} />;
-    case 'arbitrageAgent':
-      return <ArbitrageAgentInspectorFields data={data} accent={accent} onPatch={onPatch} />;
-    case 'riskAnalyzer':
-      return <RiskAnalyzerInspectorFields data={data} accent={accent} onPatch={onPatch} />;
     default:
       return <p className="node-field__hint">No configurable parameters for this node type.</p>;
   }

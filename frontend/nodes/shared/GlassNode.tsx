@@ -12,7 +12,6 @@ const POSITION_MAP: Record<HandleConfig['position'], Position> = {
 
 const CATEGORY_LABEL: Record<NodeCategory, string> = {
   tool: 'tool',
-  subagent: 'sub',
   orchestrator: 'main',
 };
 
@@ -63,11 +62,9 @@ export function GlassNode({
     shape ??
     (category === 'tool'
       ? 'circle'
-      : category === 'subagent'
-        ? 'card'
-        : category === 'orchestrator'
-          ? 'agent'
-          : 'card');
+      : category === 'orchestrator'
+        ? 'agent'
+        : 'card');
 
   const isOrchestrator = category === 'orchestrator';
   const isCircle = resolvedShape === 'circle';
@@ -76,8 +73,6 @@ export function GlassNode({
   const isTriangleUp = resolvedShape === 'triangle-up';
   const isTriangle = isTriangleRight || isTriangleUp;
   const isCompact = isCircle || isExecution || isTriangle;
-  const isAgentCard =
-    category === 'subagent' && resolvedShape === 'card';
 
   const leftPorts = handles.filter((h) => isLabeledPort(h, 'left'));
   const rightPorts = handles.filter((h) => isLabeledPort(h, 'right'));
@@ -106,7 +101,6 @@ export function GlassNode({
         isExecution ? 'glass-node--execution' : '',
         isTriangleRight ? 'glass-node--triangle-right' : '',
         isTriangleUp ? 'glass-node--triangle-up' : '',
-        isAgentCard ? 'glass-node--subagent-card' : '',
         isOrchestrator ? 'glass-node--orchestrator' : '',
         bottomPorts.length > 0 ? 'glass-node--has-bottom-ports' : '',
         topPorts.length > 0 ? 'glass-node--has-top-ports' : '',
@@ -307,28 +301,19 @@ export function GlassNode({
         </div>
       ) : (
         <>
-          <div
-            className={[
-              'glass-node__header',
-              isAgentCard ? 'glass-node__header--subagent' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
+          <div className="glass-node__header">
             <div className="glass-node__icon">
               <span className="glass-node__icon-inner">{icon}</span>
             </div>
             <div className="glass-node__meta">
               <div className="glass-node__title-row">
                 <span className="glass-node__label">{label}</span>
-                {!isAgentCard ? (
-                  <span className={`glass-node__badge glass-node__badge--${category}`}>
-                    {CATEGORY_LABEL[category]}
-                  </span>
-                ) : null}
+                <span className={`glass-node__badge glass-node__badge--${category}`}>
+                  {CATEGORY_LABEL[category]}
+                </span>
               </div>
               {description ? (
-                <div className={isAgentCard ? 'glass-node__subtitle' : 'glass-node__desc'}>
+                <div className="glass-node__desc">
                   {description}
                 </div>
               ) : null}

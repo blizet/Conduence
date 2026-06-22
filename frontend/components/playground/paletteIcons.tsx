@@ -111,27 +111,6 @@ const ICONS: Record<string, (p: IconProps) => React.ReactNode> = {
       <path d="M10.5 8.5h2" />
     </Svg>
   ),
-  newsAgent: (p) => (
-    <Svg {...p}>
-      <rect x="2.5" y="4" width="9" height="9" rx="1.5" />
-      <path d="M5 7h4M5 9.5h3" />
-      <path d="M12.5 2.5a3.5 3.5 0 011 2.5M11 4a1.5 1.5 0 01.5 1" />
-    </Svg>
-  ),
-  arbitrageAgent: (p) => (
-    <Svg {...p}>
-      <path d="M8 2.5v11M5.5 13.5h5" />
-      <path d="M3.5 4.5h9" />
-      <path d="M3.5 4.5L2 8.5h3L3.5 4.5z" />
-      <path d="M12.5 4.5L11 8.5h3l-1.5-4z" />
-    </Svg>
-  ),
-  riskAnalyzer: (p) => (
-    <Svg {...p}>
-      <path d="M8 2.5l5.5 9.5H2.5L8 2.5z" />
-      <path d="M8 6.5v3M8 11h.01" />
-    </Svg>
-  ),
   llm: (p) => (
     <Svg {...p}>
       <circle cx="8" cy="8" r="4.5" />
@@ -153,7 +132,6 @@ export function getPaletteIcon(type: string, size?: number): React.ReactNode {
 /** Mini silhouette matching the canvas shape language, so the palette teaches the grammar. */
 export function getChipShapeClass(item: PaletteItem): string {
   if (item.category === 'orchestrator') return 'palette-chip--agent';
-  if (item.category === 'subagent') return 'palette-chip--subagent';
   if (item.toolGroup === 'execution' || item.toolGroup === 'socials') return 'palette-chip--execution';
   return 'palette-chip--tool';
 }

@@ -18,12 +18,11 @@ export function useNodeWiring(nodeId: string) {
     [nodeId, nodes, edges],
   );
 
-  const { tools, feeds, other } = useMemo(() => partitionWiredInputs(inputs), [inputs]);
+  const { tools, other } = useMemo(() => partitionWiredInputs(inputs), [inputs]);
 
-  return { inputs, tools, feeds, other } satisfies {
+  return { inputs, tools, other } satisfies {
     inputs: WiredInput[];
     tools: WiredInput[];
-    feeds: WiredInput[];
     other: WiredInput[];
   };
 }

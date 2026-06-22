@@ -8,7 +8,7 @@ import { executePaperTradingForSession } from './paper-trading';
 
 export const EXECUTION_TOOL_TYPES = new Set(['clob', 'kalshi', 'telegram', 'paperTrading']);
 
-const AGENT_SOURCE_TYPES = new Set(['llm', 'newsAgent', 'arbitrageAgent', 'riskAnalyzer']);
+const AGENT_SOURCE_TYPES = new Set(['llm']);
 
 export type AgentTradeInput = Record<string, unknown>;
 
