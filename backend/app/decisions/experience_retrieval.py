@@ -28,7 +28,7 @@ def _node_text(node: dict[str, Any]) -> str:
     props = node.get("properties") or {}
     label = node.get("label") or props.get("label") or node_id
     parts = [node_id, node_type, str(label)]
-    for key in ("thesis", "summary", "headline", "tags", "agentic_anchors"):
+    for key in ("thesis", "summary", "headline", "tags", "graph_anchors"):
         val = props.get(key)
         if val:
             parts.append(str(val))
@@ -58,7 +58,7 @@ def _trade_experience_from_snapshot(
         "conviction": (blf.get("properties") or {}).get("conviction_level"),
         "outcome_status": (out.get("properties") or {}).get("status", "unknown"),
         "pnl_pct": (out.get("properties") or {}).get("pnl_pct"),
-        "agentic_anchors": (blf.get("properties") or {}).get("agentic_anchors") or [],
+        "graph_anchors": (blf.get("properties") or {}).get("graph_anchors") or [],
     }
 
 
@@ -67,14 +67,14 @@ def retrieve_similar_experiences(
     signal: dict[str, Any],
     *,
     limit: int = 5,
-    agentic_anchors: list[str] | None = None,
+    graph_anchors: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Score past trade nodes in snapshot by token overlap with current signal."""
     if not snapshot:
         return []
 
     tokens = _tokens_from_signal(signal)
-    anchor_set = {a.lower() for a in (agentic_anchors or [])}
+    anchor_set = {a.lower() for a in (graph_anchors or [])}
     scored: list[tuple[float, dict[str, Any]]] = []
 
     for node in snapshot.get("nodes") or []:
@@ -89,7 +89,7 @@ def retrieve_similar_experiences(
         anchor_bonus = 0.0
         exp = _trade_experience_from_snapshot(snapshot, trade_id)
         if exp and anchor_set:
-            exp_anchors = {a.lower() for a in exp.get("agentic_anchors") or []}
+            exp_anchors = {a.lower() for a in exp.get("graph_anchors") or []}
             anchor_bonus = len(anchor_set & exp_anchors) * 2.0
 
         outcome_bonus = 0.0
@@ -129,7 +129,7 @@ def enrich_rag_with_experiences(
     experiences = retrieve_similar_experiences(
         snapshot,
         signal,
-        agentic_anchors=anchors,
+        graph_anchors=anchors,
     )
     enriched = dict(rag_context)
     enriched["past_experiences"] = experiences

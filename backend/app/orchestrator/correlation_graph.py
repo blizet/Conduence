@@ -21,7 +21,7 @@ def _resolve_graph_path(raw: str | Path) -> Path:
 
 
 DEFAULT_GRAPH_PATH = _resolve_graph_path(
-    os.getenv("CORRELATION_GRAPH_PATH", "data/agentic/macro_correlation_graph.json")
+    os.getenv("CORRELATION_GRAPH_PATH", "data/correlation/correlation_graph.json")
 )
 HOP_DECAY = 0.6
 

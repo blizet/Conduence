@@ -42,13 +42,13 @@ def _belief_label(thesis: str, conviction: float | int | None) -> str:
     return f"Belief ({conv}/10): {snippet}"
 
 
-def infer_agentic_anchors(
+def infer_graph_anchors(
     signal: dict[str, Any] | None,
     *,
     graph_impacts: list[dict[str, Any]] | None = None,
     tags: list[str] | None = None,
 ) -> list[str]:
-    """Node ids from agentic graph impacts or signal keywords."""
+    """Node ids from correlation graph impacts or signal keywords."""
     anchors: list[str] = []
     for impact in graph_impacts or []:
         node_id = str(impact.get("node_id") or "").strip()
@@ -116,7 +116,7 @@ def build_experience_decision(
     market_properties: dict[str, Any] | None = None,
     market_edge_metadata: dict[str, Any] | None = None,
     outcome: dict[str, Any] | None = None,
-    agentic_anchors: list[str] | None = None,
+    graph_anchors: list[str] | None = None,
     correlated_targets: list[str] | None = None,
     provenance: dict[str, Any] | None = None,
     updated_at: str | None = None,
@@ -165,7 +165,7 @@ def build_experience_decision(
                 "thesis": thesis,
                 "conviction_level": conviction_level,
                 "tags": tags,
-                "agentic_anchors": agentic_anchors or [],
+                "graph_anchors": graph_anchors or [],
                 "origin": origin,
             },
         },
@@ -182,7 +182,7 @@ def build_experience_decision(
                 "decision_id": decision_id,
                 "action": action,
                 "origin": origin,
-                "agentic_anchors": agentic_anchors or [],
+                "graph_anchors": graph_anchors or [],
             },
         },
         {
@@ -255,8 +255,8 @@ def build_experience_decision(
         )
 
     base_provenance = dict(provenance or {})
-    if agentic_anchors:
-        base_provenance.setdefault("agentic_anchors", agentic_anchors)
+    if graph_anchors:
+        base_provenance.setdefault("graph_anchors", graph_anchors)
     base_provenance.setdefault("experience_chain", ["signal", "belief", "trade", "outcome"])
 
     return {
@@ -296,9 +296,9 @@ def experience_episode_text(decision: dict[str, Any]) -> str:
         lines.append(f"pnl_pct={out_p['pnl_pct']}")
     if out_p.get("pnl_usd") is not None:
         lines.append(f"pnl_usd={out_p['pnl_usd']}")
-    anchors = blf_p.get("agentic_anchors") or prov.get("agentic_anchors") or []
+    anchors = blf_p.get("graph_anchors") or prov.get("graph_anchors") or []
     if anchors:
-        lines.append(f"agentic_anchors: {', '.join(anchors)}")
+        lines.append(f"graph_anchors: {', '.join(anchors)}")
     if execution.get("langsmith", {}).get("url"):
         lines.append(f"langsmith={execution['langsmith']['url']}")
     return "\n".join(lines)
