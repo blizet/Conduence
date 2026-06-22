@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>trading assistant</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body data-config-ready="{{ 'true' if config_ready else 'false' }}">
+  <div class="shell" id="shell">
+    <aside class="chat-pane" id="chat-pane">
+      <div class="frame">
+        <header class="bar">
+          <div class="bar__left">
+            <span class="pulse{% if not config_ready %} pulse--off{% endif %}" id="pulse" aria-hidden="true"></span>
+            <span class="bar__title">zep-trading</span>
+          </div>
+          <div class="bar__right">
+            <span class="bar__provider">{{ provider }}</span>
+            <span class="bar__sep">/</span>
+            <span class="bar__model">{{ model }}</span>
+          </div>
+        </header>
+
+        {% if not config_ready %}
+        <section class="config-alert" role="alert" id="config-alert">
+          <div class="config-alert__title">API keys not configured</div>
+          <p class="config-alert__body">
+            Copy <code>.env.example</code> to <code>.env</code> and set:
+            {% for key in missing_keys %}<code>{{ key }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+            Restart the server after saving.
+          </p>
+        </section>
+        {% endif %}
+
+        <main class="log" id="log" aria-live="polite">
+          <div class="log__intro">
+            <p>Talk markets. Mention an asset, an event, a company, someone whose moves matter — your interests and sentiment get folded into a graph as you go, and the assistant draws on it next time.</p>
+          </div>
+        </main>
+
+        <form class="composer" id="composer"{% if not config_ready %} aria-disabled="true"{% endif %}>
+          <textarea
+            id="input"
+            class="composer__input"
+            placeholder="{% if config_ready %}what's on your mind in the markets...{% else %}configure .env to start chatting...{% endif %}"
+            rows="1"
+            {% if not config_ready %}disabled{% else %}autofocus{% endif %}
+          ></textarea>
+          <button type="submit" class="composer__send" id="send"{% if not config_ready %} disabled{% endif %}>send</button>
+        </form>
+      </div>
+    </aside>
+
+    <section class="graph-pane" id="graph-pane" hidden>
+      <header class="graph-bar">
+        <div class="graph-bar__left">
+          <div class="graph-bar__title">knowledge graph</div>
+          <div class="graph-bar__meta" id="graph-meta">0 nodes · 0 edges</div>
+        </div>
+        <div class="graph-bar__user" id="graph-bar-user" hidden>
+          <span class="graph-bar__user-name" id="graph-user-name"></span>
+          <span class="graph-bar__user-email" id="graph-user-email"></span>
+        </div>
+      </header>
+
+      <div class="graph-body">
+        <div class="graph-canvas-wrap" id="graph-canvas-wrap">
+          <canvas id="graph-canvas" aria-label="User knowledge graph"></canvas>
+        </div>
+
+        <aside class="detail-panel" id="detail-panel" hidden>
+          <button class="detail-panel__close" id="detail-panel-close" aria-label="Close">✕</button>
+          <div class="detail-panel__content" id="detail-panel-content"></div>
+        </aside>
+      </div>
+
+      <div class="graph-legend" id="graph-legend"></div>
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='graph.js') }}"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
