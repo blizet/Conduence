@@ -1,11 +1,11 @@
-"""LLM cost estimation for agentic graph turns."""
+"""LLM cost estimation from token usage."""
 
 from __future__ import annotations
 
 import re
-from typing import TypedDict
+from typing import Literal, TypedDict
 
-from app.agentic.config import LlmProvider
+LlmProvider = Literal["gemini", "openai", "claude"]
 
 ModelPricing = TypedDict("ModelPricing", {"inputPer1M": float, "outputPer1M": float})
 
@@ -33,15 +33,16 @@ def resolve_model_pricing(provider: LlmProvider, model: str) -> ModelPricing:
     for pattern, pricing in MODEL_PRICING:
         if pattern.search(normalized):
             return pricing
-    return PROVIDER_DEFAULTS[provider]
+    return PROVIDER_DEFAULTS.get(provider, PROVIDER_DEFAULTS["gemini"])
 
 
 def estimate_cost_usd(
-    provider: LlmProvider,
+    provider: str,
     model: str,
     usage: dict[str, int],
 ) -> float:
-    rates = resolve_model_pricing(provider, model)
+    normalized_provider = provider if provider in PROVIDER_DEFAULTS else "gemini"
+    rates = resolve_model_pricing(normalized_provider, model)  # type: ignore[arg-type]
     input_cost = (usage.get("inputTokens", 0) / 1_000_000) * rates["inputPer1M"]
     output_cost = (usage.get("outputTokens", 0) / 1_000_000) * rates["outputPer1M"]
     return input_cost + output_cost

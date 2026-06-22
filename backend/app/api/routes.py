@@ -22,7 +22,6 @@ from app.tools.x_monitor import fetch_x_monitor
 from app.orchestrator.graph_registry import GRAPH_CATALOG
 from app.orchestrator.runner import normalize_inbound_signal, run_orchestrator
 from app.services.user_profile import load_profile, profile_summary
-from app.services.wallet_import import get_user_cot_graph, import_wallet_for_user
 
 router = APIRouter(prefix="/api")
 orchestrator_router = APIRouter(prefix="/api/orchestrator")
@@ -36,33 +35,12 @@ def _require_api_key(api_key: str | None) -> str | dict[str, str]:
 
 
 @router.get("/health")
-async def health(request: Request) -> dict[str, Any]:
-    infra = getattr(request.app.state, "infra_ready", {})
+async def health() -> dict[str, Any]:
     return {
         "ok": True,
         "service": "cot-backend",
-        "architecture": "falkordb-direct",
-        "infra": infra,
-        "degraded": not infra.get("falkordb") if infra else True,
+        "architecture": "workflow-direct",
     }
-
-
-@router.get("/graphs")
-async def list_graphs(request: Request) -> list[str]:
-    return await request.app.state.falkordb.list_graphs()
-
-
-@router.get("/graphs/{graph_id}/snapshot")
-async def snapshot(graph_id: str, request: Request) -> dict[str, Any]:
-    return await request.app.state.falkordb.get_graph_snapshot(graph_id)
-
-
-@router.get("/graphs/{graph_id}/nodes/{node_id}")
-async def graph_node_detail(graph_id: str, node_id: str, request: Request) -> dict[str, Any]:
-    detail = await request.app.state.falkordb.get_node_detail(graph_id, node_id)
-    if detail is None:
-        raise HTTPException(status_code=404, detail="Node not found")
-    return detail
 
 
 @router.get("/user/profile/{user_id}")
@@ -71,75 +49,8 @@ async def user_profile(user_id: str) -> dict[str, Any]:
     return {"ok": True, **profile_summary(profile)}
 
 
-@router.get("/user/graph/{user_id}")
-async def user_graph(user_id: str, request: Request) -> dict[str, Any]:
-    falkordb = request.app.state.falkordb
-    cot = await get_user_cot_graph(user_id.strip(), falkordb)
-    if not cot:
-        raise HTTPException(status_code=404, detail="Wallet not imported for this user")
-    return {"ok": True, "cotGraph": cot}
-
-
-@router.post("/wallet/import")
-async def wallet_import(request: Request, body: dict[str, Any]) -> dict[str, Any]:
-    user_id = (body.get("userId") or body.get("user_id") or "").strip()
-    wallet = (body.get("wallet") or "").strip()
-    if not user_id:
-        raise HTTPException(status_code=400, detail="userId is required")
-    if not wallet:
-        raise HTTPException(status_code=400, detail="wallet address is required")
-
-    infra = getattr(request.app.state, "infra_ready", {})
-    if not infra.get("falkordb"):
-        raise HTTPException(
-            status_code=503,
-            detail="FalkorDB unavailable — start docker compose before importing wallet",
-        )
-
-    limit = int(body.get("limit") or 100)
-    kalshi_api_key_id = (body.get("kalshiApiKeyId") or "").strip() or None
-    kalshi_private_key_pem = (body.get("kalshiPrivateKeyPem") or "").strip() or None
-    try:
-        return await import_wallet_for_user(
-            user_id=user_id,
-            wallet=wallet,
-            falkordb=request.app.state.falkordb,
-            limit=limit,
-            kalshi_api_key_id=kalshi_api_key_id,
-            kalshi_private_key_pem=kalshi_private_key_pem,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@router.post("/wallet/graph-preview")
-async def wallet_graph_preview(body: dict[str, Any]) -> dict[str, Any]:
-    from app.services.wallet_graph_builder import build_wallet_graph_preview
-
-    wallet = (body.get("wallet") or "").strip()
-    limit = int(body.get("limit") or 50)
-    kalshi_api_key_id = (body.get("kalshiApiKeyId") or body.get("kalshi_api_key_id") or "").strip() or None
-    kalshi_private_key_pem = (
-        body.get("kalshiPrivateKeyPem") or body.get("kalshi_private_key_pem") or ""
-    ).strip() or None
-    try:
-        return await build_wallet_graph_preview(
-            wallet=wallet,
-            limit=max(1, min(limit, 500)),
-            kalshi_api_key_id=kalshi_api_key_id,
-            kalshi_private_key_pem=kalshi_private_key_pem,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
 @router.post("/signals/cot")
 async def publish_cot_signal(
-    request: Request,
     body: dict[str, Any],
     x_publisher_id: str | None = Header(default=None, alias="x-publisher-id"),
 ) -> dict[str, Any]:
@@ -150,30 +61,21 @@ async def publish_cot_signal(
     except Exception as exc:
         raise HTTPException(status_code=400, detail="Invalid CoT payload") from exc
 
-    published = False
-    falkordb = request.app.state.falkordb
-    if falkordb is not None:
-        try:
-            await falkordb.merge_cot_delta(event)
-            published = True
-        except Exception:
-            pass
-
     return {
-        "produced": published,
+        "produced": False,
         "graph_id": normalized["graph_id"],
         "decision_id": normalized["decision_id"],
         "publisher_id": publisher_id,
+        "message": "CoT validated; graph persistence is disabled",
     }
 
 
 @router.post("/decisions")
 async def publish_decision_legacy(
-    request: Request,
     body: dict[str, Any],
     x_publisher_id: str | None = Header(default=None, alias="x-publisher-id"),
 ) -> dict[str, Any]:
-    return await publish_cot_signal(request, body, x_publisher_id)
+    return await publish_cot_signal(body, x_publisher_id)
 
 
 tools_router = APIRouter(prefix="/api/tools")
@@ -352,7 +254,7 @@ def _graph_id_from_canvas(canvas: dict[str, Any]) -> str | None:
     return None
 
 
-async def _enrich_orchestrator_config(request: Request, config: dict[str, Any], canvas: dict[str, Any]) -> dict[str, Any]:
+async def _enrich_orchestrator_config(config: dict[str, Any], canvas: dict[str, Any]) -> dict[str, Any]:
     enriched = dict(config)
     user_id = (enriched.get("userId") or enriched.get("user_id") or "").strip()
     if user_id:
@@ -361,23 +263,13 @@ async def _enrich_orchestrator_config(request: Request, config: dict[str, Any], 
             if profile.get("graph_id"):
                 enriched.setdefault("graphId", profile["graph_id"])
                 enriched.setdefault("userNodeId", profile.get("user_slug"))
-                enriched.setdefault("contextGraph", "decision")
                 enriched.setdefault("user_id", user_id)
         except Exception:
             pass
 
     graph_id = enriched.get("graphId") or _graph_id_from_canvas(canvas)
-    if not graph_id:
-        return enriched
-    enriched["graphId"] = graph_id
-    infra = getattr(request.app.state, "infra_ready", {})
-    if not infra.get("falkordb"):
-        return enriched
-    try:
-        snapshot = await request.app.state.falkordb.get_graph_snapshot(graph_id)
-        enriched["decision_graph_snapshot"] = snapshot
-    except Exception:
-        pass
+    if graph_id:
+        enriched["graphId"] = graph_id
     return enriched
 
 
@@ -385,7 +277,7 @@ async def _enrich_orchestrator_config(request: Request, config: dict[str, Any], 
 async def orchestrator_run(request: Request, body: dict[str, Any]) -> dict[str, Any]:
     signal = normalize_inbound_signal(body.get("signal") or body)
     canvas = body.get("canvas") or {"nodes": [], "edges": []}
-    config = await _enrich_orchestrator_config(request, body.get("config") or {}, canvas)
+    config = await _enrich_orchestrator_config(body.get("config") or {}, canvas)
     memory = body.get("memory")
     stream = request.app.state.orchestrator_stream
     if memory is None and stream:

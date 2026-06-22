@@ -17,8 +17,8 @@ GRAPH_CATALOG: dict[str, dict[str, str]] = {
     },
     "decision": {
         "label": "Decision graph",
-        "description": "User CoT graph in FalkorDB — all committed trade decisions",
-        "source": "falkordb",
+        "description": "Reserved for future decision-memory context (currently unused)",
+        "source": "local",
     },
 }
 

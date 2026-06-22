@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -28,20 +27,8 @@ import {
 } from '@/lib/workflow-storage';
 import { normalizeWorkflowCanvas } from '@/lib/dnd';
 
-const GraphSection = dynamic(
-  () => import('@/components/graph/GraphSection').then((mod) => mod.GraphSection),
-  {
-    ssr: false,
-    loading: () => <div className="cot-graph-view cot-graph-view--loading">Loading graph…</div>,
-  },
-);
-
-type PlaygroundView = 'workflow' | 'graph';
-
 type PlaygroundInnerProps = {
   nodeCount: number;
-  viewMode: PlaygroundView;
-  onToggleGraph: () => void;
   onCountsChange: (nodes: number, edges: number) => void;
   onGoLive: () => void;
   onStopLive: () => void;
@@ -65,8 +52,6 @@ type PlaygroundInnerProps = {
 
 function PlaygroundInner({
   nodeCount,
-  viewMode,
-  onToggleGraph,
   onCountsChange,
   onGoLive,
   onStopLive,
@@ -103,7 +88,7 @@ function PlaygroundInner({
             type="button"
             className={`graph-view-toggle${workflowLive ? ' graph-view-toggle--active' : ''}`}
             onClick={workflowLive ? onStopLive : onGoLive}
-            disabled={viewMode !== 'workflow' || liveBusy || nodeCount === 0}
+            disabled={liveBusy || nodeCount === 0}
             title={
               workflowLive
                 ? 'Stop workflow — orchestrator and subagents go offline'
@@ -117,31 +102,15 @@ function PlaygroundInner({
               {liveError}
             </span>
           ) : null}
-          <button
-            type="button"
-            className={`graph-view-toggle${viewMode === 'graph' ? ' graph-view-toggle--active' : ''}`}
-            onClick={onToggleGraph}
-            title={viewMode === 'graph' ? 'Back to workflow canvas' : 'View user & agentic graphs'}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="4" cy="4" r="2" />
-              <circle cx="12" cy="4" r="2" />
-              <circle cx="8" cy="12" r="2" />
-              <path d="M5.5 4.5L7 10M10.5 4.5L9 10" />
-            </svg>
-            {viewMode === 'graph' ? 'Workflow' : 'Graph'}
-          </button>
           <Link href="/simulate" className="graph-view-toggle" title="Paper trade Polymarket & Kalshi strategies">
             Paper Trading
           </Link>
         </div>
       </header>
       <div className="playground-body">
-        {viewMode === 'workflow' && storageReady && <NodePalette />}
+        {storageReady && <NodePalette />}
         {!storageReady ? (
           <div className="playground-canvas playground-canvas--loading">Loading saved workflow…</div>
-        ) : viewMode === 'graph' ? (
-          <GraphSection />
         ) : (
           <WorkflowCanvas
             key={canvasBootKey}
@@ -158,7 +127,6 @@ function PlaygroundInner({
             activeWorkflowName={activeWorkflowName}
             workflowIndex={workflowIndex}
             workflowCount={workflowCount}
-            workflowLive={workflowLive}
             onRenameWorkflow={onRenameWorkflow}
             onPrevWorkflow={onPrevWorkflow}
             onNextWorkflow={onNextWorkflow}
@@ -174,7 +142,6 @@ function PlaygroundInner({
 function PlaygroundWithState() {
   const searchParams = useSearchParams();
   const [nodeCount, setNodeCount] = useState(0);
-  const [viewMode, setViewMode] = useState<PlaygroundView>('workflow');
   const [workflowLive, setWorkflowLive] = useState(false);
   const [liveBusy, setLiveBusy] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
@@ -231,10 +198,6 @@ function PlaygroundWithState() {
   useEffect(() => {
     const { workflows, activeId } = ensureDefaultWorkflows();
     const urlWorkflowId = searchParams.get('workflow');
-    const urlView = searchParams.get('view');
-    if (urlView === 'graph') {
-      setViewMode('graph');
-    }
     const pickId =
       urlWorkflowId && workflows.some((w) => w.id === urlWorkflowId) ? urlWorkflowId : activeId;
     if (pickId && pickId !== activeId) {
@@ -387,10 +350,6 @@ function PlaygroundWithState() {
     setWorkflowLive(false);
   }, []);
 
-  const onToggleGraph = useCallback(() => {
-    setViewMode((v) => (v === 'graph' ? 'workflow' : 'graph'));
-  }, []);
-
   useEffect(() => {
     void fetchWorkflowLiveStatus().then((s) => setWorkflowLive(Boolean(s.running)));
   }, []);
@@ -398,8 +357,6 @@ function PlaygroundWithState() {
   return (
     <PlaygroundInner
       nodeCount={nodeCount}
-      viewMode={viewMode}
-      onToggleGraph={onToggleGraph}
       onCountsChange={onCountsChange}
       onGoLive={onGoLive}
       onStopLive={onStopLive}

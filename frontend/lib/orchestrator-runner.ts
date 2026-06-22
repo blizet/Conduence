@@ -2,9 +2,9 @@
 
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
-import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/observability-types';
 import { API_BASE } from './workflow-tools';
-import { getOrCreateUserId } from '@/lib/user-profile';
+import { getOrCreateUserId } from '@/lib/user-id';
 
 const DEMO_SIGNAL = {
   type: 'news',

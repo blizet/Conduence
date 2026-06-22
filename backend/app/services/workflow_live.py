@@ -14,10 +14,8 @@ class WorkflowLiveService:
     def __init__(
         self,
         orchestrator_stream: Any,
-        falkordb: Any | None = None,
     ) -> None:
         self._orchestrator = orchestrator_stream
-        self._falkordb = falkordb
         self._running = False
         self._workflow_context: dict[str, Any] | None = None
 

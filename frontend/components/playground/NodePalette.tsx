@@ -1,14 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DND_TYPE } from '@/lib/dnd';
-import {
-  fetchContextGraphs,
-  fetchFalkorGraphIds,
-  filterGraphsForUser,
-  type ContextGraphSpec,
-} from '@/lib/graph-catalog';
-import { DEFAULT_COT_USER_NODE_ID } from '@/nodes/constants';
 import {
   EXECUTION_TOOL_GROUPS,
   getExecutionGroupItems,
@@ -112,101 +105,6 @@ function PaletteToolGroup({
   );
 }
 
-function PaletteGraphEntry({
-  title,
-  subtitle,
-  meta,
-}: {
-  title: string;
-  subtitle?: string;
-  meta?: string;
-}) {
-  return (
-    <div className="palette-graph-item">
-      <div className="palette-graph-item__text">
-        <div className="palette-graph-item__label">{title}</div>
-        {subtitle && <div className="palette-graph-item__desc">{subtitle}</div>}
-      </div>
-      {meta && <span className="palette-graph-item__meta">{meta}</span>}
-    </div>
-  );
-}
-
-function PaletteGraphsSection({
-  collapsed,
-  onToggle,
-  contextGraphs,
-  userGraphs,
-  userSlug,
-  loading,
-}: {
-  collapsed: boolean;
-  onToggle: () => void;
-  contextGraphs: ContextGraphSpec[];
-  userGraphs: string[];
-  userSlug: string;
-  loading: boolean;
-}) {
-  const total = contextGraphs.length + userGraphs.length;
-  return (
-    <div className={`palette-tool-group${collapsed ? ' palette-tool-group--collapsed' : ''}`}>
-      <button
-        type="button"
-        className="palette-tool-group__header palette-tool-group__header--graphs"
-        onClick={onToggle}
-        aria-expanded={!collapsed}
-      >
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          className="palette-tool-group__chevron"
-          aria-hidden
-        >
-          <path d="M6 4l4 4-4 4" />
-        </svg>
-        <span className="palette-tool-group__title">Graphs</span>
-        <span className="palette-tool-group__count">{total}</span>
-      </button>
-      {!collapsed && (
-        <div className="palette-graph-list">
-          {loading && <div className="palette-empty">Loading graphs…</div>}
-          {!loading && contextGraphs.length > 0 && (
-            <>
-              <div className="palette-graph-subhead">Context</div>
-              {contextGraphs.map((g) => (
-                <PaletteGraphEntry
-                  key={g.id}
-                  title={g.label ?? g.id}
-                  subtitle={g.description}
-                  meta={`${g.node_count ?? 0}n · ${g.edge_count ?? 0}e`}
-                />
-              ))}
-            </>
-          )}
-          {!loading && (
-            <>
-              <div className="palette-graph-subhead">User · {userSlug}</div>
-              {userGraphs.length === 0 ? (
-                <div className="palette-empty palette-empty--inline">
-                  No FalkorDB graphs for this user
-                </div>
-              ) : (
-                userGraphs.map((graphId) => (
-                  <PaletteGraphEntry key={graphId} title={graphId} subtitle="Decision graph" />
-                ))
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function isSubagentVisible(item: PaletteItem) {
   return item.category === 'subagent';
 }
@@ -214,31 +112,7 @@ function isSubagentVisible(item: PaletteItem) {
 export function NodePalette() {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
-    graphs: true,
-  });
-  const [contextGraphs, setContextGraphs] = useState<ContextGraphSpec[]>([]);
-  const [userGraphs, setUserGraphs] = useState<string[]>([]);
-  const [graphsLoading, setGraphsLoading] = useState(true);
-  const userSlug = DEFAULT_COT_USER_NODE_ID;
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setGraphsLoading(true);
-      const [ctx, all] = await Promise.all([fetchContextGraphs(), fetchFalkorGraphIds()]);
-      if (cancelled) return;
-      setContextGraphs(ctx);
-      setUserGraphs(filterGraphsForUser(all, userSlug));
-      setGraphsLoading(false);
-    };
-    void load();
-    const t = setInterval(() => void load(), 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, [userSlug]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -286,7 +160,7 @@ export function NodePalette() {
   );
   const ungroupedToolItems = useMemo(() => getUngroupedToolItems(toolItems), [toolItems]);
 
-  const toggleGroup = (groupId: PaletteToolGroup | 'graphs') => {
+  const toggleGroup = (groupId: PaletteToolGroup) => {
     setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
@@ -399,21 +273,6 @@ export function NodePalette() {
                 ))}
               </div>
             )}
-
-            <div className="palette-section">
-              <div className="palette-section-title palette-section-title--graphs">
-                <span className="palette-section-title__text">Graphs</span>
-                <span className="palette-section-title__rule" aria-hidden />
-              </div>
-              <PaletteGraphsSection
-                collapsed={!isSearching && Boolean(collapsedGroups.graphs)}
-                onToggle={() => toggleGroup('graphs')}
-                contextGraphs={contextGraphs}
-                userGraphs={userGraphs}
-                userSlug={userSlug}
-                loading={graphsLoading}
-              />
-            </div>
 
             {filtered.length === 0 && (
               <div className="palette-empty">No nodes match your search</div>

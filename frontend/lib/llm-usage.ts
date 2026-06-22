@@ -1,4 +1,4 @@
-import type { GraphObservabilityLlmUsage } from '@/lib/cot-graph';
+import type { GraphObservabilityLlmUsage } from '@/lib/observability-types';
 
 export function formatUsd(value: number | undefined): string {
   if (value === undefined || Number.isNaN(value)) return '—';

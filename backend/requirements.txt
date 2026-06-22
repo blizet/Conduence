@@ -4,7 +4,6 @@ pydantic>=2.10.0
 python-dotenv>=1.0.0
 httpx>=0.28.0
 cryptography>=43.0.0
-FalkorDB>=1.0.0
 websockets>=14.0
 langgraph>=0.3.0
 langchain-core>=0.3.0

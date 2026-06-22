@@ -9,8 +9,6 @@ for _candidate in (_REPO_ROOT / "backend" / ".env", _REPO_ROOT / ".env"):
         load_dotenv(_candidate, override=False)
 
 PORT = int(os.getenv("PORT", "4000"))
-FALKORDB_HOST = os.getenv("FALKORDB_HOST", "localhost")
-FALKORDB_PORT = int(os.getenv("FALKORDB_PORT", "6380"))
 COINDESK_API_KEY = os.getenv("COINDESK_API_KEY", "").strip()
 COINMARKETCAP_API_KEY = os.getenv("COINMARKETCAP_API_KEY", "").strip()
 CRYPTO_NEWS_API_KEY = os.getenv("CRYPTO_NEWS_API_KEY", "").strip()

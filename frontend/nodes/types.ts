@@ -1,5 +1,5 @@
 import type { Node } from '@xyflow/react';
-import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/observability-types';
 import type { LlmProvider } from '@/lib/llm-providers';
 
 export type NodeCategory = 'tool' | 'subagent' | 'orchestrator';

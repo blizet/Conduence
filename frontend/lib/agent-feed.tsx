@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import type { NewsSignalPayload } from '@/lib/news-signal';
-import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/observability-types';
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:4000/ws';
 const NEWS_AGENT_ID = 'newsAgent';

@@ -14,39 +14,9 @@ services:
     networks:
       - cot
 
-  falkordb-server:
-    image: falkordb/falkordb-server:latest
-    ports:
-      - "6380:6379"
-    environment:
-      REDIS_ARGS: "--appendonly yes"
-      FALKORDB_ARGS: "THREAD_COUNT 4"
-    volumes:
-      - falkordb_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - cot
-
-  falkordb-browser:
-    image: falkordb/falkordb-browser:latest
-    ports:
-      - "3000:3000"
-    environment:
-      FALKORDB_URL: redis://falkordb-server:6379
-    depends_on:
-      falkordb-server:
-        condition: service_healthy
-    networks:
-      - cot
-
 networks:
   cot:
     driver: bridge
 
 volumes:
   redis_data:
-  falkordb_data:

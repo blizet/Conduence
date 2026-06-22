@@ -11,7 +11,7 @@ import {
 } from '@/lib/llm-providers';
 import { fetchWorkflowLiveStatus, type WorkflowLiveStatus } from '@/lib/workflow-live';
 import { upstreamAgentFeedId } from '@/lib/node-wiring';
-import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/observability-types';
 import { formatTokens, formatUsd, hasLlmUsage, mergeLlmUsage } from '@/lib/llm-usage';
 import {
   DEFAULT_COT_GRAPH_ID,

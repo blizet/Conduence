@@ -2,7 +2,7 @@
 
 import type { Edge } from '@xyflow/react';
 import type { WorkflowNode } from '@/nodes/types';
-import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/cot-graph';
+import type { GraphObservability, GraphObservabilityLlmUsage } from '@/lib/observability-types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
