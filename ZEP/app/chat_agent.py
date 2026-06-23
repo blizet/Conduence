@@ -11,7 +11,11 @@ actually generates the reply (Anthropic / OpenAI / Gemini) is decided by
 """
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
+from datetime import date
+from typing import Any
 
 from zep_cloud import Message
 from zep_cloud.client import Zep
@@ -87,6 +91,32 @@ Thing: Crude oil is relevant to the user's Iranian market focus.
 """
 
 
+_MEMORY_REVIEW_PROMPT = """\
+You decide whether a refined user memory should be saved to a knowledge graph
+immediately or confirmed with the user first.
+
+Return ONLY valid JSON with this shape:
+{
+  "status": "new" | "duplicate" | "update" | "conflict",
+  "reason": "short reason",
+  "matches": ["short existing memory references that matter"]
+}
+
+Rules:
+- status "new": no materially similar existing memory.
+- status "duplicate": the new memory says substantially the same thing as an
+  existing memory.
+- status "update": the new memory changes, refreshes, dates, or supersedes an
+  existing memory without a direct contradiction.
+- status "conflict": the new memory contradicts existing sentiment, preference,
+  identity, or temporal state.
+- Prefer "new" if the existing memories are only loosely related background.
+- Treat temporal language ("now", "today", "this week", "used to", "no longer",
+  "changed my mind") as likely update/conflict when it references the same
+  entity or preference.
+"""
+
+
 def _build_prompt(user_id: str, context: str | None) -> str:
     instructions = get_system_instructions(user_id)
     return (
@@ -97,9 +127,13 @@ def _build_prompt(user_id: str, context: str | None) -> str:
 
 
 def _refine_user_message_for_zep(settings: Settings, user_message: str) -> str | None:
+    system_prompt = (
+        _ZEP_MEMORY_REFINEMENT_PROMPT
+        + f"\nCurrent date for temporal claims: {date.today().isoformat()}."
+    )
     refined = generate_reply(
         settings,
-        system_prompt=_ZEP_MEMORY_REFINEMENT_PROMPT,
+        system_prompt=system_prompt,
         messages=[{"role": "user", "content": user_message}],
     ).strip()
 
@@ -110,9 +144,142 @@ def _refine_user_message_for_zep(settings: Settings, user_message: str) -> str |
 
 
 @dataclass
+class MemoryReview:
+    memory_text: str | None
+    needs_confirmation: bool = False
+    status: str = "new"
+    reason: str = ""
+    matches: list[str] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "memory_text": self.memory_text,
+            "needs_confirmation": self.needs_confirmation,
+            "status": self.status,
+            "reason": self.reason,
+            "matches": self.matches or [],
+        }
+
+
+@dataclass
 class ChatTurnResult:
     reply: str
     context_used: str | None
+    memory_text: str | None = None
+    memory_review: MemoryReview | None = None
+
+
+def _extract_json_object(text: str) -> dict[str, Any] | None:
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if not match:
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
+def _format_node_match(node: Any) -> str:
+    labels = ", ".join(getattr(node, "labels", None) or [])
+    name = getattr(node, "name", "") or "(unnamed node)"
+    summary = getattr(node, "summary", "") or ""
+    return f"Node[{labels or 'Entity'}] {name}: {summary}".strip()
+
+
+def _format_edge_match(edge: Any) -> str:
+    name = getattr(edge, "name", "") or "RELATION"
+    fact = getattr(edge, "fact", "") or ""
+    return f"Edge[{name}] {fact}".strip()
+
+
+def _search_existing_memory(zep: Zep, user_id: str, memory_text: str) -> list[str]:
+    try:
+        result = zep.graph.search(user_id=user_id, query=memory_text, limit=8)
+    except Exception:  # noqa: BLE001 - memory review should not break chat
+        return []
+
+    matches: list[str] = []
+    for node in getattr(result, "nodes", None) or []:
+        formatted = _format_node_match(node)
+        if formatted:
+            matches.append(formatted)
+    for edge in getattr(result, "edges", None) or []:
+        formatted = _format_edge_match(edge)
+        if formatted:
+            matches.append(formatted)
+    return matches[:8]
+
+
+def _review_memory_candidate(
+    settings: Settings,
+    *,
+    memory_text: str,
+    existing_matches: list[str],
+) -> MemoryReview:
+    if not existing_matches:
+        return MemoryReview(memory_text=memory_text)
+
+    payload = {
+        "candidate_memory": memory_text,
+        "existing_memories": existing_matches,
+    }
+    response = generate_reply(
+        settings,
+        system_prompt=_MEMORY_REVIEW_PROMPT,
+        messages=[{"role": "user", "content": json.dumps(payload, indent=2)}],
+    )
+    parsed = _extract_json_object(response) or {}
+    status = str(parsed.get("status") or "new").lower()
+    if status not in {"new", "duplicate", "update", "conflict"}:
+        status = "new"
+
+    matches_raw = parsed.get("matches")
+    matches = [str(item) for item in matches_raw] if isinstance(matches_raw, list) else []
+    reason = str(parsed.get("reason") or "")
+
+    if status != "new" and not matches:
+        matches = existing_matches[:3]
+
+    return MemoryReview(
+        memory_text=memory_text,
+        needs_confirmation=status != "new",
+        status=status,
+        reason=reason,
+        matches=matches[:5],
+    )
+
+
+def prepare_memory_review(
+    *,
+    zep: Zep,
+    settings: Settings,
+    user_id: str,
+    user_message: str,
+) -> MemoryReview:
+    memory_text = _refine_user_message_for_zep(settings, user_message)
+    if not memory_text:
+        return MemoryReview(memory_text=None)
+
+    existing_matches = _search_existing_memory(zep, user_id, memory_text)
+    return _review_memory_candidate(
+        settings,
+        memory_text=memory_text,
+        existing_matches=existing_matches,
+    )
+
+
+def save_memory_to_zep(zep: Zep, thread_id: str, memory_text: str) -> None:
+    zep.thread.add_messages(
+        thread_id=thread_id,
+        messages=[Message(role="user", content=memory_text)],
+    )
 
 
 def get_context_block(zep: Zep, thread_id: str) -> str | None:
@@ -130,6 +297,8 @@ def run_turn(
     user_id: str,
     user_message: str,
     conversation_history: list[dict[str, str]],
+    memory_text: str | None = None,
+    ingest_memory: bool = True,
 ) -> ChatTurnResult:
     """
     Runs one turn: refine the user's raw message into graph-ingestion text,
@@ -145,12 +314,19 @@ def run_turn(
     the LLM has conversational context even before Zep's async extraction
     catches up with the latest message.
     """
-    memory_text = _refine_user_message_for_zep(settings, user_message)
-    if memory_text:
-        zep.thread.add_messages(
-            thread_id=thread_id,
-            messages=[Message(role="user", content=memory_text)],
-        )
+    memory_review: MemoryReview | None = None
+    if ingest_memory:
+        if memory_text is None:
+            memory_review = prepare_memory_review(
+                zep=zep,
+                settings=settings,
+                user_id=user_id,
+                user_message=user_message,
+            )
+            memory_text = memory_review.memory_text
+
+        if memory_text:
+            save_memory_to_zep(zep, thread_id, memory_text)
 
     context = get_context_block(zep, thread_id)
     system_prompt = _build_prompt(user_id, context)
@@ -159,4 +335,9 @@ def run_turn(
 
     reply_text = generate_reply(settings, system_prompt=system_prompt, messages=messages)
 
-    return ChatTurnResult(reply=reply_text, context_used=context)
+    return ChatTurnResult(
+        reply=reply_text,
+        context_used=context,
+        memory_text=memory_text,
+        memory_review=memory_review,
+    )

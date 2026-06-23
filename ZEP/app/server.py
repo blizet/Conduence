@@ -15,12 +15,17 @@ code at all.
 """
 from __future__ import annotations
 
+import json
+from datetime import date
+from typing import Any
+
 from flask import Flask, Response, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException
 
-from chat_agent import run_turn
+from chat_agent import prepare_memory_review, run_turn
 from config import load_settings_status
 from graph_snapshot import fetch_user_graph_with_retry
+from llm import generate_reply
 from zep_client import (
     build_client,
     ensure_thread,
@@ -105,6 +110,31 @@ if config_status.ready:
 # server restart, but the Zep graph itself is not -- that's persisted
 # remotely regardless of this process's lifetime.
 conversation_history: list[dict[str, str]] = []
+pending_memory: dict[str, Any] | None = None
+
+MEMORY_DECISIONS = {
+    "update": "Update existing memory",
+    "keep_both": "Keep both memories",
+    "ignore": "Ignore the new memory",
+}
+
+_MEMORY_DECISION_PROMPT = """\
+Classify the user's reply to a pending memory confirmation.
+
+The assistant asked whether to:
+- update the existing memory
+- keep both memories
+- ignore the new memory
+
+Return ONLY valid JSON:
+{"decision": "update" | "keep_both" | "ignore" | "unclear", "reason": "short reason"}
+
+Use semantic intent, not exact wording. If the user affirms updating,
+correcting, replacing, merging, or accepting the proposed correction, choose
+"update". If they want both versions preserved, choose "keep_both". If they
+reject, cancel, or do not want to save the new memory, choose "ignore". If the
+reply does not resolve the pending memory, choose "unclear".
+"""
 
 
 def _ensure_chat_thread() -> str:
@@ -114,6 +144,103 @@ def _ensure_chat_thread() -> str:
     thread_id = DEFAULT_THREAD_ID
     ensure_thread(zep, thread_id, DEFAULT_USER_ID)
     return thread_id
+
+
+def _build_memory_confirmation_reply(review: dict[str, Any]) -> str:
+    status = review.get("status") or "similar"
+    memory_text = review.get("memory_text") or ""
+    matches = review.get("matches") or []
+    reason = review.get("reason") or "This looks related to something already in memory."
+
+    lines = [
+        f"I found a possible {status} before saving this to memory.",
+        "",
+        "New memory candidate:",
+        memory_text,
+        "",
+        f"Why I paused: {reason}",
+    ]
+    if matches:
+        lines.extend(["", "Existing memory I matched:"])
+        lines.extend(f"- {match}" for match in matches[:3])
+    lines.extend(["", "Should I update the existing memory, keep both, or ignore this new memory?"])
+    return "\n".join(lines)
+
+
+def _pending_memory_payload(review: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "memory_text": review.get("memory_text"),
+        "status": review.get("status"),
+        "reason": review.get("reason"),
+        "matches": review.get("matches") or [],
+        "choices": [
+            {"id": decision, "label": label}
+            for decision, label in MEMORY_DECISIONS.items()
+        ],
+    }
+
+
+def _parse_json_object(text: str) -> dict[str, Any] | None:
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if not match:
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
+def _parse_memory_decision(value: str, review: dict[str, Any]) -> str | None:
+    explicit_action = value.strip()
+    if explicit_action in MEMORY_DECISIONS:
+        return explicit_action
+
+    payload = {
+        "user_reply": value,
+        "pending_memory": {
+            "memory_text": review.get("memory_text"),
+            "status": review.get("status"),
+            "reason": review.get("reason"),
+            "matches": review.get("matches") or [],
+        },
+    }
+    response = generate_reply(
+        settings,
+        system_prompt=_MEMORY_DECISION_PROMPT,
+        messages=[{"role": "user", "content": json.dumps(payload, indent=2)}],
+    )
+    parsed = _parse_json_object(response) or {}
+    decision = str(parsed.get("decision") or "unclear")
+    if decision in MEMORY_DECISIONS:
+        return decision
+    return None
+
+
+def _memory_text_for_decision(decision: str, memory_text: str) -> str | None:
+    if decision == "ignore":
+        return None
+
+    today = date.today().isoformat()
+    if decision == "update":
+        return (
+            f"Update existing memory as of {today}. "
+            "This supersedes older matching memory rather than creating a duplicate.\n"
+            f"{memory_text}"
+        )
+    if decision == "keep_both":
+        return (
+            f"Additional distinct memory as of {today}. "
+            "Keep this alongside similar existing memory.\n"
+            f"{memory_text}"
+        )
+    return memory_text
 
 
 @app.get("/")
@@ -193,7 +320,13 @@ def history():
     return jsonify({"messages": conversation_history})
 
 
-def _run_chat_turn(user_message: str, active_thread: str):
+def _run_chat_turn(
+    user_message: str,
+    active_thread: str,
+    *,
+    memory_text: str | None = None,
+    ingest_memory: bool = True,
+):
     return run_turn(
         zep=zep,
         settings=settings,
@@ -201,11 +334,15 @@ def _run_chat_turn(user_message: str, active_thread: str):
         user_id=DEFAULT_USER_ID,
         user_message=user_message,
         conversation_history=conversation_history,
+        memory_text=memory_text,
+        ingest_memory=ingest_memory,
     )
 
 
 @app.post("/api/chat")
 def chat():
+    global pending_memory
+
     if not config_status.ready or zep is None or thread_id is None:
         return jsonify(
             {
@@ -219,19 +356,99 @@ def chat():
 
     payload = request.get_json(silent=True) or {}
     user_message = (payload.get("message") or "").strip()
+    memory_decision = (payload.get("memory_decision") or "").strip()
 
-    if not user_message:
+    if not user_message and not memory_decision:
         return jsonify({"error": "message is required"}), 400
 
     try:
         active_thread = _ensure_chat_thread()
+
+        if pending_memory is not None:
+            decision = _parse_memory_decision(
+                memory_decision or user_message,
+                pending_memory["review"],
+            )
+            if decision is None:
+                reply = (
+                    "Please choose how to handle the pending memory first: "
+                    "update existing memory, keep both memories, or ignore the new memory."
+                )
+                return jsonify(
+                    {
+                        "reply": reply,
+                        "pending_memory": _pending_memory_payload(pending_memory["review"]),
+                    }
+                )
+
+            original_message = pending_memory["original_message"]
+            candidate_text = pending_memory["review"]["memory_text"]
+            confirmed_memory_text = _memory_text_for_decision(decision, candidate_text)
+            pending_memory = None
+
+            try:
+                result = _run_chat_turn(
+                    original_message,
+                    active_thread,
+                    memory_text=confirmed_memory_text,
+                    ingest_memory=confirmed_memory_text is not None,
+                )
+            except ApiError as exc:
+                if exc.status_code != 404:
+                    raise
+                active_thread = _ensure_chat_thread()
+                result = _run_chat_turn(
+                    original_message,
+                    active_thread,
+                    memory_text=confirmed_memory_text,
+                    ingest_memory=confirmed_memory_text is not None,
+                )
+
+            decision_note = MEMORY_DECISIONS.get(decision, "Resolved memory")
+            reply = f"{decision_note}. {result.reply}"
+            conversation_history.append({"role": "assistant", "content": reply})
+            _try_update_user_profile(zep, DEFAULT_USER_ID, original_message)
+            return jsonify({"reply": reply})
+
+        review = prepare_memory_review(
+            zep=zep,
+            settings=settings,
+            user_id=DEFAULT_USER_ID,
+            user_message=user_message,
+        )
+        if review.needs_confirmation:
+            review_payload = review.to_dict()
+            pending_memory = {
+                "original_message": user_message,
+                "review": review_payload,
+            }
+            reply = _build_memory_confirmation_reply(review_payload)
+            conversation_history.append({"role": "user", "content": user_message})
+            conversation_history.append({"role": "assistant", "content": reply})
+            return jsonify(
+                {
+                    "reply": reply,
+                    "pending_memory": _pending_memory_payload(review_payload),
+                }
+            )
+
         try:
-            result = _run_chat_turn(user_message, active_thread)
+            result = _run_chat_turn(
+                user_message,
+                active_thread,
+                memory_text=review.memory_text,
+                ingest_memory=review.memory_text is not None,
+            )
         except ApiError as exc:
             if exc.status_code != 404:
                 raise
             active_thread = _ensure_chat_thread()
-            result = _run_chat_turn(user_message, active_thread)
+            result = _run_chat_turn(
+                user_message,
+                active_thread,
+                memory_text=review.memory_text,
+                ingest_memory=review.memory_text is not None,
+            )
     except ApiError as exc:
         return jsonify({"error": str(exc)}), 502
     except Exception as exc:  # noqa: BLE001 — always return JSON, never Flask HTML errors

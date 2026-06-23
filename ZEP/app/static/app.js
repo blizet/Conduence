@@ -45,6 +45,75 @@ function addMessage(role, content, { pending = false, error = false } = {}) {
   return contentEl;
 }
 
+function refreshGraphAndUser() {
+  if (window.GraphView) {
+    window.GraphView.refresh();
+    window.setTimeout(() => window.GraphView.refresh(), 3000);
+    window.setTimeout(() => window.GraphView.refresh(), 8000);
+  }
+  refreshUserBadge();
+  window.setTimeout(refreshUserBadge, 5000);
+}
+
+function renderMemoryActions(contentEl, pendingMemory) {
+  if (!pendingMemory || !Array.isArray(pendingMemory.choices)) return;
+
+  const actions = document.createElement("div");
+  actions.className = "memory-actions";
+
+  pendingMemory.choices.forEach((choice) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "memory-action";
+    button.textContent = choice.label;
+    button.addEventListener("click", () => submitMemoryDecision(choice.id, actions));
+    actions.appendChild(button);
+  });
+
+  contentEl.appendChild(actions);
+}
+
+async function submitMemoryDecision(decision, actionsEl) {
+  const buttons = actionsEl.querySelectorAll("button");
+  buttons.forEach((button) => {
+    button.disabled = true;
+  });
+
+  setThinking(true);
+  const pendingEl = addMessage("assistant", "updating memory...", { pending: true });
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ memory_decision: decision }),
+    });
+    const data = await readJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(data.error || "Something went wrong.");
+    }
+
+    pendingEl.parentElement.classList.remove("msg--pending");
+    pendingEl.textContent = data.reply;
+    if (data.pending_memory) {
+      renderMemoryActions(pendingEl, data.pending_memory);
+    } else {
+      refreshGraphAndUser();
+    }
+  } catch (err) {
+    buttons.forEach((button) => {
+      button.disabled = false;
+    });
+    pendingEl.parentElement.classList.remove("msg--pending");
+    pendingEl.parentElement.classList.add("msg--error");
+    pendingEl.textContent = `Couldn't update memory: ${err.message}`;
+  } finally {
+    setThinking(false);
+    scrollToBottom();
+    input.focus();
+  }
+}
+
 function setThinking(isThinking) {
   pulse.classList.toggle("thinking", isThinking);
   sendBtn.disabled = isThinking;
@@ -94,14 +163,11 @@ form.addEventListener("submit", async (event) => {
 
     pendingEl.parentElement.classList.remove("msg--pending");
     pendingEl.textContent = data.reply;
-
-    if (window.GraphView) {
-      window.GraphView.refresh();
-      window.setTimeout(() => window.GraphView.refresh(), 3000);
-      window.setTimeout(() => window.GraphView.refresh(), 8000);
+    if (data.pending_memory) {
+      renderMemoryActions(pendingEl, data.pending_memory);
+    } else {
+      refreshGraphAndUser();
     }
-    refreshUserBadge();
-    window.setTimeout(refreshUserBadge, 5000);
   } catch (err) {
     pendingEl.parentElement.classList.remove("msg--pending");
     pendingEl.parentElement.classList.add("msg--error");

@@ -493,6 +493,35 @@ html, body {
   color: #d9716a;
 }
 
+.memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.memory-action {
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius);
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 10px;
+  transition: border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.memory-action:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.memory-action:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
 /* ---------- composer ---------- */
 
 .composer {
