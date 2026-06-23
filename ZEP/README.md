@@ -62,11 +62,11 @@ requirements.txt
    - `LLM_PROVIDER` — which model powers the chat agent's replies: one of
      `anthropic`, `openai`, or `gemini`. This only affects who writes the
      assistant's chat text — Zep's own graph extraction is unaffected.
-   - The API key matching whichever provider you picked
-     (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`). You can
-     set all three keys at once and just flip `LLM_PROVIDER` (or pass
-     `--provider` on the CLI) whenever you want to switch — no code or
-     other config changes needed.
+   - `LLM_API_KEY` — the API key for whichever provider you selected above.
+     When switching providers, update both `LLM_PROVIDER` and `LLM_API_KEY`
+     (or pass `--provider` on the CLI and set the matching key in `.env`).
+     Legacy per-provider names (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+     `GEMINI_API_KEY`) still work as fallbacks for the active provider.
    - Optionally override the model per provider via `ANTHROPIC_MODEL`,
      `OPENAI_MODEL`, or `GEMINI_MODEL` (defaults: `claude-sonnet-4-6`,
      `gpt-4o`, `gemini-2.0-flash`).

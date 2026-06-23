@@ -12,9 +12,8 @@ short-term conversation) while still reading/writing to the SAME
 underlying user graph -- so long-term memory persists across runs even
 though each run starts a "new chat".
 
---provider overrides LLM_PROVIDER from .env for this run only, letting you
-switch between anthropic / openai / gemini without editing any files (as
-long as the matching API key is set).
+--provider overrides LLM_PROVIDER from .env for this run only. The matching
+LLM_API_KEY (or legacy provider-specific key) must still be set in .env.
 """
 from __future__ import annotations
 

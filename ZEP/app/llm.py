@@ -38,7 +38,7 @@ def generate_reply(
 def _generate_anthropic(settings: Settings, system_prompt: str, messages: list[dict[str, str]]) -> str:
     import anthropic
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = anthropic.Anthropic(api_key=settings.llm_api_key)
     response = client.messages.create(
         model=settings.model,
         max_tokens=MAX_TOKENS,
@@ -51,7 +51,7 @@ def _generate_anthropic(settings: Settings, system_prompt: str, messages: list[d
 def _generate_openai(settings: Settings, system_prompt: str, messages: list[dict[str, str]]) -> str:
     from openai import OpenAI
 
-    client = OpenAI(api_key=settings.openai_api_key)
+    client = OpenAI(api_key=settings.llm_api_key)
     full_messages = [{"role": "system", "content": system_prompt}, *messages]
     response = client.chat.completions.create(
         model=settings.model,
@@ -65,7 +65,7 @@ def _generate_gemini(settings: Settings, system_prompt: str, messages: list[dict
     from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=settings.gemini_api_key)
+    client = genai.Client(api_key=settings.llm_api_key)
 
     # Gemini uses "model" instead of "assistant" for the assistant role,
     # and expects each turn's text wrapped in a "parts" list.

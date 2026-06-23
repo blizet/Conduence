@@ -5,19 +5,25 @@ Everyone running this locally should point ZEP_API_KEY at the same Zep
 project so that the graph being built is shared across all of you,
 regardless of who is running the chat at any given moment.
 
-LLM_PROVIDER picks which model powers the chat agent's replies. This is
-independent of Zep -- Zep's own extraction pipeline is unaffected by this
-choice, it only changes who generates the assistant's chat text.
+LLM_PROVIDER picks which model powers the chat agent's replies. Set
+LLM_API_KEY to the API key for that provider. Legacy per-provider env
+names (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY) are still read
+as fallbacks for the active provider only.
 """
 from __future__ import annotations
 
 import os
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+_APP_DIR = Path(__file__).resolve().parent
+_PROJECT_DIR = _APP_DIR.parent
+
+load_dotenv(_PROJECT_DIR / ".env")
+load_dotenv(_APP_DIR / ".env")
 
 SUPPORTED_PROVIDERS = ("anthropic", "openai", "gemini")
 
@@ -27,15 +33,19 @@ DEFAULT_MODELS = {
     "gemini": "gemini-2.0-flash",
 }
 
+LEGACY_KEY_BY_PROVIDER = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+}
+
 
 @dataclass(frozen=True)
 class Settings:
     zep_api_key: str
     llm_provider: str
     model: str
-    anthropic_api_key: str
-    openai_api_key: str
-    gemini_api_key: str
+    llm_api_key: str
 
 
 @dataclass(frozen=True)
@@ -57,26 +67,33 @@ def _resolve_provider(provider_override: str | None) -> str:
     return llm_provider
 
 
+def _resolve_llm_api_key(llm_provider: str) -> tuple[str, str]:
+    """Return (env_var_name_for_errors, key_value)."""
+    llm_api_key = (
+        os.environ.get("LLM_API_KEY", "").strip()
+    )
+    if llm_api_key:
+        return ("LLM_API_KEY", llm_api_key)
+
+    legacy_name = LEGACY_KEY_BY_PROVIDER[llm_provider]
+    legacy_value = os.environ.get(legacy_name, "").strip()
+    if legacy_value:
+        return (legacy_name, legacy_value)
+
+    return ("LLM_API_KEY", "")
+
+
 def load_settings_status(provider_override: str | None = None) -> SettingsStatus:
     """Load settings without exiting; missing keys are returned in `missing_keys`."""
     zep_api_key = os.environ.get("ZEP_API_KEY", "").strip()
     llm_provider = _resolve_provider(provider_override)
 
-    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    openai_api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    gemini_api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-
     missing: list[str] = []
     if not zep_api_key:
         missing.append("ZEP_API_KEY")
 
-    key_by_provider = {
-        "anthropic": ("ANTHROPIC_API_KEY", anthropic_api_key),
-        "openai": ("OPENAI_API_KEY", openai_api_key),
-        "gemini": ("GEMINI_API_KEY", gemini_api_key),
-    }
-    required_key_name, required_key_value = key_by_provider[llm_provider]
-    if not required_key_value:
+    required_key_name, llm_api_key = _resolve_llm_api_key(llm_provider)
+    if not llm_api_key:
         missing.append(required_key_name)
 
     model_env_name = f"{llm_provider.upper()}_MODEL"
@@ -86,9 +103,7 @@ def load_settings_status(provider_override: str | None = None) -> SettingsStatus
         zep_api_key=zep_api_key,
         llm_provider=llm_provider,
         model=model,
-        anthropic_api_key=anthropic_api_key,
-        openai_api_key=openai_api_key,
-        gemini_api_key=gemini_api_key,
+        llm_api_key=llm_api_key,
     )
     return SettingsStatus(settings=settings, missing_keys=tuple(missing))
 
