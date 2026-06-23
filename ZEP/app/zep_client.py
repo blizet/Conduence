@@ -36,18 +36,23 @@ def get_or_create_user(
     last_name: str | None = None,
     email: str | None = None,
 ) -> None:
-    """Create the Zep user if it doesn't already exist. Idempotent."""
+    """Create the Zep user if needed and enforce the custom-only ontology."""
     try:
         client.user.add(
             user_id=user_id,
             first_name=first_name,
             last_name=last_name,
             email=email,
+            disable_default_ontology=True,
         )
     except ApiError as exc:
         if _is_duplicate_error(exc):
-            # User already exists -- fine, this is expected on repeat runs
-            # or when a teammate already created this user.
+            # Existing users may have been created before we disabled Zep's
+            # default ontology, so make repeat runs converge on custom-only.
+            client.user.update(
+                user_id=user_id,
+                disable_default_ontology=True,
+            )
             return
         raise
 

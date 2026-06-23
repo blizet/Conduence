@@ -83,6 +83,9 @@ requirements.txt
    Zep project. Re-run it any time `ontology.py` changes — it replaces
    the whole ontology, so it's idempotent.
 
+   The app creates/updates Zep users with default ontology disabled, so graph
+   extraction uses these custom entity and edge types only.
+
 4. **Run the web app**
 
    ```bash
