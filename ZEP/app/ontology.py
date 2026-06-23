@@ -40,7 +40,8 @@ from zep_cloud.external_clients.ontology import (
 
 class User(EntityModel):
     """
-    Represents a trader/user whose prediction-market behavior we model.
+    Represents a user. User can be a trader, analyst, investor, etc. User can have multiple preferences, objects, people, events, companies, rules, etc.
+    User summarizes the user's preferences and it should not contain any information about other .
     """
 
     first_name: EntityText = Field(description="The user's first name", default=None)
@@ -74,7 +75,7 @@ class Preference(EntityModel):
     )
 
 
-class Thing(EntityModel):
+class Object(EntityModel):
     """
     Represents a tradable thing or asset in a prediction market, for
     example: ETH, SpaceX stock, Gold, Crude oil.
@@ -94,7 +95,7 @@ class Thing(EntityModel):
     )
 
 
-class Influencer(EntityModel):
+class Person(EntityModel):
     """
     Represents an influential person or entity whose actions or statements
     can move a prediction market, for example: Trump, an Indian cricket
@@ -140,8 +141,8 @@ class Event(EntityModel):
 
 class Company(EntityModel):
     """
-    Represents a company relevant to a prediction market, for example:
-    Google, SpaceX.
+    Represents a listed company all over the world and any website named after the company, for example:
+    Google, SpaceX, Amazon, Polymarket, Uniswap, Aave etc.
     """
 
     sector: EntityText = Field(
@@ -158,6 +159,27 @@ class Company(EntityModel):
     )
 
 
+class Rules(EntityModel):
+    """
+        Represents a rule or guideline that is implied by a company or event. for example - 
+    """
+
+class AiAgent(EntityModel):
+    """
+    Represents an AI agent that is used to analyze the user's preferences and objects and make decisions.
+    """
+    name: EntityText = Field(
+        description="The name of the AI agent, for example: John Doe, Jane Smith, etc.",
+        default=None,
+    )
+    role: EntityText = Field(
+        description="The role of the AI agent, for example: Trader, Analyst, Investor, etc.",
+        default=None,
+    )
+
+
+
+
 ENTITIES: dict[str, type[EntityModel]] = {
     "User": User,
     "Preference": Preference,
@@ -165,6 +187,7 @@ ENTITIES: dict[str, type[EntityModel]] = {
     "Influencer": Influencer,
     "Event": Event,
     "Company": Company,
+    "Rules": Rules,
 }
 
 
@@ -207,6 +230,27 @@ class CoRelates(EdgeModel):
         default=None,
     )
 
+
+class Implicates(EdgeModel):
+    """An edge representing a rule or guideline that is implied by a company or event."""
+
+    proximity: EntityFloat = Field(
+        description="Strength/direction of the implication, from 0 ( lenient/less implication ) to 1 (strongly positive/reinforcing implication)",
+        default=None,
+    )
+
+class Stance(EdgeModel):
+    """An edge representing a trust relationship between a user and an AI agent."""
+
+    proximity: EntityFloat = Field(
+        description="Strength/direction of the stance, from 0 ( neutral ) to 1 ( strongly positive/negative )",
+        default=None,
+    )
+
+    stance: EntityText = Field(
+        description="The type of trust, avoid, think, assume or prioritize",
+        default=None,
+    )
 
 # Source -> target pairs per edge type. These constrain which entity-type
 # pairs Zep is allowed to connect with a given edge type. Built from the
