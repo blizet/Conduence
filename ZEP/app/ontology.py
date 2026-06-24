@@ -10,21 +10,10 @@ Run `python setup_ontology.py` after changing anything in this file
 to push the new ontology to your Zep project. `set_ontology` REPLACES the
 existing ontology wholesale, so this file should always reflect the full,
 current schema -- not a diff.
-
-Edges
------
-Per the source diagram, there are three edge types, each carrying a
-`proximity` float in the range -1 (strongly opposed / unrelated) to
-1 (strongly aligned / closely related):
-
-  INFLUENCES   -- an Influencer moving/affecting a market-relevant thing
-  INTERESTED   -- a User's interest in a thing/topic
-  CO_RELATES   -- two market-relevant things moving together (or inversely)
 """
 from __future__ import annotations
 
 from pydantic import Field
-from zep_cloud import EntityEdgeSourceTarget
 from zep_cloud.external_clients.ontology import (
     EdgeModel,
     EntityFloat,
@@ -38,156 +27,193 @@ from zep_cloud.external_clients.ontology import (
 # ---------------------------------------------------------------------------
 
 
-class User(EntityModel):
-    """
-    Represents a user. User can be a trader, analyst, investor, etc. User can have multiple preferences, objects, people, events, companies, rules, etc.
-    User summarizes the user's preferences and it should not contain any information about other .
-    """
-
-    first_name: EntityText = Field(description="The user's first name", default=None)
-    last_name: EntityText = Field(description="The user's last name", default=None)
-    occupation: EntityText = Field(
-        description="The user's occupation or profession, for example: software engineer, trader, analyst, etc.",
-        default=None,
-    )
-    status: EntityText = Field(
-        description="The user's current status, for example: active, inactive, onboarding, suspended, etc.",
-        default=None,
-    )
-    email: EntityText = Field(description="The user's email address", default=None)
-
-
 class Preference(EntityModel):
     """
-    Represents a user's market focus, trading preference, recurring topic
-    interest, or risk concern. If the user says they trade or follow
-    "war-based markets", "Iranian markets", or "oil-sensitive markets", model
-    that as a Preference rather than as the underlying Event itself.
+    Represents a trader's long-term preference, conviction, focus area, bias,
+    or recurring decision tendency. Use for stable beliefs such as market
+    interests, asset preferences, signal preferences, trusted or avoided
+    themes, and broad theses. Do not use for temporary positions, active
+    trades, or short-term events.
     """
 
     category: EntityText = Field(
-        description="The category of the preference, for example: Asset, Event-Based Market, Sports, Politics, Commodity, Risk Management, etc.",
+        description="High-level preference type. Examples: Market, Asset, IPL, Election.",
         default=None,
     )
+
     sector: EntityText = Field(
-        description="The sector the preference belongs to, for example: Crypto, Cricket, Indian_Congress_party, Crude_Oil etc.",
+        description="Domain the preference belongs to. Examples: Crypto, Politics, Economics, Sports, Commodities.",
         default=None,
     )
 
 
-class Object(EntityModel):
+class GeoFactors(EntityModel):
     """
-    Represents a tradable thing or asset in a prediction market, for
-    example: ETH, SpaceX stock, Gold, Crude oil.
+    Represents a geopolitical, geographic, economic, or strategic location that
+    can influence markets, commodities, trade, conflicts, supply chains,
+    currencies, or prediction markets. Examples include Iran, India, China,
+    Taiwan, Strait of Hormuz, Red Sea, European Union, Middle East, and BRICS.
     """
-
-    user_sentiment: EntityFloat = Field(
-        description="The user's sentiment toward this thing, ranging from -1 (very negative) to 1 (very positive)",
-        default=None,
-    )
-    time: EntityText = Field(
-        description="The time horizon or relevant time period for this thing, for example: Dec, Q1, 2026, etc.",
-        default=None,
-    )
-    sector: EntityText = Field(
-        description="The sector this thing belongs to, for example: Crypto, Commodities, Tech, etc.",
-        default=None,
-    )
 
 
 class Person(EntityModel):
     """
-    Represents an influential person or entity whose actions or statements
-    can move a prediction market, for example: Trump, an Indian cricket
-    team, OPEC, the Fed, or a government. Use this instead of generic Person or
-    Organization labels.
+    Represents a market participant, institution, organization, team,
+    government body, or public figure whose actions, statements, policies, or
+    decisions can affect markets, narratives, or prediction outcomes. Use for
+    actors the user monitors or trades around, such as Trump, Musk, Powell,
+    OPEC, the Fed, governments, or sports teams.
     """
-
-    job: EntityText = Field(
-        description="The role or job of the influencer, for example: US President, Cricket team, CEO, etc.",
-        default=None,
-    )
-    sector: EntityText = Field(
-        description="The sector the influencer operates in, for example: Politics, Sports, Tech, etc.",
-        default=None,
-    )
-    user_sentiment: EntityFloat = Field(
-        description="The user's sentiment toward this influencer, ranging from -1 (very negative) to 1 (very positive)",
-        default=None,
-    )
 
 
 class Event(EntityModel):
     """
-    Represents the real-world event itself, for example: IPL, India elections,
-    Iran-US war, sanctions, or an OPEC meeting. Do not use Event when the user
-    is describing their preference for an event-based market; use Preference
-    for that.
+    Represents a real-world occurrence, catalyst, announcement, conflict,
+    election, sporting event, economic release, policy decision, or time-bound
+    situation that can affect market outcomes. Use for what is happening in the
+    world, not the user's preference toward it. Examples include wars,
+    elections, OPEC meetings, rate decisions, sanctions, and earnings.
     """
 
-    category: EntityText = Field(
-        description="The category of the event, for example: Sports, Politics, War, etc.",
-        default=None,
-    )
-    sector: EntityText = Field(
-        description="The sector the event belongs to, for example: Cricket, Politics, Geopolitics, etc.",
-        default=None,
-    )
-    user_sentiment: EntityFloat = Field(
-        description="The user's sentiment toward this event, ranging from -1 (very negative) to 1 (very positive)",
-        default=None,
-    )
 
-
-class Company(EntityModel):
+class EconomicActor(EntityModel):
     """
-    Represents a listed company all over the world and any website named after the company, for example:
-    Google, SpaceX, Amazon, Polymarket, Uniswap, Aave etc.
+    Represents an economically significant asset, instrument, company,
+    protocol, currency, commodity, stock, ETF, index, prediction-market subject,
+    or financial entity that can be traded, monitored, analyzed, or influence
+    market outcomes. Examples include BTC, ETH, crude oil, Apple, Polymarket,
+    Aave, USD, and SpaceX stock.
     """
 
-    sector: EntityText = Field(
-        description="The sector(s) the company operates in, for example: Tech, Cloud, Web3, etc.",
-        default=None,
-    )
-    user_sentiment: EntityFloat = Field(
-        description="The user's sentiment toward this company, ranging from -1 (very negative) to 1 (very positive)",
-        default=None,
-    )
-    hero_product: EntityText = Field(
-        description="The company's flagship or hero product, for example: AWS, lending, etc.",
-        default=None,
-    )
-
-
-class Rules(EntityModel):
-    """
-        Represents a rule or guideline that is implied by a company or event. for example - 
-    """
 
 class AiAgent(EntityModel):
     """
-    Represents an AI agent that is used to analyze the user's preferences and objects and make decisions.
+    Represents a persistent AI capability in a Conduence workflow. Agents
+    monitor, research, analyze, execute, or manage risk for a trader. They
+    observe markets, events, geo-factors, economic actors, and signals to find
+    opportunities, validate theses, enforce rules, and manage positions. Use for
+    agents like News Agent, Risk Analyzer, Macro Analyst, or Orchestrator.
     """
-    name: EntityText = Field(
-        description="The name of the AI agent, for example: John Doe, Jane Smith, etc.",
-        default=None,
-    )
+
     role: EntityText = Field(
-        description="The role of the AI agent, for example: Trader, Analyst, Investor, etc.",
+        description="Monitoring, Research, Analysis, Execution, Risk, Orchestration",
+        default=None,
+    )
+
+    specialization: EntityText = Field(
+        description="Crypto, Politics, Economics, Sports, Macro, Cross-Market",
+        default=None,
+    )
+
+    objective: EntityText = Field(
+        description="Primary goal of the agent",
+        default=None,
+    )
+
+    workflow: EntityText = Field(
+        description="Workflow or strategy this agent belongs to",
+        default=None,
+    )
+
+    market_scope: EntityText = Field(
+        description="Markets this agent is allowed to operate in",
+        default=None,
+    )
+
+    memory_access: EntityText = Field(
+        description="Agentic Graph, User Graph, Both",
+        default=None,
+    )
+
+    autonomy_level: EntityText = Field(
+        description="Observe, Recommend, ApprovalRequired, Autonomous",
+        default=None,
+    )
+
+    confidence_threshold: EntityFloat = Field(
+        description="Minimum confidence before taking action",
+        default=None,
+    )
+
+    status: EntityText = Field(
+        description="Active, Paused, Disabled, Testing",
+        default=None,
+    )
+
+    risk_scope: EntityText = Field(
+        description="Capital or exposure constraints applied to this agent",
         default=None,
     )
 
 
+class Rule(EntityModel):
+    """
+    Represents reusable procedural memory: an instruction, guardrail, monitor,
+    entry condition, exit condition, risk policy, execution policy, or workflow
+    constraint. Rules describe what should happen when conditions are met, unlike
+    Preferences which describe beliefs. Use for logic such as enter, exit,
+    monitor, risk limit, confirmation requirement, or expiry condition.
+    """
+
+    rule_type: EntityText = Field(
+        description="Entry, Exit, Monitor, Risk, Workflow, Filter, Capital",
+        default=None,
+    )
+
+    condition: EntityText = Field(
+        description="Condition that activates the rule",
+        default=None,
+    )
+
+    action: EntityText = Field(
+        description="Action performed when condition becomes true",
+        default=None,
+    )
+
+    scope: EntityText = Field(
+        description="Agent, Workflow, Strategy, Position, User",
+        default=None,
+    )
+
+    priority: EntityText = Field(
+        description="Critical, High, Medium, Low",
+        default=None,
+    )
+
+    confidence: EntityFloat = Field(
+        description="Confidence in usefulness of the rule",
+        default=None,
+    )
+
+    created_by: EntityText = Field(
+        description="User, Agent, System",
+        default=None,
+    )
+
+    status: EntityText = Field(
+        description="Active, Testing, Disabled, Expired",
+        default=None,
+    )
+
+    expiry_condition: EntityText = Field(
+        description="Condition under which the rule becomes inactive",
+        default=None,
+    )
+
+    description: EntityText = Field(
+        description="Human readable explanation of the rule",
+        default=None,
+    )
 
 
 ENTITIES: dict[str, type[EntityModel]] = {
-    "User": User,
     "Preference": Preference,
-    "Thing": Thing,
-    "Influencer": Influencer,
+    "GeoFactors": GeoFactors,
+    "Person": Person,
     "Event": Event,
-    "Company": Company,
-    "Rules": Rules,
+    "EconomicActor": EconomicActor,
+    "AiAgent": AiAgent,
+    "Rule": Rule,
 }
 
 
@@ -195,15 +221,12 @@ ENTITIES: dict[str, type[EntityModel]] = {
 # Edge types
 # ---------------------------------------------------------------------------
 
-# All three edge types share the same single attribute, but Zep's ontology
-# API wants a distinct EdgeModel class per edge type name (the name you
-# register it under is what matters, not the class name), so we still
-# define one class per edge for clarity.
-
 
 class Influences(EdgeModel):
-    """An edge representing an influencer (or company/event) moving or
-    affecting a market-relevant thing, event, or company."""
+    """
+    An edge representing causal influence between entities.
+    Person/Event/GeoFactor influencing EconomicActor, Event, or other entities.
+    """
 
     proximity: EntityFloat = Field(
         description="Strength/direction of the influence, from -1 (strongly negative/opposing influence) to 1 (strongly positive/reinforcing influence)",
@@ -211,19 +234,10 @@ class Influences(EdgeModel):
     )
 
 
-class Interested(EdgeModel):
-    """An edge representing a user's interest in a thing, event,
-    influencer, company, or preference/topic."""
-
-    proximity: EntityFloat = Field(
-        description="Strength/direction of the user's interest, from -1 (strongly disinterested/averse) to 1 (strongly interested/engaged)",
-        default=None,
-    )
-
-
 class CoRelates(EdgeModel):
-    """An edge representing two market-relevant things, events, or
-    companies that move together or move inversely to each other."""
+    """
+    An edge representing correlation or co-movement between two market-relevant entities.
+    """
 
     proximity: EntityFloat = Field(
         description="Correlation strength/direction between the two nodes, from -1 (strong negative/inverse correlation) to 1 (strong positive correlation)",
@@ -231,61 +245,53 @@ class CoRelates(EdgeModel):
     )
 
 
-class Implicates(EdgeModel):
-    """An edge representing a rule or guideline that is implied by a company or event."""
-
-    proximity: EntityFloat = Field(
-        description="Strength/direction of the implication, from 0 ( lenient/less implication ) to 1 (strongly positive/reinforcing implication)",
-        default=None,
-    )
-
 class Stance(EdgeModel):
-    """An edge representing a trust relationship between a user and an AI agent."""
+    """
+    An edge representing a stance, trust relationship, prioritization, or avoidance
+    between an entity and another entity (often AiAgent to Preference/Person/EconomicActor).
+    """
 
     proximity: EntityFloat = Field(
-        description="Strength/direction of the stance, from 0 ( neutral ) to 1 ( strongly positive/negative )",
+        description="Strength/direction of the stance, from -1 (strongly avoid) to 1 (strongly prioritize/trust)",
         default=None,
     )
 
     stance: EntityText = Field(
-        description="The type of trust, avoid, think, assume or prioritize",
+        description="The type of stance: trust, avoid, think, assume, prioritize, monitor",
         default=None,
     )
 
-# Source -> target pairs per edge type. These constrain which entity-type
-# pairs Zep is allowed to connect with a given edge type. Built from the
-# diagram (Influences / Interested / Co-relates) plus what makes sense
-# given the entity definitions above.
-EDGES: dict[str, tuple[type[EdgeModel], list[EntityEdgeSourceTarget]]] = {
-    "INFLUENCES": (
-        Influences,
-        [
-            EntityEdgeSourceTarget(source="Influencer", target="Thing"),
-            EntityEdgeSourceTarget(source="Influencer", target="Event"),
-            EntityEdgeSourceTarget(source="Influencer", target="Company"),
-            EntityEdgeSourceTarget(source="Event", target="Thing"),
-            EntityEdgeSourceTarget(source="Event", target="Company"),
-            EntityEdgeSourceTarget(source="Company", target="Thing"),
-        ],
-    ),
-    "INTERESTED": (
-        Interested,
-        [
-            EntityEdgeSourceTarget(source="User", target="Thing"),
-            EntityEdgeSourceTarget(source="User", target="Event"),
-            EntityEdgeSourceTarget(source="User", target="Influencer"),
-            EntityEdgeSourceTarget(source="User", target="Company"),
-            EntityEdgeSourceTarget(source="User", target="Preference"),
-        ],
-    ),
-    "CO_RELATES": (
-        CoRelates,
-        [
-            EntityEdgeSourceTarget(source="Thing", target="Thing"),
-            EntityEdgeSourceTarget(source="Thing", target="Event"),
-            EntityEdgeSourceTarget(source="Thing", target="Company"),
-            EntityEdgeSourceTarget(source="Event", target="Event"),
-            EntityEdgeSourceTarget(source="Company", target="Company"),
-        ],
-    ),
+
+class HasRule(EdgeModel):
+    """
+    An edge representing an AiAgent or entity having a Rule attached.
+    """
+
+
+class Monitors(EdgeModel):
+    """
+    An edge representing an AiAgent monitoring an Event, GeoFactor, EconomicActor, or Person.
+    """
+
+
+class Implicates(EdgeModel):
+    """
+    An edge representing a Rule or guideline that is implied by an Event, Company, or condition.
+    """
+
+    proximity: EntityFloat = Field(
+        description="Strength/direction of the implication, from 0 (lenient/less implication) to 1 (strongly positive/reinforcing implication)",
+        default=None,
+    )
+
+
+# Do not hardcode source/target constraints. Let Zep infer valid links from
+# context and extraction semantics.
+EDGES: dict[str, type[EdgeModel]] = {
+    "INFLUENCES": Influences,
+    "CO_RELATES": CoRelates,
+    "STANCE": Stance,
+    "HAS_RULE": HasRule,
+    "MONITORS": Monitors,
+    "IMPLICATES": Implicates,
 }
