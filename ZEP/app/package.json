@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build:voice": "esbuild static/voice.js --bundle --format=esm --outfile=static/voice.bundle.js --platform=browser",
+    "build:voice": "esbuild static/voice.js --bundle --format=iife --global-name=ConduenceVoiceBundle --outfile=static/voice.bundle.js --platform=browser",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {

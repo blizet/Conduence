@@ -46,36 +46,9 @@ from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 
 from instructions import get_system_instructions
+import voice_log
 
 load_dotenv(override=True)
-
-_DEBUG_LOG = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "debug-ad0552.log"))
-
-
-def _agent_dbg(hypothesis_id: str, location: str, message: str, data: dict | None = None) -> None:
-    # region agent log
-    import json
-    import time
-
-    try:
-        with open(_DEBUG_LOG, "a", encoding="utf-8") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "sessionId": "ad0552",
-                        "hypothesisId": hypothesis_id,
-                        "location": location,
-                        "message": message,
-                        "data": data or {},
-                        "timestamp": int(time.time() * 1000),
-                        "runId": "pre-fix",
-                    }
-                )
-                + "\n"
-            )
-    except Exception:
-        pass
-    # endregion
 
 # ── Zep client for voice memory sync ──────────────────────────────────────────
 _voice_zep      = None
@@ -94,20 +67,8 @@ try:
         _voice_thread   = web_thread_id(_DEFAULT_USER)
         ensure_thread(_voice_zep, _voice_thread, _DEFAULT_USER)
         logger.info("Voice Zep client initialised — voice turns will update the graph")
-    _agent_dbg(
-        "H1",
-        "voice_agent.py:module_init",
-        "Voice Zep client init",
-        {"ready": bool(_voice_zep), "thread_id": _voice_thread},
-    )
 except Exception as _e:
     logger.warning(f"Voice Zep client unavailable ({_e}); graph won't update from voice")
-    _agent_dbg(
-        "H1",
-        "voice_agent.py:module_init",
-        "Voice Zep client init failed",
-        {"error": str(_e)},
-    )
 
 VOICE_SYSTEM_INSTRUCTION = f"""\
 You are the Conduence voice agent for a trader cognition graph.
@@ -208,44 +169,43 @@ class ZepMemorySync(FrameProcessor):
         if isinstance(frame, (StartFrame, EndFrame, CancelFrame, LLMFullResponseEndFrame)):
             await super().process_frame(frame, direction)
             if isinstance(frame, LLMFullResponseEndFrame):
-                # region agent log
-                _agent_dbg("H2", "voice_agent.py:process_frame", "LLMFullResponseEndFrame received", {})
-                # endregion
                 asyncio.create_task(self._sync())
         await self.push_frame(frame, direction)
 
     async def _sync(self) -> None:
         msgs = self._context.messages
         user_text = None
+        assistant_text = None
+
+        # Walk backwards: first assistant turn we hit is the latest reply,
+        # first user turn before that is the matching user message.
         for m in reversed(msgs):
-            if m.get("role") == "user":
-                content = m.get("content", "")
-                if isinstance(content, str) and content.strip():
-                    user_text = content.strip()
-                    break
+            role = m.get("role")
+            content = m.get("content", "")
+
+            def _extract(content) -> str | None:  # noqa: ANN001
+                if isinstance(content, str):
+                    return content.strip() or None
                 if isinstance(content, list):
                     parts = [p.get("text", "") for p in content
                              if isinstance(p, dict) and p.get("type") == "text"]
-                    user_text = " ".join(parts).strip() or None
-                    if user_text:
-                        break
+                    return " ".join(parts).strip() or None
+                return None
 
-        # region agent log
-        _agent_dbg(
-            "H3",
-            "voice_agent.py:_sync",
-            "Extracted user text for Zep",
-            {
-                "has_user_text": bool(user_text),
-                "user_text_len": len(user_text or ""),
-                "skipped_dedup": user_text == self._last_synced if user_text else False,
-                "recent_roles": [m.get("role") for m in msgs[-8:]],
-            },
-        )
-        # endregion
+            text = _extract(content)
+            if role == "assistant" and assistant_text is None and text:
+                assistant_text = text
+            elif role == "user" and user_text is None and text:
+                user_text = text
+                break  # got both; stop scanning
 
         if not user_text or user_text == self._last_synced:
             return
+
+        # Log this turn to the shared transcript store so the UI can display it.
+        voice_log.append_turn("user", user_text)
+        if assistant_text:
+            voice_log.append_turn("assistant", assistant_text)
 
         try:
             from chat_agent import persist_voice_turn_to_zep
@@ -258,21 +218,10 @@ class ZepMemorySync(FrameProcessor):
                 user_id=self._user_id,
                 user_message=user_text,
             )
-            # region agent log
-            _agent_dbg(
-                "H5",
-                "voice_agent.py:_sync",
-                "persist_voice_turn_to_zep finished",
-                {"saved": bool(memory_text), "memory_text_len": len(memory_text or "")},
-            )
-            # endregion
             if memory_text:
                 self._last_synced = user_text
                 logger.info(f"[Voice→Zep] {memory_text[:80]}")
         except Exception as exc:
-            # region agent log
-            _agent_dbg("H5", "voice_agent.py:_sync", "ZepMemorySync exception", {"error": str(exc)})
-            # endregion
             logger.warning(f"ZepMemorySync failed: {exc}")
 
 
@@ -294,15 +243,6 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
         if _voice_zep and _voice_thread and _voice_settings
         else None
     )
-    # region agent log
-    _agent_dbg(
-        "H1",
-        "voice_agent.py:run_bot",
-        "Pipeline ZepMemorySync attached",
-        {"zep_sync": zep_sync is not None, "position": "after_llm"},
-    )
-    # endregion
-
     pipeline_stages = [
         transport.input(),
         stt,
@@ -319,14 +259,6 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
 
     pipeline = Pipeline(pipeline_stages)
     logger.info("Voice pipeline: ZepMemorySync placed after LLM (before TTS)")
-    # region agent log
-    _agent_dbg(
-        "H2",
-        "voice_agent.py:run_bot",
-        "Pipeline built",
-        {"stages": [type(s).__name__ for s in pipeline_stages]},
-    )
-    # endregion
 
     worker = PipelineWorker(
         pipeline,

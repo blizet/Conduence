@@ -29,6 +29,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+import voice_log
 from chat_agent import prepare_memory_review, run_turn
 from config import load_settings_status
 from graph_snapshot import fetch_user_graph_with_retry
@@ -43,6 +44,8 @@ from zep_cloud.client import Zep
 from zep_cloud.core.api_error import ApiError
 
 APP_ROOT = Path(__file__).resolve().parent
+
+
 IS_VERCEL = os.getenv("VERCEL") == "1"
 VOICE_ENABLED = not IS_VERCEL
 
@@ -141,6 +144,26 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(APP_ROOT / "static")), name="static")
 templates = Jinja2Templates(directory=str(APP_ROOT / "templates"))
+
+
+def _static_asset_version(name: str) -> int:
+    """File mtime for cache-busting query strings (?v=...) on static assets."""
+    try:
+        return int((APP_ROOT / "static" / name).stat().st_mtime)
+    except OSError:
+        return 0
+
+
+templates.env.globals["asset_version"] = _static_asset_version
+
+
+@app.middleware("http")
+async def static_no_cache_middleware(request: Request, call_next):
+    """Prevent browsers from serving stale JS bundles during development."""
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
 
 if VOICE_ENABLED:
     try:
@@ -396,6 +419,19 @@ def user_info():
 @app.get("/api/history")
 def history():
     return JSONResponse({"messages": conversation_history})
+
+
+@app.get("/api/voice/transcript")
+def voice_transcript():
+    """Return all voice turns captured since the last session start."""
+    return JSONResponse({"turns": voice_log.get_turns()})
+
+
+@app.post("/api/voice/clear")
+def voice_transcript_clear():
+    """Clear the voice transcript log (called when a new voice session begins)."""
+    voice_log.clear()
+    return JSONResponse({"ok": True})
 
 
 def _run_chat_turn(user_message, active_thread, *, memory_text=None, ingest_memory=True):
