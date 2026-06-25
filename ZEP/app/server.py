@@ -20,6 +20,7 @@ import re
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 from fastapi import BackgroundTasks, FastAPI, Request
@@ -40,6 +41,10 @@ from zep_client import (
 )
 from zep_cloud.client import Zep
 from zep_cloud.core.api_error import ApiError
+
+APP_ROOT = Path(__file__).resolve().parent
+IS_VERCEL = os.getenv("VERCEL") == "1"
+VOICE_ENABLED = not IS_VERCEL
 
 
 DEFAULT_USER_ID = "shared-user"
@@ -100,22 +105,28 @@ async def lifespan(app: FastAPI):
         except Exception:
             pass
     yield
-    # Clean up SmallWebRTC handler on shutdown
-    try:
-        await _small_webrtc_handler.close()
-    except Exception:
-        pass
+    if VOICE_ENABLED:
+        handler = _get_webrtc_handler()
+        if handler is not None:
+            try:
+                await handler.close()
+            except Exception:
+                pass
 
 
-# ── SmallWebRTC handler (initialised once, shared across requests) ─────────────
-from pipecat.transports.smallwebrtc.request_handler import (
-    IceCandidate,
-    SmallWebRTCPatchRequest,
-    SmallWebRTCRequest,
-    SmallWebRTCRequestHandler,
-)
+# ── SmallWebRTC (local voice only — not loaded on Vercel) ─────────────────────
+_small_webrtc_handler = None
 
-_small_webrtc_handler = SmallWebRTCRequestHandler(esp32_mode=False, host="localhost")
+
+def _get_webrtc_handler():
+    global _small_webrtc_handler
+    if not VOICE_ENABLED:
+        return None
+    if _small_webrtc_handler is None:
+        from pipecat.transports.smallwebrtc.request_handler import SmallWebRTCRequestHandler
+
+        _small_webrtc_handler = SmallWebRTCRequestHandler(esp32_mode=False, host="localhost")
+    return _small_webrtc_handler
 
 
 app = FastAPI(lifespan=lifespan)
@@ -128,14 +139,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=str(APP_ROOT / "static")), name="static")
+templates = Jinja2Templates(directory=str(APP_ROOT / "templates"))
 
-try:
-    from pipecat_ai_prebuilt.frontend import PipecatPrebuiltUI
+if VOICE_ENABLED:
+    try:
+        from pipecat_ai_prebuilt.frontend import PipecatPrebuiltUI
 
-    app.mount("/client", PipecatPrebuiltUI, name="pipecat-client")
-except ImportError:
+        app.mount("/client", PipecatPrebuiltUI, name="pipecat-client")
+    except ImportError:
+        PipecatPrebuiltUI = None  # type: ignore[misc, assignment]
+else:
     PipecatPrebuiltUI = None  # type: ignore[misc, assignment]
 
 
@@ -490,115 +504,153 @@ async def chat(request: Request):
     return JSONResponse({"reply": result.reply})
 
 
-# ── WebRTC voice (Pipecat SmallWebRTC, same port) ────────────────────────────
+# ── WebRTC voice (Pipecat SmallWebRTC — local server only) ───────────────────
 
-@app.post("/start")
-async def start_agent(request: Request):
-    """Called by the Pipecat prebuilt UI to initialise a session.
-
-    Returns a sessionId that the client then uses with
-    POST /sessions/{sessionId}/api/offer for the WebRTC handshake.
-    """
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-
-    session_id = str(uuid.uuid4())
-    _active_sessions[session_id] = body.get("body", {})
-    return {"sessionId": session_id}
-
-
-async def _run_voice_bot(
-    request: SmallWebRTCRequest,
-    background_tasks: BackgroundTasks,
-    session_id: str,
-):
-    """Shared helper: connect the SmallWebRTC handler and launch the bot."""
-    from voice_agent import bot as voice_bot
-
-    async def _connection_callback(connection):
-        runner_args_type = None
-        try:
-            from pipecat.runner.types import SmallWebRTCRunnerArguments
-            runner_args_type = SmallWebRTCRunnerArguments
-        except ImportError:
-            pass
-
-        if runner_args_type:
-            runner_args = runner_args_type(
-                webrtc_connection=connection,
-                body=_active_sessions.get(session_id, {}),
-                session_id=session_id,
-            )
-        else:
-            from pipecat.runner.types import RunnerArguments
-            runner_args = RunnerArguments(
-                body=_active_sessions.get(session_id, {}),
-                session_id=session_id,
-            )
-        background_tasks.add_task(voice_bot, runner_args)
-
-    return await _small_webrtc_handler.handle_web_request(
-        request=request,
-        webrtc_connection_callback=_connection_callback,
+def _voice_unavailable() -> JSONResponse:
+    return JSONResponse(
+        {
+            "error": "Voice/WebRTC is not available on Vercel. "
+            "Run locally with: pip install -r requirements-local.txt && python server.py",
+        },
+        status_code=501,
     )
 
 
-@app.post("/api/offer")
-async def webrtc_offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks):
-    """Direct WebRTC offer endpoint (used by custom clients)."""
-    return await _run_voice_bot(request, background_tasks, session_id=str(uuid.uuid4()))
+if VOICE_ENABLED:
+    from pipecat.transports.smallwebrtc.request_handler import (
+        IceCandidate,
+        SmallWebRTCPatchRequest,
+        SmallWebRTCRequest,
+    )
 
+    async def _run_voice_bot(
+        request: SmallWebRTCRequest,
+        background_tasks: BackgroundTasks,
+        session_id: str,
+    ):
+        """Shared helper: connect the SmallWebRTC handler and launch the bot."""
+        from voice_agent import bot as voice_bot
 
-@app.patch("/api/offer")
-async def webrtc_ice(request: SmallWebRTCPatchRequest):
-    """ICE candidate trickle for the direct /api/offer flow."""
-    await _small_webrtc_handler.handle_patch_request(request)
-    return {"status": "success"}
+        handler = _get_webrtc_handler()
+        assert handler is not None
 
+        async def _connection_callback(connection):
+            runner_args_type = None
+            try:
+                from pipecat.runner.types import SmallWebRTCRunnerArguments
+                runner_args_type = SmallWebRTCRunnerArguments
+            except ImportError:
+                pass
 
-@app.api_route(
-    "/sessions/{session_id}/{path:path}",
-    methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-)
-async def sessions_proxy(
-    session_id: str,
-    path: str,
-    request: Request,
-    background_tasks: BackgroundTasks,
-):
-    """Proxy used by the Pipecat prebuilt UI for session-scoped requests."""
-    if session_id not in _active_sessions:
-        return Response(content="Invalid or expired session_id", status_code=404)
+            if runner_args_type:
+                runner_args = runner_args_type(
+                    webrtc_connection=connection,
+                    body=_active_sessions.get(session_id, {}),
+                    session_id=session_id,
+                )
+            else:
+                from pipecat.runner.types import RunnerArguments
+                runner_args = RunnerArguments(
+                    body=_active_sessions.get(session_id, {}),
+                    session_id=session_id,
+                )
+            background_tasks.add_task(voice_bot, runner_args)
 
-    if path.endswith("api/offer"):
+        return await handler.handle_web_request(
+            request=request,
+            webrtc_connection_callback=_connection_callback,
+        )
+
+    @app.post("/start")
+    async def start_agent(request: Request):
+        """Called by the Pipecat prebuilt UI to initialise a session."""
         try:
             body = await request.json()
         except Exception:
-            return Response(content="Invalid JSON", status_code=400)
+            body = {}
 
-        if request.method == "POST":
-            webrtc_req = SmallWebRTCRequest(
-                sdp=body["sdp"],
-                type=body["type"],
-                pc_id=body.get("pc_id"),
-                restart_pc=body.get("restart_pc"),
-                request_data=body.get("request_data")
-                    or body.get("requestData")
-                    or _active_sessions.get(session_id, {}),
-            )
-            return await _run_voice_bot(webrtc_req, background_tasks, session_id)
+        session_id = str(uuid.uuid4())
+        _active_sessions[session_id] = body.get("body", {})
+        return {"sessionId": session_id}
 
-        if request.method == "PATCH":
-            patch_req = SmallWebRTCPatchRequest(
-                pc_id=body["pc_id"],
-                candidates=[IceCandidate(**c) for c in body.get("candidates", [])],
-            )
-            await _small_webrtc_handler.handle_patch_request(patch_req)
-            return {"status": "success"}
+    @app.post("/api/offer")
+    async def webrtc_offer(request: SmallWebRTCRequest, background_tasks: BackgroundTasks):
+        """Direct WebRTC offer endpoint (used by custom clients)."""
+        return await _run_voice_bot(request, background_tasks, session_id=str(uuid.uuid4()))
 
-    return Response(status_code=200)
+    @app.patch("/api/offer")
+    async def webrtc_ice(request: SmallWebRTCPatchRequest):
+        """ICE candidate trickle for the direct /api/offer flow."""
+        handler = _get_webrtc_handler()
+        assert handler is not None
+        await handler.handle_patch_request(request)
+        return {"status": "success"}
+
+    @app.api_route(
+        "/sessions/{session_id}/{path:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    )
+    async def sessions_proxy(
+        session_id: str,
+        path: str,
+        request: Request,
+        background_tasks: BackgroundTasks,
+    ):
+        """Proxy used by the Pipecat prebuilt UI for session-scoped requests."""
+        if session_id not in _active_sessions:
+            return Response(content="Invalid or expired session_id", status_code=404)
+
+        if path.endswith("api/offer"):
+            try:
+                body = await request.json()
+            except Exception:
+                return Response(content="Invalid JSON", status_code=400)
+
+            if request.method == "POST":
+                webrtc_req = SmallWebRTCRequest(
+                    sdp=body["sdp"],
+                    type=body["type"],
+                    pc_id=body.get("pc_id"),
+                    restart_pc=body.get("restart_pc"),
+                    request_data=body.get("request_data")
+                        or body.get("requestData")
+                        or _active_sessions.get(session_id, {}),
+                )
+                return await _run_voice_bot(webrtc_req, background_tasks, session_id)
+
+            if request.method == "PATCH":
+                handler = _get_webrtc_handler()
+                assert handler is not None
+                patch_req = SmallWebRTCPatchRequest(
+                    pc_id=body["pc_id"],
+                    candidates=[IceCandidate(**c) for c in body.get("candidates", [])],
+                )
+                await handler.handle_patch_request(patch_req)
+                return {"status": "success"}
+
+        return Response(status_code=200)
+
+
+else:
+
+    @app.post("/start")
+    async def start_agent_vercel():
+        return _voice_unavailable()
+
+    @app.post("/api/offer")
+    async def webrtc_offer_vercel():
+        return _voice_unavailable()
+
+    @app.patch("/api/offer")
+    async def webrtc_ice_vercel():
+        return _voice_unavailable()
+
+    @app.api_route(
+        "/sessions/{session_id}/{path:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    )
+    async def sessions_proxy_vercel(session_id: str, path: str):
+        return _voice_unavailable()
 
 
 # ── entry point ───────────────────────────────────────────────────────────────

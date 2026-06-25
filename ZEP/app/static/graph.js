@@ -107,14 +107,27 @@ function initGraphView() {
   resizeCanvas();
 }
 
+function getCanvasDimensions() {
+  if (!wrap) return { width: 800, height: 600 };
+  const rect = wrap.getBoundingClientRect();
+  const width  = Math.floor(rect.width)  || canvas?.clientWidth  || 800;
+  const height = Math.floor(rect.height) || canvas?.clientHeight || 600;
+  return { width: Math.max(width, 1), height: Math.max(height, 1) };
+}
+
+function isCanvasReady() {
+  const { width, height } = getCanvasDimensions();
+  return width >= 80 && height >= 80;
+}
+
 function resizeCanvas() {
   if (!canvas || !wrap) return;
-  const rect = wrap.getBoundingClientRect();
+  const { width, height } = getCanvasDimensions();
   const dpr  = window.devicePixelRatio || 1;
-  canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
-  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-  canvas.style.width  = `${rect.width}px`;
-  canvas.style.height = `${rect.height}px`;
+  canvas.width  = Math.max(1, Math.floor(width  * dpr));
+  canvas.height = Math.max(1, Math.floor(height * dpr));
+  canvas.style.width  = `${width}px`;
+  canvas.style.height = `${height}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawGraph();
 }
@@ -143,17 +156,36 @@ function updateLegend(labels) {
 
 // ─── positions ────────────────────────────────────────────────────────────────
 
+function nodesAreClustered(nodes, threshold = 28) {
+  if (nodes.length < 2) return false;
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      if (Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y) > threshold) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function seedPositions(nodes, width, height) {
   const cx = width / 2;
   const cy = height / 2;
-  const r  = Math.min(width, height) * 0.32;
+  const r  = Math.min(width, height) * 0.34;
+  const useCache = isCanvasReady() && !nodesAreClustered(
+    nodes
+      .map((node) => positionCache[node.id])
+      .filter(Boolean)
+      .map((pos, i) => ({ id: i, x: pos.x, y: pos.y })),
+  );
+
   return nodes.map((node, i) => {
-    const cached = positionCache[node.id];
+    const cached = useCache ? positionCache[node.id] : null;
     const angle  = (i / Math.max(nodes.length, 1)) * Math.PI * 2;
     return {
       ...node,
-      x:  cached ? cached.x : cx + Math.cos(angle) * r,
-      y:  cached ? cached.y : cy + Math.sin(angle) * r,
+      x: cached ? cached.x : cx + Math.cos(angle) * r,
+      y: cached ? cached.y : cy + Math.sin(angle) * r,
       vx: 0,
       vy: 0,
     };
@@ -161,6 +193,7 @@ function seedPositions(nodes, width, height) {
 }
 
 function savePositions() {
+  if (!isCanvasReady() || nodesAreClustered(graphState.simNodes)) return;
   graphState.simNodes.forEach((n) => {
     positionCache[n.id] = { x: n.x, y: n.y };
   });
@@ -170,11 +203,18 @@ function savePositions() {
 
 function startSimulation() {
   stopSimulation();
-  if (!graphState.simNodes.length) return;
+  if (!graphState.simNodes.length || !isCanvasReady()) return;
+  let ticks = 0;
   const tick = () => {
     runSimulationStep();
     drawGraph();
-    animationId = requestAnimationFrame(tick);
+    ticks += 1;
+    if (ticks < 240) {
+      animationId = requestAnimationFrame(tick);
+    } else {
+      animationId = null;
+      savePositions();
+    }
   };
   animationId = requestAnimationFrame(tick);
 }
@@ -186,17 +226,20 @@ function stopSimulation() {
 function runSimulationStep() {
   const nodes = graphState.simNodes;
   const edges = graphState.edges;
-  const W = canvas.clientWidth;
-  const H = canvas.clientHeight;
-  const cx = W / 2, cy = H / 2;
+  const { width: W, height: H } = getCanvasDimensions();
+  if (W < 80 || H < 80) return;
+  const cx = W / 2;
+  const cy = H / 2;
+  const idealLen = Math.min(W, H) * 0.18;
+  const repulsion = Math.max(8000, idealLen * idealLen * 2.2);
 
   // Repulsion
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
       let dx = a.x - b.x, dy = a.y - b.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const f = 5200 / (dist * dist);
+      const dist = Math.max(Math.hypot(dx, dy), 8);
+      const f = repulsion / (dist * dist);
       a.vx += (dx / dist) * f; a.vy += (dy / dist) * f;
       b.vx -= (dx / dist) * f; b.vy -= (dy / dist) * f;
     }
@@ -208,21 +251,22 @@ function runSimulationStep() {
     const tgt = nodes.find((n) => n.id === edge.target);
     if (!src || !tgt) return;
     const dx = tgt.x - src.x, dy = tgt.y - src.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    const f = (dist - 120) * 0.02;
+    const dist = Math.max(Math.hypot(dx, dy), 1);
+    const f = (dist - idealLen) * 0.035;
     src.vx += (dx / dist) * f; src.vy += (dy / dist) * f;
     tgt.vx -= (dx / dist) * f; tgt.vy -= (dy / dist) * f;
   });
 
-  // Gravity + damping
+  // Gentle centering + damping
   nodes.forEach((n) => {
     if (n === draggingNode) return;
-    n.vx += (cx - n.x) * 0.002;
-    n.vy += (cy - n.y) * 0.002;
-    n.vx *= 0.86; n.vy *= 0.86;
+    n.vx += (cx - n.x) * 0.0008;
+    n.vy += (cy - n.y) * 0.0008;
+    n.vx *= 0.84; n.vy *= 0.84;
     n.x += n.vx;  n.y += n.vy;
-    n.x = Math.max(44, Math.min(W - 44, n.x));
-    n.y = Math.max(44, Math.min(H - 44, n.y));
+    const pad = 48;
+    n.x = Math.max(pad, Math.min(W - pad, n.x));
+    n.y = Math.max(pad, Math.min(H - pad, n.y));
   });
 }
 
@@ -230,7 +274,7 @@ function runSimulationStep() {
 
 function drawGraph() {
   if (!ctx || !canvas) return;
-  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const { width: W, height: H } = getCanvasDimensions();
   ctx.clearRect(0, 0, W, H);
 
   // Edges
@@ -564,8 +608,13 @@ function renderGraphData(payload) {
   const labels = [...new Set(graphState.nodes.map((n) => n.label))].sort();
   updateLegend(labels);
 
-  const W = canvas?.clientWidth  || 800;
-  const H = canvas?.clientHeight || 600;
+  if (!isCanvasReady()) {
+    graphState.simNodes = graphState.nodes.map((node) => ({ ...node, x: 0, y: 0, vx: 0, vy: 0 }));
+    return;
+  }
+
+  resizeCanvas();
+  const { width: W, height: H } = getCanvasDimensions();
   graphState.simNodes = seedPositions(graphState.nodes, W, H);
 
   // Keep selected node/edge in sync after refresh
@@ -601,11 +650,35 @@ window.GraphView = {
   resize: resizeCanvas,
 };
 
+function graphPaneIsHidden() {
+  const pane = document.getElementById("graph-pane");
+  return Boolean(pane && pane.hidden);
+}
+
+function scheduleGraphRefreshWhenVisible() {
+  if (!graphPaneIsHidden()) {
+    refreshGraph();
+    return;
+  }
+  const pane = document.getElementById("graph-pane");
+  if (!pane || typeof MutationObserver === "undefined") return;
+  const observer = new MutationObserver(() => {
+    if (!pane.hidden && isCanvasReady()) {
+      observer.disconnect();
+      resizeCanvas();
+      refreshGraph();
+    }
+  });
+  observer.observe(pane, { attributes: true, attributeFilter: ["hidden"] });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   initGraphView();
   if (document.body.dataset.configReady === "true" && document.getElementById("graph-canvas")) {
-    refreshGraph();
-    window.setInterval(refreshGraph, 20000);
+    scheduleGraphRefreshWhenVisible();
+    window.setInterval(() => {
+      if (!graphPaneIsHidden() && isCanvasReady()) refreshGraph();
+    }, 20000);
   }
 });
 

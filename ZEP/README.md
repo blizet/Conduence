@@ -41,6 +41,7 @@ requirements.txt
    .venv\Scripts\activate        # Windows
    source .venv/bin/activate     # macOS/Linux
    pip install -r requirements.txt
+   pip install -r requirements-local.txt   # optional: Pipecat voice (local server only)
    ```
 
 2. **Configure env vars**

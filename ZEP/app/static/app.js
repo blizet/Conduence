@@ -81,10 +81,12 @@ function showGraphPane() {
   graphPane.classList.add("sm-frame--active");
   loadMemories();
   requestAnimationFrame(() => {
-    if (window.GraphView) {
-      window.GraphView.resize();
-      window.GraphView.refresh();
-    }
+    requestAnimationFrame(() => {
+      if (window.GraphView) {
+        window.GraphView.resize();
+        window.GraphView.refresh();
+      }
+    });
   });
 }
 
