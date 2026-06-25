@@ -1,27 +1,55 @@
+// ─── theme helpers ────────────────────────────────────────────────────────────
+
+function isLightTheme() {
+  return document.body && document.body.dataset.graphTheme === "light";
+}
+
+function themeColors() {
+  const light = isLightTheme();
+  return {
+    edgeLabelBg:       light ? "rgba(255,255,255,0.92)" : "rgba(15,23,42,0.85)",
+    edgeLabelBorder:   light ? "rgba(226,232,240,0.9)"  : null,
+    edgeLabelDim:      light ? "#64748b"                : "#8a8f96",
+    nodeLabelNormal:   light ? "#1e293b"                : "#edeae2",
+    nodeLabelSelected: light ? "#0f172a"                : "#ffffff",
+  };
+}
+
 // ─── colour maps ──────────────────────────────────────────────────────────────
 
 const NODE_COLORS = {
-  User:       "#4fe0a0",
-  Thing:      "#6eb5ff",
-  Influencer: "#e0a04f",
-  Event:      "#c49bff",
-  Company:    "#5fd4d4",
-  Preference: "#8a8f96",
-  Location:   "#ff8fa3",
-  Topic:      "#b8d4a8",
-  Organization: "#ffb347",
-  Entity:     "#8a8f96",
+  User:           "#4fe0a0",
+  Preference:     "#8a8f96",
+  GeoFactors:     "#ff8fa3",
+  Person:         "#e0a04f",
+  Event:          "#c49bff",
+  EconomicActor:  "#6eb5ff",
+  AiAgent:        "#5fd4d4",
+  Rule:           "#ffb347",
+  // Legacy labels (older graph data)
+  Thing:          "#6eb5ff",
+  Influencer:     "#e0a04f",
+  Company:        "#5fd4d4",
+  Location:       "#ff8fa3",
+  Topic:          "#b8d4a8",
+  Organization:   "#ffb347",
+  Entity:         "#8a8f96",
 };
 
 const EDGE_COLORS = {
-  INFLUENCES:          "#e0a04f",
-  INTERESTED:          "#4fe0a0",
-  CO_RELATES:          "#6eb5ff",
-  CORRELATES:          "#6eb5ff",
-  HIGHLY_INFLUENCED_BY:"#ff8fa3",
-  INFLUENCED_BY:       "#ffb347",
-  TRADES_IN:           "#c49bff",
-  TRACKS:              "#5fd4d4",
+  INFLUENCES:   "#e0a04f",
+  CO_RELATES:   "#6eb5ff",
+  STANCE:       "#4fe0a0",
+  HAS_RULE:     "#ffb347",
+  MONITORS:     "#5fd4d4",
+  IMPLICATES:   "#c49bff",
+  // Legacy edge types (older graph data)
+  INTERESTED:   "#4fe0a0",
+  CORRELATES:   "#6eb5ff",
+  HIGHLY_INFLUENCED_BY: "#ff8fa3",
+  INFLUENCED_BY: "#ffb347",
+  TRADES_IN:    "#c49bff",
+  TRACKS:       "#5fd4d4",
 };
 
 function labelColor(label) {
@@ -56,12 +84,12 @@ let dragMoved     = false;      // distinguish click vs drag
 // ─── init ─────────────────────────────────────────────────────────────────────
 
 function initGraphView() {
-  canvas       = document.getElementById("graph-canvas");
-  wrap         = document.getElementById("graph-canvas-wrap");
-  metaEl       = document.getElementById("graph-meta");
-  legendEl     = document.getElementById("graph-legend");
-  detailPanel  = document.getElementById("detail-panel");
-  detailContent= document.getElementById("detail-panel-content");
+  canvas        = document.getElementById("graph-canvas");
+  wrap          = document.getElementById("graph-canvas-wrap");
+  metaEl        = document.getElementById("graph-meta");
+  legendEl      = document.getElementById("graph-legend");
+  detailPanel   = document.getElementById("detail-panel");
+  detailContent = document.getElementById("detail-panel-content");
 
   const closeBtn = document.getElementById("detail-panel-close");
   if (closeBtn) closeBtn.addEventListener("click", closeDetailPanel);
@@ -94,11 +122,8 @@ function resizeCanvas() {
 // ─── layout toggle ────────────────────────────────────────────────────────────
 
 function setSplitLayout(enabled) {
-  const shell     = document.getElementById("shell");
-  const graphPane = document.getElementById("graph-pane");
-  if (!shell || !graphPane) return;
-  shell.classList.toggle("shell--split", enabled);
-  graphPane.hidden = !enabled;
+  /* The graph is now a full-screen view toggled by app.js — just
+     start/stop the simulation when the canvas is visible. */
   if (enabled) { resizeCanvas(); startSimulation(); }
   else         { stopSimulation(); }
 }
@@ -234,12 +259,17 @@ function drawGraph() {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // Small background pill
-    const tw = ctx.measureText(label).width;
-    ctx.fillStyle = "rgba(11,13,15,0.75)";
+    const tc  = themeColors();
+    const tw  = ctx.measureText(label).width;
+    ctx.fillStyle = tc.edgeLabelBg;
     ctx.fillRect(mx - tw / 2 - 3, my - 7, tw + 6, 14);
+    if (tc.edgeLabelBorder) {
+      ctx.strokeStyle = tc.edgeLabelBorder;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(mx - tw / 2 - 3, my - 7, tw + 6, 14);
+    }
 
-    ctx.fillStyle = isSelected || isHovered ? edgeColor(edge.name) : "#8a8f96";
+    ctx.fillStyle = isSelected || isHovered ? edgeColor(edge.name) : tc.edgeLabelDim;
     ctx.fillText(label, mx, my);
     ctx.textBaseline = "alphabetic";
   });
@@ -273,8 +303,9 @@ function drawGraph() {
       ctx.globalAlpha = 1;
     }
 
+    const ntc = themeColors();
     ctx.font = "11px JetBrains Mono, Menlo, Consolas, monospace";
-    ctx.fillStyle = isSelected ? "#ffffff" : "#edeae2";
+    ctx.fillStyle = isSelected ? ntc.nodeLabelSelected : ntc.nodeLabelNormal;
     ctx.textAlign = "center";
     ctx.fillText(truncate(node.name, 18), node.x, node.y + 22);
   });
@@ -563,12 +594,25 @@ async function refreshGraph() {
 
 // ─── public API ───────────────────────────────────────────────────────────────
 
-window.GraphView = { init: initGraphView, refresh: refreshGraph, render: renderGraphData };
+window.GraphView = {
+  init: initGraphView,
+  refresh: refreshGraph,
+  render: renderGraphData,
+  resize: resizeCanvas,
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   initGraphView();
-  if (document.body.dataset.configReady === "true") {
+  if (document.body.dataset.configReady === "true" && document.getElementById("graph-canvas")) {
     refreshGraph();
     window.setInterval(refreshGraph, 20000);
   }
 });
+
+// Re-size when a standalone graph view becomes visible
+const _graphView = document.getElementById("view-graph");
+if (_graphView && typeof MutationObserver !== "undefined") {
+  new MutationObserver(() => {
+    if (!_graphView.hidden) { resizeCanvas(); startSimulation(); }
+  }).observe(_graphView, { attributes: true, attributeFilter: ["hidden"] });
+}

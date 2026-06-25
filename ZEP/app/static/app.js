@@ -1,37 +1,46 @@
-const log = document.getElementById("log");
-const form = document.getElementById("composer");
-const input = document.getElementById("input");
-const sendBtn = document.getElementById("send");
-const pulse = document.getElementById("pulse");
+/* ─── DOM refs ────────────────────────────────────────────────────────────── */
+const log       = document.getElementById("log");
+const form      = document.getElementById("composer");
+const input     = document.getElementById("input");
+const sendBtn   = document.getElementById("send");
+const landing   = document.getElementById("landing");
+const workspace = document.getElementById("workspace");
+const landingStart = document.getElementById("landing-start");
+const landingText  = document.getElementById("landing-text");
+const clientFrame  = document.getElementById("client-frame");
+const graphPane    = document.getElementById("graph-pane");
+const memoriesList = document.getElementById("memories-list");
+const memorySearch = document.getElementById("memory-search");
+const leftPanelLabel = document.getElementById("left-panel-label");
 
 const configReady = document.body.dataset.configReady === "true";
 
-async function readJsonResponse(response) {
-  const contentType = response.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return response.json();
-  }
+let memoriesCache = [];
+let clientLoaded = false;
+let activeTab = "context";
 
-  const text = await response.text();
-  if (text.trimStart().startsWith("<")) {
-    throw new Error(
-      `Server returned HTML instead of JSON (HTTP ${response.status}). Restart python server.py and check the terminal for errors.`
-    );
-  }
-  throw new Error(text.slice(0, 200) || `Unexpected response (HTTP ${response.status}).`);
+/* ─── helpers ────────────────────────────────────────────────────────────── */
+async function readJsonResponse(res) {
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) return res.json();
+  const text = await res.text();
+  if (text.trimStart().startsWith("<"))
+    throw new Error(`Server returned HTML (HTTP ${res.status}). Restart the server.`);
+  throw new Error(text.slice(0, 200) || `Unexpected (HTTP ${res.status}).`);
 }
 
-function scrollToBottom() {
-  log.scrollTop = log.scrollHeight;
-}
+function scrollToBottom() { log.scrollTop = log.scrollHeight; }
 
 function addMessage(role, content, { pending = false, error = false } = {}) {
+  const intro = log.querySelector(".log__intro");
+  if (intro) intro.remove();
+
   const row = document.createElement("div");
   row.className = `msg msg--${role}${pending ? " msg--pending" : ""}${error ? " msg--error" : ""}`;
 
   const roleEl = document.createElement("div");
   roleEl.className = "msg__role";
-  roleEl.textContent = role === "user" ? "you" : "agent";
+  roleEl.textContent = role === "user" ? "You" : "Conduence";
 
   const contentEl = document.createElement("div");
   contentEl.className = "msg__content";
@@ -41,71 +50,184 @@ function addMessage(role, content, { pending = false, error = false } = {}) {
   row.appendChild(contentEl);
   log.appendChild(row);
   scrollToBottom();
-
   return contentEl;
 }
 
-function refreshGraphAndUser() {
-  if (window.GraphView) {
-    window.GraphView.refresh();
-    window.setTimeout(() => window.GraphView.refresh(), 3000);
-    window.setTimeout(() => window.GraphView.refresh(), 8000);
-  }
-  refreshUserBadge();
-  window.setTimeout(refreshUserBadge, 5000);
+function setThinking(v) { sendBtn.disabled = v; input.disabled = v; }
+
+function autoGrow() {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 160) + "px";
+}
+input?.addEventListener("input", autoGrow);
+
+/* ─── landing + tabs ─────────────────────────────────────────────────────── */
+function loadIframe(frame) {
+  const src = frame.dataset.src;
+  if (!src || frame.src === src || frame.getAttribute("src") === src) return;
+  frame.src = src;
 }
 
-function renderMemoryActions(contentEl, pendingMemory) {
-  if (!pendingMemory || !Array.isArray(pendingMemory.choices)) return;
+function ensureClientFrame() {
+  if (!clientLoaded) {
+    loadIframe(clientFrame);
+    clientLoaded = true;
+  }
+}
 
-  const actions = document.createElement("div");
-  actions.className = "memory-actions";
+function showGraphPane() {
+  if (!graphPane) return;
+  graphPane.hidden = false;
+  graphPane.classList.add("sm-frame--active");
+  loadMemories();
+  requestAnimationFrame(() => {
+    if (window.GraphView) {
+      window.GraphView.resize();
+      window.GraphView.refresh();
+    }
+  });
+}
 
-  pendingMemory.choices.forEach((choice) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "memory-action";
-    button.textContent = choice.label;
-    button.addEventListener("click", () => submitMemoryDecision(choice.id, actions));
-    actions.appendChild(button);
+function hideGraphPane() {
+  if (!graphPane) return;
+  graphPane.hidden = true;
+  graphPane.classList.remove("sm-frame--active");
+}
+
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll(".sm-tab").forEach((btn) => {
+    const on = btn.dataset.tab === tab;
+    btn.classList.toggle("sm-tab--active", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
   });
 
-  contentEl.appendChild(actions);
+  if (tab === "context") {
+    clientFrame?.classList.add("sm-frame--active");
+    hideGraphPane();
+    ensureClientFrame();
+    if (leftPanelLabel) leftPanelLabel.textContent = "TEXT CHAT";
+  } else {
+    clientFrame?.classList.remove("sm-frame--active");
+    showGraphPane();
+    if (leftPanelLabel) leftPanelLabel.textContent = "TEXT CHAT";
+  }
+}
+
+function openWorkspace() {
+  landing?.classList.add("hidden");
+  workspace?.classList.remove("hidden");
+  ensureClientFrame();
+  loadMemories();
+  input?.focus();
+}
+
+landingStart?.addEventListener("click", () => {
+  if (!configReady) return;
+  sessionStorage.setItem("conduence-started", "1");
+  openWorkspace();
+});
+
+landingText?.addEventListener("click", () => {
+  if (!configReady) return;
+  sessionStorage.setItem("conduence-started", "1");
+  openWorkspace();
+});
+if (landingText && !configReady) landingText.disabled = true;
+
+document.querySelectorAll(".sm-tab").forEach((btn) => {
+  btn.addEventListener("click", () => setTab(btn.dataset.tab));
+});
+
+if (window.location.hash === "#chat" || sessionStorage.getItem("conduence-started") === "1") {
+  openWorkspace();
+}
+
+/* ─── memories panel ───────────────────────────────────────────────────────── */
+function renderMemories(items) {
+  if (!memoriesList) return;
+  memoriesList.innerHTML = "";
+  if (!items.length) {
+    memoriesList.innerHTML = '<p class="memories__empty">Graph memories appear here as you chat.</p>';
+    return;
+  }
+  items.forEach((m) => {
+    const card = document.createElement("article");
+    card.className = "memory-card";
+    card.innerHTML = `
+      <p class="memory-card__text">${escapeHtml(m.summary)}</p>
+      <p class="memory-card__meta">${escapeHtml(m.label)}${m.name && m.name !== m.summary ? " · " + escapeHtml(m.name) : ""}</p>
+    `;
+    memoriesList.appendChild(card);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function loadMemories() {
+  try {
+    const res = await fetch("/api/memories");
+    const data = await readJsonResponse(res);
+    memoriesCache = data.memories || [];
+    renderMemories(memoriesCache);
+  } catch {
+    /* non-fatal */
+  }
+}
+
+memorySearch?.addEventListener("input", () => {
+  const q = memorySearch.value.trim().toLowerCase();
+  if (!q) {
+    renderMemories(memoriesCache);
+    return;
+  }
+  renderMemories(
+    memoriesCache.filter(
+      (m) =>
+        (m.summary || "").toLowerCase().includes(q) ||
+        (m.name || "").toLowerCase().includes(q) ||
+        (m.label || "").toLowerCase().includes(q),
+    ),
+  );
+});
+
+/* ─── memory confirmation ────────────────────────────────────────────────── */
+function renderMemoryActions(contentEl, pm) {
+  if (!pm?.choices) return;
+  const wrap = document.createElement("div");
+  wrap.className = "memory-actions";
+  pm.choices.forEach((c) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "memory-action";
+    btn.textContent = c.label;
+    btn.addEventListener("click", () => submitMemoryDecision(c.id, wrap));
+    wrap.appendChild(btn);
+  });
+  contentEl.appendChild(wrap);
 }
 
 async function submitMemoryDecision(decision, actionsEl) {
-  const buttons = actionsEl.querySelectorAll("button");
-  buttons.forEach((button) => {
-    button.disabled = true;
-  });
-
+  actionsEl.querySelectorAll("button").forEach((b) => (b.disabled = true));
   setThinking(true);
-  const pendingEl = addMessage("assistant", "updating memory...", { pending: true });
-
+  const pendingEl = addMessage("assistant", "Updating memory…", { pending: true });
   try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ memory_decision: decision }),
-    });
-    const data = await readJsonResponse(response);
-    if (!response.ok) {
-      throw new Error(data.error || "Something went wrong.");
-    }
-
+    const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memory_decision: decision }) });
+    const data = await readJsonResponse(res);
+    if (!res.ok) throw new Error(data.error || "Something went wrong.");
     pendingEl.parentElement.classList.remove("msg--pending");
     pendingEl.textContent = data.reply;
-    if (data.pending_memory) {
-      renderMemoryActions(pendingEl, data.pending_memory);
-    } else {
-      refreshGraphAndUser();
-    }
+    if (data.pending_memory) renderMemoryActions(pendingEl, data.pending_memory);
+    loadMemories();
   } catch (err) {
-    buttons.forEach((button) => {
-      button.disabled = false;
-    });
-    pendingEl.parentElement.classList.remove("msg--pending");
-    pendingEl.parentElement.classList.add("msg--error");
+    actionsEl.querySelectorAll("button").forEach((b) => (b.disabled = false));
+    pendingEl.parentElement.classList.replace("msg--pending", "msg--error");
     pendingEl.textContent = `Couldn't update memory: ${err.message}`;
   } finally {
     setThinking(false);
@@ -114,92 +236,35 @@ async function submitMemoryDecision(decision, actionsEl) {
   }
 }
 
-function setThinking(isThinking) {
-  pulse.classList.toggle("thinking", isThinking);
-  sendBtn.disabled = isThinking;
-  input.disabled = isThinking;
-}
-
-function autoGrow() {
-  input.style.height = "auto";
-  input.style.height = Math.min(input.scrollHeight, 160) + "px";
-}
-
-input.addEventListener("input", autoGrow);
-
-input.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    form.requestSubmit();
-  }
+/* ─── text chat ──────────────────────────────────────────────────────────── */
+input?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
 });
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+form?.addEventListener("submit", async (e) => {
+  e.preventDefault();
   if (!configReady) return;
-
   const message = input.value.trim();
   if (!message) return;
-
   addMessage("user", message);
   input.value = "";
   autoGrow();
   setThinking(true);
-
-  const pendingEl = addMessage("assistant", "thinking...", { pending: true });
-
+  const pendingEl = addMessage("assistant", "Thinking…", { pending: true });
   try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
-    });
-
-    const data = await readJsonResponse(response);
-
-    if (!response.ok) {
-      throw new Error(data.error || "Something went wrong.");
-    }
-
+    const res  = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) });
+    const data = await readJsonResponse(res);
+    if (!res.ok) throw new Error(data.error || "Something went wrong.");
     pendingEl.parentElement.classList.remove("msg--pending");
     pendingEl.textContent = data.reply;
-    if (data.pending_memory) {
-      renderMemoryActions(pendingEl, data.pending_memory);
-    } else {
-      refreshGraphAndUser();
-    }
+    if (data.pending_memory) renderMemoryActions(pendingEl, data.pending_memory);
+    loadMemories();
   } catch (err) {
-    pendingEl.parentElement.classList.remove("msg--pending");
-    pendingEl.parentElement.classList.add("msg--error");
+    pendingEl.parentElement.classList.replace("msg--pending", "msg--error");
     pendingEl.textContent = `Couldn't get a reply: ${err.message}`;
   } finally {
     setThinking(false);
     scrollToBottom();
     input.focus();
-  }
-});
-
-async function refreshUserBadge() {
-  try {
-    const r = await fetch("/api/user");
-    if (!r.ok) return;
-    const u = await r.json();
-    const nameEl  = document.getElementById("graph-user-name");
-    const emailEl = document.getElementById("graph-user-email");
-    const barUser = document.getElementById("graph-bar-user");
-    if (!nameEl || !emailEl || !barUser) return;
-    const name = [u.first_name, u.last_name].filter(Boolean).join(" ");
-    if (name || u.email) {
-      nameEl.textContent  = name  || "";
-      emailEl.textContent = u.email || "";
-      barUser.hidden = false;
-    }
-  } catch { /* ignore */ }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  if (document.body.dataset.configReady === "true") {
-    refreshUserBadge();
-    window.setInterval(refreshUserBadge, 30000);
   }
 });

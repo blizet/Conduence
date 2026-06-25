@@ -24,6 +24,36 @@ from config import Settings
 from instructions import get_system_instructions
 from llm import generate_reply
 
+_DEBUG_LOG = __import__("os").path.normpath(
+    __import__("os").path.join(__import__("os").path.dirname(__file__), "..", "..", "debug-ad0552.log")
+)
+
+
+def _agent_dbg(hypothesis_id: str, location: str, message: str, data: dict | None = None) -> None:
+    # region agent log
+    import json
+    import time
+
+    try:
+        with open(_DEBUG_LOG, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "sessionId": "ad0552",
+                        "hypothesisId": hypothesis_id,
+                        "location": location,
+                        "message": message,
+                        "data": data or {},
+                        "timestamp": int(time.time() * 1000),
+                        "runId": "pre-fix",
+                    }
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+    # endregion
+
 # The core persona + graph-context block.  Domain instructions are injected at
 # runtime from instructions.py so they stay in one place and always stay in sync.
 _PROMPT_TEMPLATE = """\
@@ -68,26 +98,33 @@ Rules:
 - If the message contains no durable user/profile/trading/market signal, output
   exactly: NO_MEMORY
 
-Use these ontology labels explicitly when helpful:
+okay Use these ontology entity labels explicitly when helpful:
 - User: personal identity details such as name, email, role, occupation.
-- Preference: the user's market focus, interests, trading preferences, risk
+- Preference: stable beliefs, market focus, interests, trading preferences, risk
   concerns, or recurring topic focus. Phrases like "Iranian war-based markets"
-  are Preference when the user is describing what they trade or follow.
-- Thing: tradable assets/instruments such as crude oil, gold, BTC, ETH,
-  equities, forex, indices, or prediction-market contracts.
-- Influencer: people, governments, central banks, OPEC, the Fed, Trump, or any
-  actor whose actions/statements move markets. Do not use Person/Organization.
-- Event: the real-world event itself, such as a war, election, sanctions, or an
-  OPEC meeting. Do not label a user's "event-based market preference" as Event;
-  label that as Preference.
-- Company: companies such as Google, SpaceX, Apple.
+  are Preference when the user describes what they trade or follow — not Event.
+- GeoFactors: geopolitical or geographic locations that influence markets, such
+  as Iran, Middle East, Strait of Hormuz, or European Union.
+- Person: market participants, institutions, governments, central banks, OPEC,
+  the Fed, Trump, Musk, Powell, or any actor whose actions move markets.
+- Event: real-world catalysts such as wars, elections, sanctions, OPEC meetings,
+  rate decisions, or earnings — not the user's preference toward them.
+- EconomicActor: tradable assets and instruments such as crude oil, gold, BTC,
+  ETH, Apple, USD, Polymarket contracts, or SpaceX stock.
+- AiAgent: persistent AI capabilities the user wants or configures, such as a
+  News Agent, Risk Analyzer, or Macro Analyst (include role/specialization if stated).
+- Rule: procedural guardrails, entry/exit conditions, monitors, or risk policies
+  the user defines (include condition/action if stated).
+
+When describing relationships, name the edge type where useful:
+INFLUENCES, CO_RELATES, STANCE, HAS_RULE, MONITORS, IMPLICATES.
 
 Output format:
-One to five short lines. Each line should start with an ontology label, for
-example:
+One to five short lines. Each line should start with an entity label, for example:
 Preference: The user is interested in Iranian war-based prediction markets.
-Influencer: Trump is an influencer for the user's market focus.
-Thing: Crude oil is relevant to the user's Iranian market focus.
+Person: Trump is a market actor the user wants to monitor.
+EconomicActor: Crude oil is relevant to the user's Iranian market focus.
+GeoFactors: Iran is a geo-factor in the user's market focus.
 """
 
 
@@ -280,6 +317,54 @@ def save_memory_to_zep(zep: Zep, thread_id: str, memory_text: str) -> None:
         thread_id=thread_id,
         messages=[Message(role="user", content=memory_text)],
     )
+
+
+def persist_voice_turn_to_zep(
+    *,
+    zep: Zep,
+    settings: Settings,
+    thread_id: str,
+    user_id: str,
+    user_message: str,
+) -> str | None:
+    """Refine a voice transcript and write it to Zep (no UI confirmation step)."""
+    # region agent log
+    _agent_dbg(
+        "H4",
+        "chat_agent.py:persist_voice_turn_to_zep",
+        "Entry",
+        {"user_message_len": len(user_message or "")},
+    )
+    # endregion
+    review = prepare_memory_review(
+        zep=zep,
+        settings=settings,
+        user_id=user_id,
+        user_message=user_message,
+    )
+    # region agent log
+    _agent_dbg(
+        "H4",
+        "chat_agent.py:persist_voice_turn_to_zep",
+        "After prepare_memory_review",
+        {
+            "memory_text_len": len(review.memory_text or ""),
+            "status": getattr(review, "status", None),
+        },
+    )
+    # endregion
+    if not review.memory_text:
+        return None
+    save_memory_to_zep(zep, thread_id, review.memory_text)
+    # region agent log
+    _agent_dbg(
+        "H5",
+        "chat_agent.py:persist_voice_turn_to_zep",
+        "Saved to Zep thread",
+        {"thread_id": thread_id},
+    )
+    # endregion
+    return review.memory_text
 
 
 def get_context_block(zep: Zep, thread_id: str) -> str | None:

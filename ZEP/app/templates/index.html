@@ -3,83 +3,116 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>trading assistant</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+<title>Conduence</title>
+<link rel="stylesheet" href="/static/style.css" />
 </head>
-<body data-config-ready="{{ 'true' if config_ready else 'false' }}">
-  <div class="shell" id="shell">
-    <aside class="chat-pane" id="chat-pane">
-      <div class="frame">
-        <header class="bar">
-          <div class="bar__left">
-            <span class="pulse{% if not config_ready %} pulse--off{% endif %}" id="pulse" aria-hidden="true"></span>
-            <span class="bar__title">zep-trading</span>
-          </div>
-          <div class="bar__right">
-            <span class="bar__provider">{{ provider }}</span>
-            <span class="bar__sep">/</span>
-            <span class="bar__model">{{ model }}</span>
-          </div>
-        </header>
+<body data-config-ready="{{ 'true' if config_ready else 'false' }}" data-graph-theme="light">
 
-        {% if not config_ready %}
-        <section class="config-alert" role="alert" id="config-alert">
-          <div class="config-alert__title">API keys not configured</div>
-          <p class="config-alert__body">
-            Copy <code>.env.example</code> to <code>.env</code> and set:
-            {% for key in missing_keys %}<code>{{ key }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
-            Restart the server after saving.
-          </p>
-        </section>
-        {% endif %}
-
-        <main class="log" id="log" aria-live="polite">
-          <div class="log__intro">
-            <p>Talk markets. Mention an asset, an event, a company, someone whose moves matter — your interests and sentiment get folded into a graph as you go, and the assistant draws on it next time.</p>
-          </div>
-        </main>
-
-        <form class="composer" id="composer"{% if not config_ready %} aria-disabled="true"{% endif %}>
-          <textarea
-            id="input"
-            class="composer__input"
-            placeholder="{% if config_ready %}what's on your mind in the markets...{% else %}configure .env to start chatting...{% endif %}"
-            rows="1"
-            {% if not config_ready %}disabled{% else %}autofocus{% endif %}
-          ></textarea>
-          <button type="submit" class="composer__send" id="send"{% if not config_ready %} disabled{% endif %}>send</button>
-        </form>
-      </div>
-    </aside>
-
-    <section class="graph-pane" id="graph-pane" hidden>
-      <header class="graph-bar">
-        <div class="graph-bar__left">
-          <div class="graph-bar__title">knowledge graph</div>
-          <div class="graph-bar__meta" id="graph-meta">0 nodes · 0 edges</div>
-        </div>
-        <div class="graph-bar__user" id="graph-bar-user" hidden>
-          <span class="graph-bar__user-name" id="graph-user-name"></span>
-          <span class="graph-bar__user-email" id="graph-user-email"></span>
-        </div>
-      </header>
-
-      <div class="graph-body">
-        <div class="graph-canvas-wrap" id="graph-canvas-wrap">
-          <canvas id="graph-canvas" aria-label="User knowledge graph"></canvas>
-        </div>
-
-        <aside class="detail-panel" id="detail-panel" hidden>
-          <button class="detail-panel__close" id="detail-panel-close" aria-label="Close">✕</button>
-          <div class="detail-panel__content" id="detail-panel-content"></div>
-        </aside>
-      </div>
-
-      <div class="graph-legend" id="graph-legend"></div>
-    </section>
+<!-- Landing (supermemory-style) -->
+<div class="landing" id="landing">
+  <div class="landing__inner">
+    <h1 class="landing__brand">conduence</h1>
+    <button type="button" class="landing__orb" id="landing-start" aria-label="Start conversation"{% if not config_ready %} disabled{% endif %}></button>
+    <p class="landing__hint">[ start conversation ]</p>
+    <button type="button" class="landing__text-link" id="landing-text">or type instead</button>
+    <p class="landing__meta">User ID: shared-user</p>
+    {% if not config_ready %}
+    <p class="landing__warn">Configure <code>.env</code> and restart to enable voice + chat.</p>
+    {% endif %}
   </div>
+</div>
 
-  <script src="{{ url_for('static', filename='graph.js') }}"></script>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+<!-- Main workspace -->
+<div class="workspace hidden" id="workspace">
+
+  <header class="sm-topbar">
+    <div class="sm-topbar__brand">conduence</div>
+    <nav class="sm-tabs" role="tablist" aria-label="Panel">
+      <button type="button" class="sm-tab sm-tab--active" data-tab="context" role="tab" aria-selected="true">CONTEXT</button>
+      <button type="button" class="sm-tab" data-tab="graph" role="tab" aria-selected="false">GRAPH</button>
+    </nav>
+  </header>
+
+  {% if not config_ready %}
+  <div class="alert alert--warn" role="alert">
+    <strong>API keys missing:</strong>
+    {% for key in missing_keys %}<code>{{ key }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+    Copy <code>.env.example</code> → <code>.env</code> and restart.
+  </div>
+  {% endif %}
+
+  <div class="sm-split">
+
+    <!-- Left: text chat + memories -->
+    <div class="sm-left">
+      <div class="sm-panel-head">
+        <span class="sm-panel-head__label" id="left-panel-label">TEXT CHAT</span>
+        <span class="sm-panel-head__meta">{{ provider }} / {{ model }}</span>
+      </div>
+
+      <section class="memories" id="memories-panel" aria-label="Memories">
+        <div class="memories__head">
+          <span class="memories__title">MEMORIES</span>
+          <input type="search" class="memories__search" id="memory-search" placeholder="Search memories…" />
+        </div>
+        <div class="memories__list" id="memories-list">
+          <p class="memories__empty">Graph memories appear here as you chat.</p>
+        </div>
+      </section>
+
+      <main class="log" id="log" aria-live="polite">
+        <div class="log__intro">
+          Type about markets, assets, events, or people — your graph updates as you go.
+          Voice runs in the panel on the right.
+        </div>
+      </main>
+
+      <form class="composer" id="composer"{% if not config_ready %} aria-disabled="true"{% endif %}>
+        <textarea
+          id="input"
+          class="composer__input"
+          placeholder="{% if config_ready %}Message Conduence…{% else %}Configure .env to start…{% endif %}"
+          rows="1"
+          {% if not config_ready %}disabled{% endif %}
+        ></textarea>
+        <button type="submit" class="btn btn--send" id="send"{% if not config_ready %} disabled{% endif %} aria-label="Send">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+
+    <!-- Right: prebuilt Pipecat client or inline graph -->
+    <div class="sm-right">
+      <iframe
+        id="client-frame"
+        class="sm-frame sm-frame--active"
+        title="Conduence voice agent"
+        src="about:blank"
+        data-src="/client/"
+        allow="microphone; autoplay; camera"
+      ></iframe>
+
+      <div id="graph-pane" class="sm-frame graph-pane" hidden>
+        <div class="graph-pane__body">
+          <div class="graph-canvas-wrap" id="graph-canvas-wrap">
+            <canvas id="graph-canvas" aria-label="Knowledge graph"></canvas>
+          </div>
+          <aside class="graph-detail" id="detail-panel" hidden>
+            <button type="button" class="graph-detail__close" id="detail-panel-close" aria-label="Close">✕</button>
+            <div id="detail-panel-content"></div>
+          </aside>
+        </div>
+        <div class="graph-legend" id="graph-legend"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/static/graph.js"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>
