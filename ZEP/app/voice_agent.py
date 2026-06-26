@@ -26,8 +26,8 @@ from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
     LLMFullResponseEndFrame,
-    LLMRunFrame,
     StartFrame,
+    TTSSpeakFrame,
 )
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
@@ -82,6 +82,11 @@ temporal claim is ambiguous.
 
 {get_system_instructions("shared-user")}
 """
+
+VOICE_INTRODUCTION = (
+    "Hi, I'm Conduence, your voice agent for your trading cognition graph. "
+    "I'm connected and ready when you are."
+)
 
 transport_params = {
     "webrtc": lambda: TransportParams(
@@ -272,13 +277,9 @@ async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> Non
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):  # noqa: ANN001
         logger.info("Voice client connected")
-        context.add_message(
-            {
-                "role": "developer",
-                "content": "Introduce yourself as the Conduence voice agent in one short sentence.",
-            }
-        )
-        await worker.queue_frames([LLMRunFrame()])
+        await worker.queue_frames([
+            TTSSpeakFrame(VOICE_INTRODUCTION, append_to_context=True),
+        ])
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):  # noqa: ANN001

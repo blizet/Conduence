@@ -15345,6 +15345,8 @@ registerProcessor('audio_processor', AudioProcessor);
         state: [],
         userTranscript: [],
         botTranscript: [],
+        userStartedSpeaking: [],
+        botStoppedSpeaking: [],
         error: []
       };
       function emit(event, ...args) {
@@ -15396,17 +15398,21 @@ registerProcessor('audio_processor', AudioProcessor);
               emit("userTranscript", data);
             },
             onBotOutput(data) {
-              if (!data?.text) return;
-              if (data.spoken === false) return;
-              emit("botTranscript", data);
+              const text = (data?.spoken_progress?.accumulated_text || data?.text || "").trim();
+              if (!text) return;
+              const willSpeak = data.will_be_spoken ?? data.spoken;
+              if (willSpeak === false) return;
+              emit("botTranscript", { ...data, text });
             },
             onBotStartedSpeaking() {
               emit("state", "speaking");
             },
             onBotStoppedSpeaking() {
+              emit("botStoppedSpeaking");
               emit("state", "listening");
             },
             onUserStartedSpeaking() {
+              emit("userStartedSpeaking");
               emit("state", "listening");
             },
             onUserStoppedSpeaking() {

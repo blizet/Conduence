@@ -29,6 +29,8 @@ let partialUserEl      = null;
 let botMsgEl           = null;
 let connectTimeout     = null;
 let pendingUserText    = "";
+let pendingUserFinalText = "";
+let pendingUserInterimText = "";
 let pendingBotText     = "";
 let userCommitTimer    = null;
 let botCommitTimer     = null;
@@ -36,11 +38,14 @@ let lastUserTextEl     = null;
 let lastUserCommitAt   = 0;
 let lastBotTextEl      = null;
 let lastBotCommitAt    = 0;
+let botReceivedSentence = false;
+let committedBotResponseText = "";
+let botSpokeAfterLastUser = false;
 
 const USER_TRANSCRIPT_DEBOUNCE_MS = 900;
-const BOT_TRANSCRIPT_DEBOUNCE_MS  = 400;
+const BOT_TRANSCRIPT_DEBOUNCE_MS  = 1200;
 const TRANSCRIPT_MERGE_WINDOW_MS  = 8000;
-const USER_IDLE_FLUSH_MS          = 2200;
+const USER_IDLE_FLUSH_MS          = 3200;
 const DEDUPE_WINDOW_MS            = 12000;
 const BOT_CHUNK_DEDUPE_MS         = 2500;
 let lastCommittedUserText         = "";
@@ -262,7 +267,7 @@ function endsWithTerminalPunctuation(text) {
   return /[.!?]$/.test((text || "").trim());
 }
 
-function mergeTranscriptChunk(previous, incoming) {
+function appendTranscriptChunk(previous, incoming) {
   const prev = normalizeTranscriptText(previous);
   const next = normalizeTranscriptText(incoming);
   if (!next) return prev;
@@ -271,8 +276,7 @@ function mergeTranscriptChunk(previous, incoming) {
   if (next.startsWith(prev) || next.includes(prev)) return next;
   if (prev.startsWith(next) || prev.includes(next)) return prev;
 
-  // Merge overlap when transcript engines stream revised chunks.
-  const overlapMin = 8;
+  const overlapMin = 4;
   const maxOverlap = Math.min(prev.length, next.length);
   for (let i = maxOverlap; i >= overlapMin; i -= 1) {
     if (prev.endsWith(next.slice(0, i))) {
@@ -280,8 +284,7 @@ function mergeTranscriptChunk(previous, incoming) {
     }
   }
 
-  // If no clear overlap, prefer the latest revision instead of appending.
-  return next;
+  return `${prev} ${next}`.replace(/\s+/g, " ").trim();
 }
 
 function isLikelyDuplicateTranscript(next, lastText, lastAt) {
@@ -294,10 +297,25 @@ function isLikelyDuplicateTranscript(next, lastText, lastAt) {
   return false;
 }
 
-function updatePendingUserBubble(text) {
-  const t = normalizeTranscriptText(text);
-  if (!t) return;
-  pendingUserText = mergeTranscriptChunk(pendingUserText, t);
+function isLastMessageContent(contentEl) {
+  return Boolean(contentEl?.parentElement && log?.lastElementChild === contentEl.parentElement);
+}
+
+function combinedPendingUserText() {
+  const finalText = normalizeTranscriptText(pendingUserFinalText);
+  const interimText = normalizeTranscriptText(pendingUserInterimText);
+  if (!finalText) return interimText;
+  if (!interimText) return finalText;
+  if (interimText === finalText || interimText.startsWith(finalText) || interimText.includes(finalText)) {
+    return interimText;
+  }
+  if (finalText.includes(interimText)) return finalText;
+  return appendTranscriptChunk(finalText, interimText);
+}
+
+function renderPendingUserBubble() {
+  pendingUserText = combinedPendingUserText();
+  if (!pendingUserText) return;
   if (logEmpty) logEmpty.style.display = "none";
   if (!partialUserEl) {
     partialUserEl = addMessage("user", pendingUserText, { pending: true });
@@ -306,8 +324,23 @@ function updatePendingUserBubble(text) {
   }
 }
 
+function updatePendingUserBubble(text, { final = false } = {}) {
+  const t = normalizeTranscriptText(text);
+  if (!t) return;
+
+  if (final) {
+    pendingUserFinalText = appendTranscriptChunk(pendingUserFinalText, t);
+    pendingUserInterimText = "";
+  } else {
+    pendingUserInterimText = t;
+  }
+
+  renderPendingUserBubble();
+}
+
 function commitPendingUserTranscript() {
   clearUserCommitTimer();
+  pendingUserText = combinedPendingUserText();
   const text = pendingUserText.trim();
   if (!text) {
     if (partialUserEl) {
@@ -315,6 +348,8 @@ function commitPendingUserTranscript() {
       partialUserEl = null;
     }
     pendingUserText = "";
+    pendingUserFinalText = "";
+    pendingUserInterimText = "";
     return;
   }
   if (partialUserEl) {
@@ -322,18 +357,18 @@ function commitPendingUserTranscript() {
       partialUserEl.parentElement?.remove();
       partialUserEl = null;
       pendingUserText = "";
+      pendingUserFinalText = "";
+      pendingUserInterimText = "";
       return;
     }
-    const recentUserCommit = Date.now() - lastUserCommitAt <= TRANSCRIPT_MERGE_WINDOW_MS;
     if (
       lastUserTextEl &&
-      partialUserEl !== lastUserTextEl &&
-      recentUserCommit &&
-      (!endsWithTerminalPunctuation(lastUserTextEl.textContent || "") ||
-        text.startsWith(normalizeTranscriptText(lastUserTextEl.textContent || "")))
+      partialUserEl !== lastUserTextEl
     ) {
-      lastUserTextEl.textContent = mergeTranscriptChunk(lastUserTextEl.textContent || "", text);
+      lastUserTextEl.textContent = appendTranscriptChunk(lastUserTextEl.textContent || "", text);
       partialUserEl.parentElement?.remove();
+      lastUserCommitAt = Date.now();
+      lastCommittedUserText = normalizeTranscriptText(lastUserTextEl.textContent || "");
     } else {
       partialUserEl.textContent = text;
       partialUserEl.parentElement.classList.remove("msg--pending");
@@ -352,6 +387,8 @@ function commitPendingUserTranscript() {
     lastCommittedUserText = text;
   }
   pendingUserText = "";
+  pendingUserFinalText = "";
+  pendingUserInterimText = "";
 }
 
 function scheduleUserTranscriptCommit(delay = USER_TRANSCRIPT_DEBOUNCE_MS) {
@@ -361,15 +398,14 @@ function scheduleUserTranscriptCommit(delay = USER_TRANSCRIPT_DEBOUNCE_MS) {
 
 function handleUserTranscript(data) {
   if (!data?.text) return;
-  updatePendingUserBubble(data.text);
-  // Keep updating a single pending bubble while speaking; flush only after idle.
+  updatePendingUserBubble(data.text, { final: data.final === true });
   scheduleUserTranscriptCommit(USER_IDLE_FLUSH_MS);
 }
 
 function updatePendingBotBubble(text) {
   const t = normalizeTranscriptText(text);
   if (!t) return;
-  pendingBotText = mergeTranscriptChunk(pendingBotText, t);
+  pendingBotText = appendTranscriptChunk(pendingBotText, t);
   if (logEmpty) logEmpty.style.display = "none";
   if (!botMsgEl) {
     botMsgEl = addMessage("assistant", pendingBotText);
@@ -379,13 +415,26 @@ function updatePendingBotBubble(text) {
   if (log) log.scrollTop = log.scrollHeight;
 }
 
-function commitPendingBotTranscript() {
+function commitPendingBotTranscript({ resetActive = false } = {}) {
   clearBotCommitTimer();
+  const text = normalizeTranscriptText(pendingBotText || botMsgEl?.textContent || "");
+  if (!text) {
+    if (resetActive) {
+      botMsgEl = null;
+      pendingBotText = "";
+      botReceivedSentence = false;
+    }
+    return;
+  }
   if (botMsgEl) {
-    if (isLikelyDuplicateTranscript(pendingBotText, lastCommittedBotText, lastBotCommitAt)) {
+    if (
+      botMsgEl !== lastBotTextEl &&
+      isLikelyDuplicateTranscript(text, lastCommittedBotText, lastBotCommitAt)
+    ) {
       botMsgEl.parentElement?.remove();
       pendingBotText = "";
       botMsgEl = null;
+      botReceivedSentence = false;
       return;
     }
     const recentBotCommit = Date.now() - lastBotCommitAt <= TRANSCRIPT_MERGE_WINDOW_MS;
@@ -393,21 +442,28 @@ function commitPendingBotTranscript() {
       lastBotTextEl &&
       botMsgEl !== lastBotTextEl &&
       recentBotCommit &&
+      isLastMessageContent(lastBotTextEl) &&
       (!endsWithTerminalPunctuation(lastBotTextEl.textContent || "") ||
-        (pendingBotText && pendingBotText.startsWith(normalizeTranscriptText(lastBotTextEl.textContent || ""))))
+        (text && text.startsWith(normalizeTranscriptText(lastBotTextEl.textContent || ""))))
     ) {
-      lastBotTextEl.textContent = mergeTranscriptChunk(lastBotTextEl.textContent || "", pendingBotText || "");
+      lastBotTextEl.textContent = appendTranscriptChunk(lastBotTextEl.textContent || "", text);
       botMsgEl.parentElement?.remove();
+      botMsgEl = lastBotTextEl;
       lastBotCommitAt = Date.now();
       lastCommittedBotText = normalizeTranscriptText(lastBotTextEl.textContent || "");
     } else {
+      botMsgEl.textContent = text;
       lastBotTextEl = botMsgEl;
       lastBotCommitAt = Date.now();
       lastCommittedBotText = normalizeTranscriptText(lastBotTextEl.textContent || "");
     }
   }
-  pendingBotText = "";
-  botMsgEl = null;
+  pendingBotText = resetActive ? "" : text;
+  if (resetActive) {
+    botMsgEl = null;
+    botReceivedSentence = false;
+    committedBotResponseText = "";
+  }
 }
 
 function scheduleBotTranscriptCommit(delay = BOT_TRANSCRIPT_DEBOUNCE_MS) {
@@ -415,14 +471,54 @@ function scheduleBotTranscriptCommit(delay = BOT_TRANSCRIPT_DEBOUNCE_MS) {
   botCommitTimer = setTimeout(commitPendingBotTranscript, delay);
 }
 
+function extractBotDisplayText(data) {
+  const accumulated = data?.spoken_progress?.accumulated_text;
+  if (typeof accumulated === "string" && accumulated.trim()) return accumulated;
+  return data?.text || "";
+}
+
 function handleBotTranscript(data) {
-  if (!data?.text) return;
-  const chunk = normalizeTranscriptText(data.text);
+  const rawText = extractBotDisplayText(data);
+  const chunk = normalizeTranscriptText(rawText);
   if (!chunk) return;
-  if (chunk === lastBotChunkText && Date.now() - lastBotChunkAt <= BOT_CHUNK_DEDUPE_MS) return;
-  lastBotChunkText = chunk;
-  lastBotChunkAt = Date.now();
-  updatePendingBotBubble(data.text);
+
+  const spoken = data.will_be_spoken ?? data.spoken;
+  if (spoken === false) return;
+
+  const isProgress = data.spoken_status === "in-progress" || data.spoken_status === "completed";
+
+  if (!isProgress) {
+    if (data.aggregated_by === "word" && botReceivedSentence) return;
+    if (chunk === lastBotChunkText && Date.now() - lastBotChunkAt <= BOT_CHUNK_DEDUPE_MS) return;
+    lastBotChunkText = chunk;
+    lastBotChunkAt = Date.now();
+    if (data.aggregated_by === "sentence") botReceivedSentence = true;
+  }
+
+  if (isProgress) {
+    // accumulated_text is for the current sentence only — prepend already-committed sentences
+    pendingBotText = committedBotResponseText
+      ? appendTranscriptChunk(committedBotResponseText, chunk)
+      : chunk;
+  } else {
+    // New sentence event (aggregated_by = "sentence") or legacy chunk
+    pendingBotText = committedBotResponseText
+      ? appendTranscriptChunk(committedBotResponseText, normalizeTranscriptText(rawText))
+      : normalizeTranscriptText(rawText);
+  }
+
+  if (logEmpty) logEmpty.style.display = "none";
+  if (!botMsgEl) {
+    botMsgEl = addMessage("assistant", pendingBotText);
+  } else {
+    botMsgEl.textContent = pendingBotText;
+  }
+  if (log) log.scrollTop = log.scrollHeight;
+
+  if (data.spoken_status === "completed") {
+    committedBotResponseText = pendingBotText;
+  }
+
   scheduleBotTranscriptCommit();
 }
 
@@ -432,11 +528,16 @@ function resetVoiceTranscriptState() {
   partialUserEl = null;
   botMsgEl = null;
   pendingUserText = "";
+  pendingUserFinalText = "";
+  pendingUserInterimText = "";
   pendingBotText = "";
   lastUserTextEl = null;
   lastUserCommitAt = 0;
   lastBotTextEl = null;
   lastBotCommitAt = 0;
+  botReceivedSentence = false;
+  committedBotResponseText = "";
+  botSpokeAfterLastUser = false;
   lastCommittedUserText = "";
   lastCommittedBotText = "";
   lastBotChunkText = "";
@@ -517,21 +618,35 @@ if (Voice) {
     }
     if (state === "speaking") {
       clearBotCommitTimer();
-      pendingBotText = "";
-      botMsgEl = null;
+      commitPendingUserTranscript();
     }
     if (state === "processing") {
       // Keep idle-based flush as primary commit trigger to avoid split turns.
     }
     if (state === "listening") {
-      commitPendingBotTranscript();
+      scheduleBotTranscriptCommit();
     }
     setVoiceState(state);
   });
 
   Voice.on("userTranscript", handleUserTranscript);
   Voice.on("botTranscript", handleBotTranscript);
-  Voice.on("userStoppedSpeaking", () => scheduleUserTranscriptCommit(250));
+  Voice.on("userStartedSpeaking", () => {
+    // If the bot responded since the user last spoke, this is a fresh conversational turn.
+    // Reset lastUserTextEl so the next commit creates a new bubble instead of merging.
+    if (botSpokeAfterLastUser) {
+      lastUserTextEl = null;
+      lastUserCommitAt = 0;
+      botSpokeAfterLastUser = false;
+    }
+    commitPendingBotTranscript({ resetActive: true });
+    committedBotResponseText = "";
+  });
+  Voice.on("botStoppedSpeaking", () => {
+    botSpokeAfterLastUser = true;
+    commitPendingBotTranscript();
+  });
+  Voice.on("userStoppedSpeaking", () => scheduleUserTranscriptCommit(USER_IDLE_FLUSH_MS));
 
   Voice.on("error", msg => {
     clearConnectTimeout();

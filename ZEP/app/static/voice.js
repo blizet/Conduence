@@ -18,6 +18,8 @@ const listeners = {
   state: [],
   userTranscript: [],
   botTranscript: [],
+  userStartedSpeaking: [],
+  botStoppedSpeaking: [],
   error: [],
 };
 
@@ -76,9 +78,15 @@ async function ensureClient() {
       },
 
       onBotOutput(data) {
-        if (!data?.text) return;
-        if (data.spoken === false) return;
-        emit("botTranscript", data);
+        const text = (
+          data?.spoken_progress?.accumulated_text
+          || data?.text
+          || ""
+        ).trim();
+        if (!text) return;
+        const willSpeak = data.will_be_spoken ?? data.spoken;
+        if (willSpeak === false) return;
+        emit("botTranscript", { ...data, text });
       },
 
       onBotStartedSpeaking() {
@@ -86,10 +94,12 @@ async function ensureClient() {
       },
 
       onBotStoppedSpeaking() {
+        emit("botStoppedSpeaking");
         emit("state", "listening");
       },
 
       onUserStartedSpeaking() {
+        emit("userStartedSpeaking");
         emit("state", "listening");
       },
 
