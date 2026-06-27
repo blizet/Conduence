@@ -12,8 +12,9 @@ actually generates the reply (Anthropic / OpenAI / Gemini) is decided by
 from __future__ import annotations
 
 import json
+import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
@@ -22,37 +23,11 @@ from zep_cloud.client import Zep
 
 from config import Settings
 from instructions import get_system_instructions
+from intent import should_skip_zep_ingest
 from llm import generate_reply
+from market_tools import lookup_markets_for_user
 
-_DEBUG_LOG = __import__("os").path.normpath(
-    __import__("os").path.join(__import__("os").path.dirname(__file__), "..", "..", "debug-ad0552.log")
-)
-
-
-def _agent_dbg(hypothesis_id: str, location: str, message: str, data: dict | None = None) -> None:
-    # region agent log
-    import json
-    import time
-
-    try:
-        with open(_DEBUG_LOG, "a", encoding="utf-8") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "sessionId": "ad0552",
-                        "hypothesisId": hypothesis_id,
-                        "location": location,
-                        "message": message,
-                        "data": data or {},
-                        "timestamp": int(time.time() * 1000),
-                        "runId": "pre-fix",
-                    }
-                )
-                + "\n"
-            )
-    except Exception:
-        pass
-    # endregion
+logger = logging.getLogger(__name__)
 
 # The core persona + graph-context block.  Domain instructions are injected at
 # runtime from instructions.py so they stay in one place and always stay in sync.
@@ -204,6 +179,18 @@ class ChatTurnResult:
     context_used: str | None
     memory_text: str | None = None
     memory_review: MemoryReview | None = None
+    action: str | None = None
+    markets: list[dict[str, Any]] = field(default_factory=list)
+    ingested_to_zep: bool | None = None
+
+    def to_api_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {"reply": self.reply}
+        if self.action:
+            payload["action"] = self.action
+        if self.action == "market_lookup":
+            payload["markets"] = self.markets
+            payload["ingested_to_zep"] = bool(self.ingested_to_zep)
+        return payload
 
 
 def _extract_json_object(text: str) -> dict[str, Any] | None:
@@ -328,43 +315,48 @@ def persist_voice_turn_to_zep(
     user_message: str,
 ) -> str | None:
     """Refine a voice transcript and write it to Zep (no UI confirmation step)."""
-    # region agent log
-    _agent_dbg(
-        "H4",
-        "chat_agent.py:persist_voice_turn_to_zep",
-        "Entry",
-        {"user_message_len": len(user_message or "")},
-    )
-    # endregion
+    if should_skip_zep_ingest(user_message):
+        logger.info("voice zep ingest skipped (action query): %s", user_message[:80])
+        return None
+
     review = prepare_memory_review(
         zep=zep,
         settings=settings,
         user_id=user_id,
         user_message=user_message,
     )
-    # region agent log
-    _agent_dbg(
-        "H4",
-        "chat_agent.py:persist_voice_turn_to_zep",
-        "After prepare_memory_review",
-        {
-            "memory_text_len": len(review.memory_text or ""),
-            "status": getattr(review, "status", None),
-        },
-    )
-    # endregion
     if not review.memory_text:
         return None
     save_memory_to_zep(zep, thread_id, review.memory_text)
-    # region agent log
-    _agent_dbg(
-        "H5",
-        "chat_agent.py:persist_voice_turn_to_zep",
-        "Saved to Zep thread",
-        {"thread_id": thread_id},
-    )
-    # endregion
+    logger.info("voice zep ingest saved thread=%s len=%d", thread_id, len(review.memory_text))
     return review.memory_text
+
+
+async def run_market_lookup_turn(
+    *,
+    zep: Zep,
+    thread_id: str,
+    user_id: str,
+    user_message: str,
+    settings: Settings | None = None,
+) -> ChatTurnResult:
+    """Fetch live Polymarket markets from Zep preferences — no graph write."""
+    lookup = await lookup_markets_for_user(zep, user_id, user_message, settings=settings)
+    context = get_context_block(zep, thread_id)
+    logger.info(
+        "market_lookup turn user=%s markets=%d status=%s",
+        user_id,
+        len(lookup.markets),
+        lookup.status,
+    )
+    return ChatTurnResult(
+        reply=lookup.reply,
+        context_used=context,
+        memory_text=None,
+        action="market_lookup",
+        markets=lookup.to_market_dicts(),
+        ingested_to_zep=False,
+    )
 
 
 def get_context_block(zep: Zep, thread_id: str) -> str | None:

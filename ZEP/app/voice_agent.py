@@ -80,6 +80,12 @@ Use the user's market memory, preferences, rules, agents, strategies, and graph
 context when available. Ask concise follow-up questions when a memory update or
 temporal claim is ambiguous.
 
+When the user asks you to show, fetch, find, list, or pull Polymarket markets:
+- Say something brief like "Pulling the live markets for you now — they'll appear as cards below."
+- Do NOT attempt to list markets from memory or describe them yourself.
+- The system will fetch real-time Polymarket data and display interactive cards in the UI.
+- Keep your spoken reply to one sentence; the cards carry the detail.
+
 {get_system_instructions("shared-user")}
 """
 
@@ -156,8 +162,50 @@ def _build_tts() -> CartesiaTTSService:
     )
 
 
+class ZepContextInjector:
+    """Fetches live Zep graph context and injects it into the LLM context per-turn.
+
+    Inserts (or updates) a system-role message at position 0 of the LLMContext
+    messages list so the voice LLM always sees up-to-date graph data.
+    """
+
+    _CONTEXT_TAG = "<zep_live_context>"
+
+    def __init__(self, context: LLMContext, zep, thread_id: str) -> None:
+        self._context = context
+        self._zep = zep
+        self._thread_id = thread_id
+
+    async def refresh(self) -> None:
+        try:
+            from chat_agent import get_context_block
+            fresh_ctx = await asyncio.to_thread(get_context_block, self._zep, self._thread_id)
+            if not fresh_ctx:
+                return
+            block = f"{self._CONTEXT_TAG}\n{fresh_ctx}\n</{self._CONTEXT_TAG[1:]}"
+            msgs = self._context.messages
+            for i, msg in enumerate(msgs):
+                if (
+                    isinstance(msg, dict)
+                    and isinstance(msg.get("content"), str)
+                    and self._CONTEXT_TAG in msg["content"]
+                ):
+                    msgs[i] = {"role": "system", "content": block}
+                    logger.info("[Voice] Zep context updated (%d chars)", len(fresh_ctx))
+                    return
+            msgs.insert(0, {"role": "system", "content": block})
+            logger.info("[Voice] Zep context injected (%d chars)", len(fresh_ctx))
+        except Exception as exc:
+            logger.warning("ZepContextInjector.refresh failed: %s", exc)
+
+
 class ZepMemorySync(FrameProcessor):
-    """After each LLM turn, refine the user's voice transcript and push it to Zep."""
+    """After each LLM turn, refine the user's voice transcript and push it to Zep.
+
+    Also keeps the LLM system message up-to-date with live Zep graph context via
+    ZepContextInjector: once on session start (StartFrame) and once after each
+    turn so the next reply always reflects the latest graph state.
+    """
 
     def __init__(self, context: LLMContext, zep, thread_id: str, settings, user_id: str) -> None:
         super().__init__()
@@ -167,12 +215,17 @@ class ZepMemorySync(FrameProcessor):
         self._settings  = settings
         self._user_id   = user_id
         self._last_synced: str | None = None
+        self._injector  = ZepContextInjector(context, zep, thread_id)
 
     async def process_frame(self, frame, direction):
         # Only run FrameProcessor lifecycle for control/LLM frames — raw audio
         # reaching this stage must not trigger _check_started before StartFrame.
         if isinstance(frame, (StartFrame, EndFrame, CancelFrame, LLMFullResponseEndFrame)):
             await super().process_frame(frame, direction)
+            if isinstance(frame, StartFrame):
+                # Eagerly inject current graph context so the very first turn
+                # already has access to the user's memory.
+                asyncio.create_task(self._injector.refresh())
             if isinstance(frame, LLMFullResponseEndFrame):
                 asyncio.create_task(self._sync())
         await self.push_frame(frame, direction)
@@ -214,6 +267,34 @@ class ZepMemorySync(FrameProcessor):
 
         try:
             from chat_agent import persist_voice_turn_to_zep
+            from intent import should_skip_zep_ingest
+
+            if should_skip_zep_ingest(user_text):
+                # Market lookup — fetch live markets and expose them for the UI card hook.
+                logger.info(f"[Voice] market lookup detected, skipping Zep ingest: {user_text[:80]}")
+                try:
+                    from market_tools import lookup_markets_for_user
+                    import app_state
+                    lookup = await lookup_markets_for_user(
+                        self._zep,
+                        self._user_id,
+                        user_text,
+                        settings=self._settings,
+                    )
+                    payload = {
+                        "action": "market_lookup",
+                        "reply": lookup.reply,
+                        "markets": lookup.to_market_dicts(),
+                        "ingested_to_zep": False,
+                    }
+                    app_state.last_market_lookup = payload
+                    logger.info(
+                        f"[Voice→Markets] {len(lookup.markets)} cards stored for UI (status={lookup.status})"
+                    )
+                except Exception as exc:
+                    logger.warning(f"Voice market lookup failed: {exc}")
+                self._last_synced = user_text
+                return
 
             memory_text = await asyncio.to_thread(
                 persist_voice_turn_to_zep,
@@ -228,6 +309,9 @@ class ZepMemorySync(FrameProcessor):
                 logger.info(f"[Voice→Zep] {memory_text[:80]}")
         except Exception as exc:
             logger.warning(f"ZepMemorySync failed: {exc}")
+
+        # Refresh context for the next turn regardless of whether we wrote to Zep.
+        asyncio.create_task(self._injector.refresh())
 
 
 async def run_bot(transport: BaseTransport, runner_args: RunnerArguments) -> None:

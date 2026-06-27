@@ -7,3 +7,8 @@ pydantic>=2.7.0
 fastapi
 uvicorn
 jinja2
+httpx>=0.27.0
+
+# Voice agent (Pipecat + WebRTC; voice disabled on Vercel — see server.py)
+pipecat-ai[cartesia,deepgram,openai,silero,webrtc]==1.4.0
+pipecat-ai-prebuilt>=1.0.3

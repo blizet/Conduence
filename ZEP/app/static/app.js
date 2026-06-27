@@ -112,6 +112,136 @@ function esc(s) {
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/* ─── market lookup cards ─────────────────────────────────────────────────── */
+function formatVolume(n) {
+  const v = Number(n) || 0;
+  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `$${Math.round(v / 1_000)}k`;
+  return `$${Math.round(v)}`;
+}
+
+function polymarketUrl(slug) {
+  if (!slug) return "https://polymarket.com";
+  return `https://polymarket.com/?marketSlug=${encodeURIComponent(slug)}`;
+}
+
+function formatOutcomePrice(price) {
+  const p = Number(price);
+  if (!Number.isFinite(p)) return "—";
+  return `${Math.round(p * 100)}¢`;
+}
+
+function renderMarketCards(assistantContentEl, markets) {
+  if (!assistantContentEl || !markets?.length) return;
+
+  const msgRow = assistantContentEl.closest(".msg");
+  if (!msgRow) return;
+
+  msgRow.querySelector(".market-cards")?.remove();
+
+  const grid = document.createElement("div");
+  grid.className = "market-cards";
+  grid.setAttribute("role", "list");
+
+  for (const market of markets) {
+    const card = document.createElement("article");
+    card.className = "market-card";
+    card.setAttribute("role", "listitem");
+    card.tabIndex = 0;
+
+    const url = market.url || polymarketUrl(market.slug);
+    const title = document.createElement("div");
+    title.className = "market-card__title";
+    title.textContent = market.question || "Untitled market";
+
+    const outcomes = document.createElement("div");
+    outcomes.className = "market-card__outcomes";
+    const names = market.outcomes || [];
+    const prices = market.outcomePrices || [];
+    if (names.length) {
+      names.slice(0, 4).forEach((name, i) => {
+        const span = document.createElement("span");
+        span.className = "market-card__outcome";
+        span.textContent = `${name}: ${formatOutcomePrice(prices[i])}`;
+        outcomes.appendChild(span);
+      });
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "market-card__meta";
+    const vol = document.createElement("span");
+    vol.textContent = `24h vol ${formatVolume(market.volume24hr)}`;
+    meta.appendChild(vol);
+    if ((market.volume24hr || 0) >= 50_000) {
+      const badge = document.createElement("span");
+      badge.className = "market-card__badge";
+      badge.textContent = "High volume";
+      meta.appendChild(badge);
+    }
+
+    const infoWrap = document.createElement("div");
+    infoWrap.className = "market-card__info-wrap";
+    const infoBtn = document.createElement("button");
+    infoBtn.type = "button";
+    infoBtn.className = "market-card__info";
+    infoBtn.setAttribute("aria-label", "Why was this market shown?");
+    infoBtn.textContent = "i";
+    const prefs = (market.matched_preferences || []).join(", ");
+    const tooltipText = [market.match_reason, prefs ? `Preferences: ${prefs}` : ""]
+      .filter(Boolean)
+      .join(" — ");
+    infoBtn.title = tooltipText;
+    const tooltip = document.createElement("div");
+    tooltip.className = "market-tooltip";
+    tooltip.textContent = tooltipText;
+    infoWrap.appendChild(infoBtn);
+    infoWrap.appendChild(tooltip);
+
+    card.appendChild(title);
+    card.appendChild(outcomes);
+    card.appendChild(meta);
+    card.appendChild(infoWrap);
+
+    const openMarket = () => window.open(url, "_blank", "noopener,noreferrer");
+    card.addEventListener("click", e => {
+      if (e.target.closest(".market-card__info-wrap")) return;
+      openMarket();
+    });
+    card.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openMarket();
+      }
+    });
+
+    grid.appendChild(card);
+  }
+
+  msgRow.appendChild(grid);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function fetchVoiceMarketCards() {
+  // The Polymarket lookup runs concurrently with TTS. Retry a few times with
+  // a short delay so we catch the result even if TTS finishes slightly first.
+  const MAX_ATTEMPTS = 4;
+  const DELAY_MS = 800;
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    try {
+      const res = await fetch("/api/voice/last-markets");
+      const data = await readJson(res);
+      if (res.ok && data.action === "market_lookup" && data.markets?.length) {
+        const lastBot = log?.querySelector(".msg--assistant:last-of-type .msg__content");
+        if (lastBot) renderMarketCards(lastBot, data.markets);
+        return;
+      }
+    } catch {
+      /* voice cards are optional — ignore transient errors */
+    }
+    if (i < MAX_ATTEMPTS - 1) await new Promise(r => setTimeout(r, DELAY_MS));
+  }
+}
+
 /* ─── messages ───────────────────────────────────────────────────────────── */
 function addMessage(role, text, { pending = false, error = false } = {}) {
   if (logEmpty) logEmpty.style.display = "none";
@@ -645,6 +775,7 @@ if (Voice) {
   Voice.on("botStoppedSpeaking", () => {
     botSpokeAfterLastUser = true;
     commitPendingBotTranscript();
+    void fetchVoiceMarketCards();
   });
   Voice.on("userStoppedSpeaking", () => scheduleUserTranscriptCommit(USER_IDLE_FLUSH_MS));
 
@@ -687,6 +818,9 @@ async function handleMemoryDecision(decision, actionsEl) {
     if (!res.ok) throw new Error(data.error || "Something went wrong.");
     pending.parentElement.classList.remove("msg--pending");
     pending.textContent = data.reply;
+    if (data.action === "market_lookup" && data.markets?.length) {
+      renderMarketCards(pending, data.markets);
+    }
     if (data.pending_memory) renderMemoryActions(pending, data.pending_memory);
   } catch (err) {
     actionsEl.querySelectorAll("button").forEach(b => b.disabled = false);
@@ -725,6 +859,9 @@ form?.addEventListener("submit", async e => {
     if (!res.ok) throw new Error(data.error || "Something went wrong.");
     pending.parentElement.classList.remove("msg--pending");
     pending.textContent = data.reply;
+    if (data.action === "market_lookup" && data.markets?.length) {
+      renderMarketCards(pending, data.markets);
+    }
     if (data.pending_memory) renderMemoryActions(pending, data.pending_memory);
   } catch (err) {
     pending.parentElement.classList.replace("msg--pending", "msg--error");

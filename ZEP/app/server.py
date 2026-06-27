@@ -29,10 +29,12 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+import app_state
 import voice_log
-from chat_agent import prepare_memory_review, run_turn
+from chat_agent import prepare_memory_review, run_market_lookup_turn, run_turn
 from config import load_settings_status
 from graph_snapshot import fetch_user_graph_with_retry
+from intent import TurnIntent, classify_intent
 from llm import generate_reply
 from zep_client import (
     build_client,
@@ -434,6 +436,17 @@ def voice_transcript_clear():
     return JSONResponse({"ok": True})
 
 
+@app.get("/api/voice/last-markets")
+def voice_last_markets():
+    """Return the most recent market lookup payload (for voice UI card hook).
+    Clears the stored lookup after serving so stale cards don't re-render."""
+    payload = app_state.last_market_lookup
+    if not payload:
+        return JSONResponse({"action": None, "markets": []})
+    app_state.last_market_lookup = None
+    return JSONResponse(payload)
+
+
 def _run_chat_turn(user_message, active_thread, *, memory_text=None, ingest_memory=True):
     return run_turn(
         zep=zep,
@@ -502,6 +515,20 @@ async def chat(request: Request):
             _try_update_user_profile(zep, DEFAULT_USER_ID, original_message)
             return JSONResponse({"reply": reply})
 
+        if classify_intent(user_message) == TurnIntent.MARKET_LOOKUP:
+            result = await run_market_lookup_turn(
+                zep=zep,
+                thread_id=active_thread,
+                user_id=DEFAULT_USER_ID,
+                user_message=user_message,
+                settings=settings,
+            )
+            conversation_history.append({"role": "user", "content": user_message})
+            conversation_history.append({"role": "assistant", "content": result.reply})
+            payload = result.to_api_dict()
+            app_state.last_market_lookup = payload
+            return JSONResponse(payload)
+
         review = prepare_memory_review(
             zep=zep, settings=settings,
             user_id=DEFAULT_USER_ID, user_message=user_message,
@@ -537,7 +564,7 @@ async def chat(request: Request):
     conversation_history.append({"role": "user",      "content": user_message})
     conversation_history.append({"role": "assistant", "content": result.reply})
     _try_update_user_profile(zep, DEFAULT_USER_ID, user_message)
-    return JSONResponse({"reply": result.reply})
+    return JSONResponse(result.to_api_dict())
 
 
 # ── WebRTC voice (Pipecat SmallWebRTC — local server only) ───────────────────
@@ -546,7 +573,7 @@ def _voice_unavailable() -> JSONResponse:
     return JSONResponse(
         {
             "error": "Voice/WebRTC is not available on Vercel. "
-            "Run locally with: pip install -r requirements-local.txt && python server.py",
+            "Run locally with: pip install -r requirements.txt && python server.py",
         },
         status_code=501,
     )

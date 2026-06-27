@@ -22,6 +22,9 @@ app/setup_ontology.py     # pushes ontology to your Zep project
 app/zep_client.py         # thin wrapper around the Zep SDK
 app/llm.py                # provider-agnostic text LLM layer
 app/chat_agent.py         # text chat loop: LLM + Zep memory/graph
+app/intent.py             # action vs memory intent (market lookup skip)
+app/market_tools.py       # preference keywords + Polymarket match reasons
+app/polymarket.py         # Polymarket Gamma API client
 app/server.py             # FastAPI server (text + WebRTC voice, single port)
 app/voice_agent.py        # Pipecat voice agent
 app/cli.py                # optional terminal chat
@@ -41,7 +44,6 @@ requirements.txt
    .venv\Scripts\activate        # Windows
    source .venv/bin/activate     # macOS/Linux
    pip install -r requirements.txt
-   pip install -r requirements-local.txt   # optional: Pipecat voice (local server only)
    ```
 
 2. **Configure env vars**
@@ -147,11 +149,42 @@ of one shared session.
 
 ## How the graph gets built
 
-Every message sent is added to the Zep thread via
+Every **preference or belief** message is refined and added to the Zep thread via
 `client.thread.add_messages(...)`. Zep asynchronously extracts entities
 (typed per `ontology.py`) and edges from the conversation and merges them
 into that user's graph in the background — you don't call any separate
 "extract" step yourself.
+
+**What does NOT go to Zep:** ephemeral action queries such as "show me IPL
+markets on Polymarket". Those are classified as `market_lookup` intent and
+skip graph ingestion entirely.
+
+### Market lookup (Polymarket)
+
+When you ask to list markets (e.g. "show me markets related to IPL"):
+
+1. **Intent routing** (`app/intent.py`) detects a lookup action — no Zep write.
+2. **Preferences** are read from Zep graph `Preference` nodes only (`app/market_tools.py`).
+3. **Live markets** are fetched from the Polymarket Gamma API (`app/polymarket.py`),
+   gated by volume/liquidity/spread and ranked by quality score.
+4. **Strict v1 matching:** a market is shown only if its question overlaps keywords
+   from your saved preferences (not the query alone).
+5. The UI renders selectable cards below the assistant message with a "why shown"
+   tooltip (`match_reason`).
+
+**API response** (`POST /api/chat`):
+
+```json
+{
+  "action": "market_lookup",
+  "reply": "Here are 4 Polymarket markets matching your saved preferences.",
+  "markets": [{ "question", "slug", "volume24hr", "match_reason", "matched_preferences", "url" }],
+  "ingested_to_zep": false
+}
+```
+
+Voice transcripts that are market lookups also skip Zep ingestion. The latest
+lookup payload is available at `GET /api/voice/last-markets` for the transcript UI.
 
 Before generating each assistant reply, `chat_agent.py` pulls
 `client.thread.get_user_context(...)`, which returns the most relevant
