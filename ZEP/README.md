@@ -9,30 +9,28 @@ Everyone running this locally points at the **same Zep project graph**
 long as you all use the same `ZEP_API_KEY`, you're collaborating on the
 same graph.
 
-**Note on layout:** every Python module lives flat in the project root
-(no `app/` package). This is deliberate — it means `python server.py` or
-`python cli.py` just works from this folder regardless of how it gets
-copied/unzipped, with no import path surprises.
+**Note on layout:** the application modules live in `app/`. The server is
+FastAPI (ASGI), run locally with `python app/server.py` (uvicorn). Voice chat
+is embedded in the same server — no separate port needed.
 
 ## How it's organized
 
 ```
-config.py          # env / settings loading (incl. which LLM provider)
-ontology.py          # Entity + Edge type definitions (pydantic models)
-setup_ontology.py     # one-time script: pushes ontology to your Zep project
-zep_client.py          # thin wrapper around the Zep SDK (sync)
-llm.py                  # provider-agnostic LLM call layer (Anthropic/OpenAI/Gemini)
-chat_agent.py            # the actual chat loop: LLM + Zep memory/graph
-server.py                 # Flask web server — the main way to use this
-cli.py                     # optional terminal chat, same underlying logic
-templates/
-  index.html               # chat page
-static/
-  style.css                # chat page styling
-  app.js                   # chat page behavior
-scripts/
-  reset_user.py            # delete + recreate a user's graph (dev convenience)
-  inspect_graph.py          # dump a user's nodes/edges for debugging
+app/config.py             # env / settings loading
+app/ontology.py           # Conduence entity + edge ontology
+app/setup_ontology.py     # pushes ontology to your Zep project
+app/zep_client.py         # thin wrapper around the Zep SDK
+app/llm.py                # provider-agnostic text LLM layer
+app/chat_agent.py         # text chat loop: LLM + Zep memory/graph
+app/intent.py             # action vs memory intent (market lookup skip)
+app/market_tools.py       # preference keywords + Polymarket match reasons
+app/polymarket.py         # Polymarket Gamma API client
+app/server.py             # FastAPI server (text + WebRTC voice, single port)
+app/voice_agent.py        # Pipecat voice agent
+app/cli.py                # optional terminal chat
+app/templates/            # chat page templates
+app/static/               # chat + graph UI assets
+api/index.py              # Vercel serverless Flask entrypoint
 .env.example
 requirements.txt
 ```
@@ -45,7 +43,6 @@ requirements.txt
    python -m venv .venv
    .venv\Scripts\activate        # Windows
    source .venv/bin/activate     # macOS/Linux
-   cd app
    pip install -r requirements.txt
    ```
 
@@ -74,14 +71,13 @@ requirements.txt
 3. **Push the ontology to Zep (run once per project, not per user)**
 
    ```bash
-   python setup_ontology.py
+   python app/setup_ontology.py
    ```
 
-   This registers the `User`, `Preference`, `Thing`, `Influencer`, `Event`,
-   `Company` entity types and the `INFLUENCES`, `INTERESTED`, `CO_RELATES`
-   edge types (each carrying a `proximity` float from -1 to 1) against your
-   Zep project. Re-run it any time `ontology.py` changes — it replaces
-   the whole ontology, so it's idempotent.
+   This registers the Conduence ontology (`Preference`, `GeoFactors`, `Person`,
+   `Event`, `EconomicActor`, `AiAgent`, `Rule`) and its edge types against your
+   Zep project. Re-run it any time `app/ontology.py` changes — it replaces the
+   whole ontology, so it's idempotent.
 
    The app creates/updates Zep users with default ontology disabled, so graph
    extraction uses these custom entity and edge types only.
@@ -89,7 +85,7 @@ requirements.txt
 4. **Run the web app**
 
    ```bash
-   python server.py
+   python app/server.py
    ```
 
    Then open **http://localhost:5000** in your browser.
@@ -103,15 +99,49 @@ requirements.txt
    `.env`, set `LLM_PROVIDER` in your shell before running, e.g.:
 
    ```bash
-   LLM_PROVIDER=openai python server.py        # macOS/Linux
-   $env:LLM_PROVIDER="openai"; python server.py # Windows PowerShell
+   LLM_PROVIDER=openai python app/server.py        # macOS/Linux
+   $env:LLM_PROVIDER="openai"; python app/server.py # Windows PowerShell
    ```
+
+### Voice agent (embedded, same port)
+
+Voice is built into the main server — no separate process or port. The default
+stack is:
+
+```text
+Deepgram STT → OpenAI LLM → Cartesia TTS   (Pipecat SmallWebRTC transport)
+```
+
+Configure in `.env`:
+
+- `DEEPGRAM_API_KEY`
+- `OPENAI_API_KEY` (or `VOICE_LLM_PROVIDER=gemini` + `GEMINI_API_KEY`)
+- `CARTESIA_API_KEY` + `CARTESIA_VOICE_ID`
+
+All dependencies are in a single file:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start the server (text + voice on one port):
+
+```bash
+python app/server.py
+```
+
+Open **http://localhost:5000**, click the **Voice** tab in the header, then
+**Connect**. WebRTC activates your microphone and connects the Pipecat voice
+pipeline. Graph updates happen the same way as text — voice transcripts flow
+through the same Zep memory pipeline.
+
+See `VOICE_TRANSPORT.md` for the transport decision rationale.
 
 ### Prefer the terminal?
 
 ```bash
-python cli.py --user-id alice
-python cli.py --user-id alice --provider gemini
+python app/cli.py --user-id alice
+python app/cli.py --user-id alice --provider gemini
 ```
 
 Same underlying logic as the web app, just text-only and per-user instead
@@ -119,11 +149,42 @@ of one shared session.
 
 ## How the graph gets built
 
-Every message sent is added to the Zep thread via
+Every **preference or belief** message is refined and added to the Zep thread via
 `client.thread.add_messages(...)`. Zep asynchronously extracts entities
 (typed per `ontology.py`) and edges from the conversation and merges them
 into that user's graph in the background — you don't call any separate
 "extract" step yourself.
+
+**What does NOT go to Zep:** ephemeral action queries such as "show me IPL
+markets on Polymarket". Those are classified as `market_lookup` intent and
+skip graph ingestion entirely.
+
+### Market lookup (Polymarket)
+
+When you ask to list markets (e.g. "show me markets related to IPL"):
+
+1. **Intent routing** (`app/intent.py`) detects a lookup action — no Zep write.
+2. **Preferences** are read from Zep graph `Preference` nodes only (`app/market_tools.py`).
+3. **Live markets** are fetched from the Polymarket Gamma API (`app/polymarket.py`),
+   gated by volume/liquidity/spread and ranked by quality score.
+4. **Strict v1 matching:** a market is shown only if its question overlaps keywords
+   from your saved preferences (not the query alone).
+5. The UI renders selectable cards below the assistant message with a "why shown"
+   tooltip (`match_reason`).
+
+**API response** (`POST /api/chat`):
+
+```json
+{
+  "action": "market_lookup",
+  "reply": "Here are 4 Polymarket markets matching your saved preferences.",
+  "markets": [{ "question", "slug", "volume24hr", "match_reason", "matched_preferences", "url" }],
+  "ingested_to_zep": false
+}
+```
+
+Voice transcripts that are market lookups also skip Zep ingestion. The latest
+lookup payload is available at `GET /api/voice/last-markets` for the transcript UI.
 
 Before generating each assistant reply, `chat_agent.py` pulls
 `client.thread.get_user_context(...)`, which returns the most relevant
@@ -135,8 +196,8 @@ new conversation.
 ## Inspecting / resetting the graph
 
 ```bash
-python scripts/inspect_graph.py --user-id shared-user
-python scripts/reset_user.py --user-id shared-user
+python app/inspect_graph.py --user-id shared-user
+python app/reset_user.py --user-id shared-user
 ```
 
 (Use whatever `--user-id` you're actually chatting as — `shared-user` is

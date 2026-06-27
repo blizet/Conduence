@@ -18,36 +18,54 @@ from __future__ import annotations
 
 PROJECT_WIDE_INSTRUCTION = """
 This assistant operates in the retail trading and prediction-markets domain.
-Extract and reason about the following concepts precisely:
+Extract and reason about the following ontology precisely:
+
+ENTITY TYPES
+- Preference: stable beliefs, convictions, market focus, asset preferences,
+  signal preferences, and recurring decision tendencies. Use category (Market,
+  Asset, IPL, Election) and sector (Crypto, Politics, Economics, Sports,
+  Commodities) when applicable. Do NOT use for temporary positions or events.
+- GeoFactors: geopolitical, geographic, or strategic locations that influence
+  markets (Iran, Middle East, Strait of Hormuz, Red Sea, EU, BRICS, etc.).
+- Person: market participants, institutions, governments, central banks, OPEC,
+  the Fed, Trump, Musk, Powell, or sports teams whose actions move markets.
+- Event: real-world catalysts — wars, elections, sanctions, OPEC meetings, rate
+  decisions, earnings. Use for what is happening, not the user's preference.
+- EconomicActor: tradable assets and instruments — BTC, ETH, crude oil, gold,
+  Apple, USD, Polymarket contracts, indices, ETFs, protocols, or companies.
+- AiAgent: persistent AI capabilities (News Agent, Risk Analyzer, Orchestrator).
+  Capture role, specialization, objective, workflow, market_scope, autonomy_level,
+  and status when the user describes them.
+- Rule: procedural memory — entry/exit conditions, monitors, risk policies,
+  guardrails. Capture rule_type, condition, action, scope, and priority.
 
 ASSETS & INSTRUMENTS
 - "market" or "markets" refers to a tradable asset, index, or prediction-market
   contract unless the user explicitly means a physical marketplace.
-- Distinguish: Crypto (BTC, ETH, altcoins), Equities (stocks, indices),
-  Commodities (crude oil, gold, silver, nat-gas), Forex (USD, IRR, etc.),
-  and Prediction markets (Kalshi, Polymarket contracts).
+- Distinguish: Crypto (BTC, ETH), Equities, Commodities (crude, gold, nat-gas),
+  Forex (USD, IRR), and Prediction markets (Kalshi, Polymarket).
 - "crude" always means crude oil unless stated otherwise.
 - "IRR" is the Iranian Rial; "IRR markets" means Iranian financial markets.
 
-SENTIMENT & PROXIMITY
-- Record explicit sentiment scores: bullish/long/like = positive, bearish/short/hate = negative.
-- "proximity" on CO_RELATES edges should be -1 for inverse correlations
-  (e.g. gold vs USD) and +1 for positive (e.g. crude oil vs Iranian equities).
-
-INFLUENCERS & EVENTS
-- Geopolitical actors (governments, central banks, OPEC, FED) are Influencer nodes.
-- Sanctions, wars, elections, OPEC meetings are Event nodes.
-- Connect them to affected assets via INFLUENCES edges.
+EDGE TYPES
+- INFLUENCES: causal influence (Person/Event/GeoFactors → EconomicActor or Event).
+  Set proximity from -1 (opposing) to +1 (reinforcing).
+- CO_RELATES: correlation or co-movement between two market-relevant entities.
+  Set proximity -1 for inverse (e.g. gold vs USD), +1 for positive correlation.
+- STANCE: trust, avoidance, prioritization, or monitoring between entities.
+  Set stance (trust, avoid, think, assume, prioritize, monitor) and proximity.
+- HAS_RULE: an AiAgent or entity has a Rule attached.
+- MONITORS: an AiAgent monitors an Event, GeoFactors, EconomicActor, or Person.
+- IMPLICATES: a Rule or guideline implied by an Event or condition (proximity 0–1).
 
 TEMPORAL REASONING
 - When a user says "now", "today", "this week" pin it to the current date.
-- Record time-sensitive claims on the node's `time` attribute.
 - Do NOT carry forward outdated sentiment; update existing nodes rather than
   creating duplicates when the user revises a view.
 
 USER PROFILE
-- The user is a retail trader. Capture their trading style, risk appetite,
-  preferred assets, and specific market focus as Preference nodes.
+- The user is a retail trader. Capture trading style, risk appetite, preferred
+  assets, and market focus as Preference nodes.
 - Link personal identifiers (name, email) to the User node immediately.
 """
 
@@ -58,16 +76,18 @@ USER_INSTRUCTIONS: dict[str, str] = {
 This specific user (shared-user) is a retail trader focused on Iranian
 prediction and commodity markets.  Apply these additional rules:
 
-- Iranian market references imply both the Tehran Stock Exchange (TSE) and
-  informal currency / gold markets.
-- Crude oil price movements are HIGHLY_INFLUENCED_BY OPEC decisions, US
-  sanctions, and geopolitical events in the Middle East — capture all three.
+- Iranian market references imply GeoFactors (Iran, Middle East) and both the
+  Tehran Stock Exchange and informal currency / gold markets as EconomicActors.
+- Crude oil (EconomicActor) is INFLUENCED by OPEC (Person), US sanctions
+  (Event), and Middle East GeoFactors — capture all three with INFLUENCES edges.
 - Gold in an Iranian context is often held as a currency hedge (IRR
-  devaluation); record this motivation on the edge fact.
+  devaluation); record this motivation on the CO_RELATES or INFLUENCES edge fact.
+- When the user mentions monitoring Trump, tweets, or geopolitical actors, use
+  Person nodes and MONITORS edges if they configure an AiAgent to watch them.
 - When the user shares personal info (name, email, occupation), update the
   User node immediately and confirm with a brief acknowledgment.
-- Track the user's portfolio concerns (inflation hedge, FX risk, geopolitical
-  exposure) as Preference nodes with sector = "Risk Management".
+- Track portfolio concerns (inflation hedge, FX risk, geopolitical exposure) as
+  Preference nodes with sector = "Risk Management".
 """,
 }
 

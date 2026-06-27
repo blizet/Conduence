@@ -12,8 +12,9 @@ actually generates the reply (Anthropic / OpenAI / Gemini) is decided by
 from __future__ import annotations
 
 import json
+import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
@@ -22,7 +23,11 @@ from zep_cloud.client import Zep
 
 from config import Settings
 from instructions import get_system_instructions
+from intent import should_skip_zep_ingest
 from llm import generate_reply
+from market_tools import lookup_markets_for_user
+
+logger = logging.getLogger(__name__)
 
 # The core persona + graph-context block.  Domain instructions are injected at
 # runtime from instructions.py so they stay in one place and always stay in sync.
@@ -68,26 +73,33 @@ Rules:
 - If the message contains no durable user/profile/trading/market signal, output
   exactly: NO_MEMORY
 
-Use these ontology labels explicitly when helpful:
+okay Use these ontology entity labels explicitly when helpful:
 - User: personal identity details such as name, email, role, occupation.
-- Preference: the user's market focus, interests, trading preferences, risk
+- Preference: stable beliefs, market focus, interests, trading preferences, risk
   concerns, or recurring topic focus. Phrases like "Iranian war-based markets"
-  are Preference when the user is describing what they trade or follow.
-- Thing: tradable assets/instruments such as crude oil, gold, BTC, ETH,
-  equities, forex, indices, or prediction-market contracts.
-- Influencer: people, governments, central banks, OPEC, the Fed, Trump, or any
-  actor whose actions/statements move markets. Do not use Person/Organization.
-- Event: the real-world event itself, such as a war, election, sanctions, or an
-  OPEC meeting. Do not label a user's "event-based market preference" as Event;
-  label that as Preference.
-- Company: companies such as Google, SpaceX, Apple.
+  are Preference when the user describes what they trade or follow — not Event.
+- GeoFactors: geopolitical or geographic locations that influence markets, such
+  as Iran, Middle East, Strait of Hormuz, or European Union.
+- Person: market participants, institutions, governments, central banks, OPEC,
+  the Fed, Trump, Musk, Powell, or any actor whose actions move markets.
+- Event: real-world catalysts such as wars, elections, sanctions, OPEC meetings,
+  rate decisions, or earnings — not the user's preference toward them.
+- EconomicActor: tradable assets and instruments such as crude oil, gold, BTC,
+  ETH, Apple, USD, Polymarket contracts, or SpaceX stock.
+- AiAgent: persistent AI capabilities the user wants or configures, such as a
+  News Agent, Risk Analyzer, or Macro Analyst (include role/specialization if stated).
+- Rule: procedural guardrails, entry/exit conditions, monitors, or risk policies
+  the user defines (include condition/action if stated).
+
+When describing relationships, name the edge type where useful:
+INFLUENCES, CO_RELATES, STANCE, HAS_RULE, MONITORS, IMPLICATES.
 
 Output format:
-One to five short lines. Each line should start with an ontology label, for
-example:
+One to five short lines. Each line should start with an entity label, for example:
 Preference: The user is interested in Iranian war-based prediction markets.
-Influencer: Trump is an influencer for the user's market focus.
-Thing: Crude oil is relevant to the user's Iranian market focus.
+Person: Trump is a market actor the user wants to monitor.
+EconomicActor: Crude oil is relevant to the user's Iranian market focus.
+GeoFactors: Iran is a geo-factor in the user's market focus.
 """
 
 
@@ -167,6 +179,18 @@ class ChatTurnResult:
     context_used: str | None
     memory_text: str | None = None
     memory_review: MemoryReview | None = None
+    action: str | None = None
+    markets: list[dict[str, Any]] = field(default_factory=list)
+    ingested_to_zep: bool | None = None
+
+    def to_api_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {"reply": self.reply}
+        if self.action:
+            payload["action"] = self.action
+        if self.action == "market_lookup":
+            payload["markets"] = self.markets
+            payload["ingested_to_zep"] = bool(self.ingested_to_zep)
+        return payload
 
 
 def _extract_json_object(text: str) -> dict[str, Any] | None:
@@ -279,6 +303,59 @@ def save_memory_to_zep(zep: Zep, thread_id: str, memory_text: str) -> None:
     zep.thread.add_messages(
         thread_id=thread_id,
         messages=[Message(role="user", content=memory_text)],
+    )
+
+
+def persist_voice_turn_to_zep(
+    *,
+    zep: Zep,
+    settings: Settings,
+    thread_id: str,
+    user_id: str,
+    user_message: str,
+) -> str | None:
+    """Refine a voice transcript and write it to Zep (no UI confirmation step)."""
+    if should_skip_zep_ingest(user_message):
+        logger.info("voice zep ingest skipped (action query): %s", user_message[:80])
+        return None
+
+    review = prepare_memory_review(
+        zep=zep,
+        settings=settings,
+        user_id=user_id,
+        user_message=user_message,
+    )
+    if not review.memory_text:
+        return None
+    save_memory_to_zep(zep, thread_id, review.memory_text)
+    logger.info("voice zep ingest saved thread=%s len=%d", thread_id, len(review.memory_text))
+    return review.memory_text
+
+
+async def run_market_lookup_turn(
+    *,
+    zep: Zep,
+    thread_id: str,
+    user_id: str,
+    user_message: str,
+    settings: Settings | None = None,
+) -> ChatTurnResult:
+    """Fetch live Polymarket markets from Zep preferences — no graph write."""
+    lookup = await lookup_markets_for_user(zep, user_id, user_message, settings=settings)
+    context = get_context_block(zep, thread_id)
+    logger.info(
+        "market_lookup turn user=%s markets=%d status=%s",
+        user_id,
+        len(lookup.markets),
+        lookup.status,
+    )
+    return ChatTurnResult(
+        reply=lookup.reply,
+        context_used=context,
+        memory_text=None,
+        action="market_lookup",
+        markets=lookup.to_market_dicts(),
+        ingested_to_zep=False,
     )
 
 

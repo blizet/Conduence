@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Graph</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #f8fafc; }
+  .embed-shell { display: flex; flex-direction: column; height: 100vh; }
+  .embed-body { flex: 1; display: flex; min-height: 0; position: relative; }
+  .graph-canvas-wrap { flex: 1; position: relative; overflow: hidden; background: #fff; }
+  canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  .detail-panel {
+    width: 240px; border-left: 1px solid #e2e8f0; background: #f8fafc;
+    overflow-y: auto; padding: 12px; font-size: 12px; position: relative;
+  }
+  .detail-panel__close {
+    position: absolute; top: 8px; right: 8px; background: none; border: none;
+    color: #94a3b8; cursor: pointer;
+  }
+  .graph-legend {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 12px;
+    border-top: 1px solid #e2e8f0; background: #fff; font-size: 10px;
+  }
+  .graph-legend__item { display: inline-flex; align-items: center; gap: 4px; color: #64748b; }
+  .graph-legend__dot { width: 7px; height: 7px; border-radius: 50%; }
+</style>
+</head>
+<body data-config-ready="{{ 'true' if config_ready else 'false' }}" data-graph-theme="light">
+
+<div class="embed-shell">
+  <div class="embed-body">
+    <div class="graph-canvas-wrap" id="graph-canvas-wrap">
+      <canvas id="graph-canvas" aria-label="Knowledge graph"></canvas>
+    </div>
+    <aside class="detail-panel" id="detail-panel" hidden style="position:relative">
+      <button class="detail-panel__close" id="detail-panel-close" aria-label="Close">✕</button>
+      <div class="detail-panel__content" id="detail-panel-content"></div>
+    </aside>
+  </div>
+  <div class="graph-legend" id="graph-legend"></div>
+</div>
+
+<script src="/static/graph.js"></script>
+</body>
+</html>

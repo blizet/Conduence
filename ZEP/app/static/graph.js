@@ -1,27 +1,55 @@
+// ─── theme helpers ────────────────────────────────────────────────────────────
+
+function isLightTheme() {
+  return document.body && document.body.dataset.graphTheme === "light";
+}
+
+function themeColors() {
+  const light = isLightTheme();
+  return {
+    edgeLabelBg:       light ? "rgba(255,255,255,0.92)" : "rgba(15,23,42,0.85)",
+    edgeLabelBorder:   light ? "rgba(226,232,240,0.9)"  : null,
+    edgeLabelDim:      light ? "#64748b"                : "#8a8f96",
+    nodeLabelNormal:   light ? "#1e293b"                : "#edeae2",
+    nodeLabelSelected: light ? "#0f172a"                : "#ffffff",
+  };
+}
+
 // ─── colour maps ──────────────────────────────────────────────────────────────
 
 const NODE_COLORS = {
-  User:       "#4fe0a0",
-  Thing:      "#6eb5ff",
-  Influencer: "#e0a04f",
-  Event:      "#c49bff",
-  Company:    "#5fd4d4",
-  Preference: "#8a8f96",
-  Location:   "#ff8fa3",
-  Topic:      "#b8d4a8",
-  Organization: "#ffb347",
-  Entity:     "#8a8f96",
+  User:           "#4fe0a0",
+  Preference:     "#8a8f96",
+  GeoFactors:     "#ff8fa3",
+  Person:         "#e0a04f",
+  Event:          "#c49bff",
+  EconomicActor:  "#6eb5ff",
+  AiAgent:        "#5fd4d4",
+  Rule:           "#ffb347",
+  // Legacy labels (older graph data)
+  Thing:          "#6eb5ff",
+  Influencer:     "#e0a04f",
+  Company:        "#5fd4d4",
+  Location:       "#ff8fa3",
+  Topic:          "#b8d4a8",
+  Organization:   "#ffb347",
+  Entity:         "#8a8f96",
 };
 
 const EDGE_COLORS = {
-  INFLUENCES:          "#e0a04f",
-  INTERESTED:          "#4fe0a0",
-  CO_RELATES:          "#6eb5ff",
-  CORRELATES:          "#6eb5ff",
-  HIGHLY_INFLUENCED_BY:"#ff8fa3",
-  INFLUENCED_BY:       "#ffb347",
-  TRADES_IN:           "#c49bff",
-  TRACKS:              "#5fd4d4",
+  INFLUENCES:   "#e0a04f",
+  CO_RELATES:   "#6eb5ff",
+  STANCE:       "#4fe0a0",
+  HAS_RULE:     "#ffb347",
+  MONITORS:     "#5fd4d4",
+  IMPLICATES:   "#c49bff",
+  // Legacy edge types (older graph data)
+  INTERESTED:   "#4fe0a0",
+  CORRELATES:   "#6eb5ff",
+  HIGHLY_INFLUENCED_BY: "#ff8fa3",
+  INFLUENCED_BY: "#ffb347",
+  TRADES_IN:    "#c49bff",
+  TRACKS:       "#5fd4d4",
 };
 
 function labelColor(label) {
@@ -56,12 +84,12 @@ let dragMoved     = false;      // distinguish click vs drag
 // ─── init ─────────────────────────────────────────────────────────────────────
 
 function initGraphView() {
-  canvas       = document.getElementById("graph-canvas");
-  wrap         = document.getElementById("graph-canvas-wrap");
-  metaEl       = document.getElementById("graph-meta");
-  legendEl     = document.getElementById("graph-legend");
-  detailPanel  = document.getElementById("detail-panel");
-  detailContent= document.getElementById("detail-panel-content");
+  canvas        = document.getElementById("graph-canvas");
+  wrap          = document.getElementById("graph-canvas-wrap");
+  metaEl        = document.getElementById("graph-meta");
+  legendEl      = document.getElementById("graph-legend");
+  detailPanel   = document.getElementById("detail-panel");
+  detailContent = document.getElementById("detail-panel-content");
 
   const closeBtn = document.getElementById("detail-panel-close");
   if (closeBtn) closeBtn.addEventListener("click", closeDetailPanel);
@@ -79,14 +107,27 @@ function initGraphView() {
   resizeCanvas();
 }
 
+function getCanvasDimensions() {
+  if (!wrap) return { width: 800, height: 600 };
+  const rect = wrap.getBoundingClientRect();
+  const width  = Math.floor(rect.width)  || canvas?.clientWidth  || 800;
+  const height = Math.floor(rect.height) || canvas?.clientHeight || 600;
+  return { width: Math.max(width, 1), height: Math.max(height, 1) };
+}
+
+function isCanvasReady() {
+  const { width, height } = getCanvasDimensions();
+  return width >= 80 && height >= 80;
+}
+
 function resizeCanvas() {
   if (!canvas || !wrap) return;
-  const rect = wrap.getBoundingClientRect();
+  const { width, height } = getCanvasDimensions();
   const dpr  = window.devicePixelRatio || 1;
-  canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
-  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-  canvas.style.width  = `${rect.width}px`;
-  canvas.style.height = `${rect.height}px`;
+  canvas.width  = Math.max(1, Math.floor(width  * dpr));
+  canvas.height = Math.max(1, Math.floor(height * dpr));
+  canvas.style.width  = `${width}px`;
+  canvas.style.height = `${height}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawGraph();
 }
@@ -94,11 +135,8 @@ function resizeCanvas() {
 // ─── layout toggle ────────────────────────────────────────────────────────────
 
 function setSplitLayout(enabled) {
-  const shell     = document.getElementById("shell");
-  const graphPane = document.getElementById("graph-pane");
-  if (!shell || !graphPane) return;
-  shell.classList.toggle("shell--split", enabled);
-  graphPane.hidden = !enabled;
+  /* The graph is now a full-screen view toggled by app.js — just
+     start/stop the simulation when the canvas is visible. */
   if (enabled) { resizeCanvas(); startSimulation(); }
   else         { stopSimulation(); }
 }
@@ -118,17 +156,36 @@ function updateLegend(labels) {
 
 // ─── positions ────────────────────────────────────────────────────────────────
 
+function nodesAreClustered(nodes, threshold = 28) {
+  if (nodes.length < 2) return false;
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      if (Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y) > threshold) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function seedPositions(nodes, width, height) {
   const cx = width / 2;
   const cy = height / 2;
-  const r  = Math.min(width, height) * 0.32;
+  const r  = Math.min(width, height) * 0.34;
+  const useCache = isCanvasReady() && !nodesAreClustered(
+    nodes
+      .map((node) => positionCache[node.id])
+      .filter(Boolean)
+      .map((pos, i) => ({ id: i, x: pos.x, y: pos.y })),
+  );
+
   return nodes.map((node, i) => {
-    const cached = positionCache[node.id];
+    const cached = useCache ? positionCache[node.id] : null;
     const angle  = (i / Math.max(nodes.length, 1)) * Math.PI * 2;
     return {
       ...node,
-      x:  cached ? cached.x : cx + Math.cos(angle) * r,
-      y:  cached ? cached.y : cy + Math.sin(angle) * r,
+      x: cached ? cached.x : cx + Math.cos(angle) * r,
+      y: cached ? cached.y : cy + Math.sin(angle) * r,
       vx: 0,
       vy: 0,
     };
@@ -136,6 +193,7 @@ function seedPositions(nodes, width, height) {
 }
 
 function savePositions() {
+  if (!isCanvasReady() || nodesAreClustered(graphState.simNodes)) return;
   graphState.simNodes.forEach((n) => {
     positionCache[n.id] = { x: n.x, y: n.y };
   });
@@ -145,11 +203,18 @@ function savePositions() {
 
 function startSimulation() {
   stopSimulation();
-  if (!graphState.simNodes.length) return;
+  if (!graphState.simNodes.length || !isCanvasReady()) return;
+  let ticks = 0;
   const tick = () => {
     runSimulationStep();
     drawGraph();
-    animationId = requestAnimationFrame(tick);
+    ticks += 1;
+    if (ticks < 240) {
+      animationId = requestAnimationFrame(tick);
+    } else {
+      animationId = null;
+      savePositions();
+    }
   };
   animationId = requestAnimationFrame(tick);
 }
@@ -161,17 +226,20 @@ function stopSimulation() {
 function runSimulationStep() {
   const nodes = graphState.simNodes;
   const edges = graphState.edges;
-  const W = canvas.clientWidth;
-  const H = canvas.clientHeight;
-  const cx = W / 2, cy = H / 2;
+  const { width: W, height: H } = getCanvasDimensions();
+  if (W < 80 || H < 80) return;
+  const cx = W / 2;
+  const cy = H / 2;
+  const idealLen = Math.min(W, H) * 0.18;
+  const repulsion = Math.max(8000, idealLen * idealLen * 2.2);
 
   // Repulsion
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
       let dx = a.x - b.x, dy = a.y - b.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const f = 5200 / (dist * dist);
+      const dist = Math.max(Math.hypot(dx, dy), 8);
+      const f = repulsion / (dist * dist);
       a.vx += (dx / dist) * f; a.vy += (dy / dist) * f;
       b.vx -= (dx / dist) * f; b.vy -= (dy / dist) * f;
     }
@@ -183,21 +251,22 @@ function runSimulationStep() {
     const tgt = nodes.find((n) => n.id === edge.target);
     if (!src || !tgt) return;
     const dx = tgt.x - src.x, dy = tgt.y - src.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    const f = (dist - 120) * 0.02;
+    const dist = Math.max(Math.hypot(dx, dy), 1);
+    const f = (dist - idealLen) * 0.035;
     src.vx += (dx / dist) * f; src.vy += (dy / dist) * f;
     tgt.vx -= (dx / dist) * f; tgt.vy -= (dy / dist) * f;
   });
 
-  // Gravity + damping
+  // Gentle centering + damping
   nodes.forEach((n) => {
     if (n === draggingNode) return;
-    n.vx += (cx - n.x) * 0.002;
-    n.vy += (cy - n.y) * 0.002;
-    n.vx *= 0.86; n.vy *= 0.86;
+    n.vx += (cx - n.x) * 0.0008;
+    n.vy += (cy - n.y) * 0.0008;
+    n.vx *= 0.84; n.vy *= 0.84;
     n.x += n.vx;  n.y += n.vy;
-    n.x = Math.max(44, Math.min(W - 44, n.x));
-    n.y = Math.max(44, Math.min(H - 44, n.y));
+    const pad = 48;
+    n.x = Math.max(pad, Math.min(W - pad, n.x));
+    n.y = Math.max(pad, Math.min(H - pad, n.y));
   });
 }
 
@@ -205,7 +274,7 @@ function runSimulationStep() {
 
 function drawGraph() {
   if (!ctx || !canvas) return;
-  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const { width: W, height: H } = getCanvasDimensions();
   ctx.clearRect(0, 0, W, H);
 
   // Edges
@@ -234,12 +303,17 @@ function drawGraph() {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // Small background pill
-    const tw = ctx.measureText(label).width;
-    ctx.fillStyle = "rgba(11,13,15,0.75)";
+    const tc  = themeColors();
+    const tw  = ctx.measureText(label).width;
+    ctx.fillStyle = tc.edgeLabelBg;
     ctx.fillRect(mx - tw / 2 - 3, my - 7, tw + 6, 14);
+    if (tc.edgeLabelBorder) {
+      ctx.strokeStyle = tc.edgeLabelBorder;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(mx - tw / 2 - 3, my - 7, tw + 6, 14);
+    }
 
-    ctx.fillStyle = isSelected || isHovered ? edgeColor(edge.name) : "#8a8f96";
+    ctx.fillStyle = isSelected || isHovered ? edgeColor(edge.name) : tc.edgeLabelDim;
     ctx.fillText(label, mx, my);
     ctx.textBaseline = "alphabetic";
   });
@@ -273,8 +347,9 @@ function drawGraph() {
       ctx.globalAlpha = 1;
     }
 
+    const ntc = themeColors();
     ctx.font = "11px JetBrains Mono, Menlo, Consolas, monospace";
-    ctx.fillStyle = isSelected ? "#ffffff" : "#edeae2";
+    ctx.fillStyle = isSelected ? ntc.nodeLabelSelected : ntc.nodeLabelNormal;
     ctx.textAlign = "center";
     ctx.fillText(truncate(node.name, 18), node.x, node.y + 22);
   });
@@ -533,8 +608,13 @@ function renderGraphData(payload) {
   const labels = [...new Set(graphState.nodes.map((n) => n.label))].sort();
   updateLegend(labels);
 
-  const W = canvas?.clientWidth  || 800;
-  const H = canvas?.clientHeight || 600;
+  if (!isCanvasReady()) {
+    graphState.simNodes = graphState.nodes.map((node) => ({ ...node, x: 0, y: 0, vx: 0, vy: 0 }));
+    return;
+  }
+
+  resizeCanvas();
+  const { width: W, height: H } = getCanvasDimensions();
   graphState.simNodes = seedPositions(graphState.nodes, W, H);
 
   // Keep selected node/edge in sync after refresh
@@ -563,12 +643,49 @@ async function refreshGraph() {
 
 // ─── public API ───────────────────────────────────────────────────────────────
 
-window.GraphView = { init: initGraphView, refresh: refreshGraph, render: renderGraphData };
+window.GraphView = {
+  init: initGraphView,
+  refresh: refreshGraph,
+  render: renderGraphData,
+  resize: resizeCanvas,
+};
+
+function graphPaneIsHidden() {
+  const pane = document.getElementById("graph-pane");
+  return Boolean(pane && pane.hidden);
+}
+
+function scheduleGraphRefreshWhenVisible() {
+  if (!graphPaneIsHidden()) {
+    refreshGraph();
+    return;
+  }
+  const pane = document.getElementById("graph-pane");
+  if (!pane || typeof MutationObserver === "undefined") return;
+  const observer = new MutationObserver(() => {
+    if (!pane.hidden && isCanvasReady()) {
+      observer.disconnect();
+      resizeCanvas();
+      refreshGraph();
+    }
+  });
+  observer.observe(pane, { attributes: true, attributeFilter: ["hidden"] });
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   initGraphView();
-  if (document.body.dataset.configReady === "true") {
-    refreshGraph();
-    window.setInterval(refreshGraph, 20000);
+  if (document.body.dataset.configReady === "true" && document.getElementById("graph-canvas")) {
+    scheduleGraphRefreshWhenVisible();
+    window.setInterval(() => {
+      if (!graphPaneIsHidden() && isCanvasReady()) refreshGraph();
+    }, 20000);
   }
 });
+
+// Re-size when a standalone graph view becomes visible
+const _graphView = document.getElementById("view-graph");
+if (_graphView && typeof MutationObserver !== "undefined") {
+  new MutationObserver(() => {
+    if (!_graphView.hidden) { resizeCanvas(); startSimulation(); }
+  }).observe(_graphView, { attributes: true, attributeFilter: ["hidden"] });
+}
